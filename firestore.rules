@@ -87,7 +87,10 @@ service cloud.firestore {
         )
       );
 
-      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        isOrgAdmin(getUserRecord(), resource.data.organizationId)
+      );
     }
 
     // ====================================================

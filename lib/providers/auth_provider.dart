@@ -254,10 +254,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     if (user == null) return;
 
     try {
-      // Sadece kullanıcı dokümanını siliyoruz, bu sayede tekrar girdiğinde OrgSetupScreen'e düşecek.
-      // Not: Admin ise kurum sahipsiz kalabilir (bu aşamada basit tutuyoruz).
+      // Önce dokümanı siliyoruz
       await _firestore.collection('users').doc(user.uid).delete();
-      state = AsyncValue.data(Unauthenticated());
+      // Sonra güvenli çıkış yapıyoruz (bu bizi login ekranına atar, tekrar girince kurulum ekranı gelir)
+      await signOut();
     } catch (e) {
       debugPrint('Kurumdan ayrılamadı: $e');
     }
