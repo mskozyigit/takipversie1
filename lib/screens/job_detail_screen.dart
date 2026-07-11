@@ -57,7 +57,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final authState = ref.watch(authProvider).value;
     final isAdmin = authState is ApprovedAdmin;
     final l10n = ref.read(translationProvider.notifier);
