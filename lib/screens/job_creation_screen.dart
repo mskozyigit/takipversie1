@@ -16,6 +16,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _addressController = TextEditingController();
+  final _customerNameController = TextEditingController();
+  final _customerPhoneController = TextEditingController();
   
   DateTime _selectedDate = DateTime.now();
   AppUser? _selectedWorker;
@@ -26,6 +28,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     _titleController.dispose();
     _descController.dispose();
     _addressController.dispose();
+    _customerNameController.dispose();
+    _customerPhoneController.dispose();
     super.dispose();
   }
 
@@ -48,6 +52,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
             assignedWorkerId: _selectedWorker!.id,
             assignedWorkerName: _selectedWorker!.name,
             address: _addressController.text.trim(),
+            customerName: _customerNameController.text.trim(),
+            customerPhone: _customerPhoneController.text.trim(),
             scheduledDate: _selectedDate,
           );
       if (mounted) Navigator.pop(context);
@@ -83,6 +89,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
+              const SizedBox(height: 16),
+              _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
+              const SizedBox(height: 16),
+              _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
               const SizedBox(height: 24),

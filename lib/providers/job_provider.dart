@@ -58,6 +58,8 @@ class JobNotifier extends Notifier<void> {
     required String assignedWorkerId,
     required String assignedWorkerName,
     required String address,
+    String? customerName,
+    String? customerPhone,
     required DateTime scheduledDate,
   }) async {
     final authState = ref.read(authProvider).value;
@@ -72,6 +74,8 @@ class JobNotifier extends Notifier<void> {
       assignedWorkerId: assignedWorkerId,
       assignedWorkerName: assignedWorkerName,
       address: address,
+      customerName: customerName,
+      customerPhone: customerPhone,
       scheduledDate: scheduledDate,
       status: JobStatus.notStarted,
       createdDate: DateTime.now(),
@@ -116,6 +120,8 @@ class JobNotifier extends Notifier<void> {
     required String assignedWorkerId,
     required String assignedWorkerName,
     required String address,
+    String? customerName,
+    String? customerPhone,
     required DateTime scheduledDate,
   }) async {
     await _firestore.collection('jobs').doc(jobId).update({
@@ -124,6 +130,8 @@ class JobNotifier extends Notifier<void> {
       'assignedWorkerId': assignedWorkerId,
       'assignedWorkerName': assignedWorkerName,
       'address': address,
+      'customerName': customerName,
+      'customerPhone': customerPhone,
       'scheduledDate': Timestamp.fromDate(scheduledDate),
     });
   }

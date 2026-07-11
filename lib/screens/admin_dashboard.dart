@@ -172,6 +172,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
   late TextEditingController _titleController;
   late TextEditingController _descController;
   late TextEditingController _addressController;
+  late TextEditingController _customerNameController;
+  late TextEditingController _customerPhoneController;
   late DateTime _selectedDate;
   AppUser? _selectedWorker;
   bool _isLoading = false;
@@ -182,6 +184,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     _titleController = TextEditingController(text: widget.job.title);
     _descController = TextEditingController(text: widget.job.description);
     _addressController = TextEditingController(text: widget.job.address);
+    _customerNameController = TextEditingController(text: widget.job.customerName);
+    _customerPhoneController = TextEditingController(text: widget.job.customerPhone);
     _selectedDate = widget.job.scheduledDate;
   }
 
@@ -190,6 +194,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     _titleController.dispose();
     _descController.dispose();
     _addressController.dispose();
+    _customerNameController.dispose();
+    _customerPhoneController.dispose();
     super.dispose();
   }
 
@@ -210,6 +216,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
         assignedWorkerId: _selectedWorker!.id,
         assignedWorkerName: _selectedWorker!.name,
         address: _addressController.text.trim(),
+        customerName: _customerNameController.text.trim(),
+        customerPhone: _customerPhoneController.text.trim(),
         scheduledDate: _selectedDate,
       );
       if (mounted) Navigator.pop(context);
@@ -245,6 +253,10 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
+              const SizedBox(height: 16),
+              _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
+              const SizedBox(height: 16),
+              _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
               const SizedBox(height: 24),

@@ -15,6 +15,8 @@ class Job {
   final String assignedWorkerId;
   final String assignedWorkerName;
   final String address;
+  final String? customerName;
+  final String? customerPhone;
   final DateTime scheduledDate;
   final JobStatus status;
   final String? missionNumber;
@@ -33,6 +35,8 @@ class Job {
     required this.assignedWorkerId,
     required this.assignedWorkerName,
     required this.address,
+    this.customerName,
+    this.customerPhone,
     required this.scheduledDate,
     required this.status,
     required this.createdDate,
@@ -54,6 +58,8 @@ class Job {
       assignedWorkerId: data['assignedWorkerId'] as String,
       assignedWorkerName: data['assignedWorkerName'] as String,
       address: data['address'] as String,
+      customerName: data['customerName'] as String?,
+      customerPhone: data['customerPhone'] as String?,
       scheduledDate: (data['scheduledDate'] as Timestamp).toDate(),
       status: _parseStatus(data['status'] as String),
       createdDate: (data['createdDate'] as Timestamp).toDate(),
@@ -74,6 +80,8 @@ class Job {
       'assignedWorkerId': assignedWorkerId,
       'assignedWorkerName': assignedWorkerName,
       'address': address,
+      'customerName': customerName,
+      'customerPhone': customerPhone,
       'scheduledDate': Timestamp.fromDate(scheduledDate),
       'status': status.name,
       'createdDate': Timestamp.fromDate(createdDate),
@@ -99,6 +107,8 @@ class Job {
     String? assignedWorkerId,
     String? assignedWorkerName,
     String? address,
+    String? customerName,
+    String? customerPhone,
     DateTime? scheduledDate,
     JobStatus? status,
     String? beforePhotoUrl,
@@ -115,6 +125,8 @@ class Job {
       assignedWorkerId: assignedWorkerId ?? this.assignedWorkerId,
       assignedWorkerName: assignedWorkerName ?? this.assignedWorkerName,
       address: address ?? this.address,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
       scheduledDate: scheduledDate ?? this.scheduledDate,
       status: status ?? this.status,
       createdDate: createdDate,
