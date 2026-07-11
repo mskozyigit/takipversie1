@@ -1,0 +1,352 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ====================================================
+    // 1. GLOBAL HELPER FUNCTIONS
+    // ====================================================
+
+    // Checks if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Fetches the user record from the /users collection safely
+    function getUserRecord() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
+    }
+
+    // Checks if the user is approved and active
+    function isApproved(user) {
+      return user != null && user.approvalStatus == 'approved';
+    }
+
+    // Checks if the user is an approved admin of the specified organization
+    function isOrgAdmin(user, orgId) {
+      return isApproved(user) && user.role == 'admin' && user.organizationId == orgId;
+    }
+
+    // Checks if the user is an approved worker of the specified organization
+    function isOrgWorker(user, orgId) {
+      return isApproved(user) && user.role == 'worker' && user.organizationId == orgId;
+    }
+
+    // Checks if the tenant matches the user's organization (Local Field Check)
+    function isTenant(orgId, user) {
+      return user.organizationId == orgId;
+    }
+
+    // ====================================================
+    // 2. ORGANIZATION RULES (/organizations/{orgId})
+    // ====================================================
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated();
+      // Allow creation if the creator is the approved admin of this organization (which they will be after bypass)
+      allow create: if isAuthenticated() && 
+                    isOrgAdmin(getUserRecord(), orgId) && 
+                    request.resource.data.activeLanguage in ['tr', 'en', 'nl'];
+      allow update: if isAuthenticated() && 
+                    isOrgAdmin(getUserRecord(), orgId) && 
+                    request.resource.data.activeLanguage in ['tr', 'en', 'nl'];
+      allow delete: if false; // Deletion disabled for data safety
+    }
+
+    // ====================================================
+    // 3. USER RULES (/users/{userId})
+    // ====================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        (resource != null && isOrgAdmin(getUserRecord(), resource.data.organizationId))
+      );
+
+      // Create rule with bypass for the Founder/First Admin:
+      // - Standard registration requires approvalStatus to be 'pending'.
+      // - Founder Admin Bypass: If the organization does not exist in the database yet,
+      //   the user is allowed to register themselves as an 'approved' 'admin' to prevent deadlock.
+      allow create: if isAuthenticated() &&
+                    request.auth.uid == userId &&
+                    (
+                      (request.resource.data.approvalStatus == 'pending' && request.resource.data.role in ['admin', 'worker']) ||
+                      (
+                        request.resource.data.role == 'admin' &&
+                        request.resource.data.approvalStatus == 'approved' &&
+                        !exists(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId))
+                      )
+                    );
+
+      // Update: Admins can update roles/approval status. Users can update own profile except role/status/orgId.
+      allow update: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (
+          request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.approvalStatus == resource.data.approvalStatus &&
+          request.resource.data.organizationId == resource.data.organizationId
+        )
+      );
+
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // ====================================================
+    // 4. JOB RULES (/jobs/{jobId})
+    // ====================================================
+    match /jobs/{jobId} {
+      
+      function hasValidMissionNumber(job) {
+        return job.missionNumber != null && (job.missionNumber is string || job.missionNumber is int);
+      }
+
+      function hasValidJobStatus(job) {
+        return job.status in ['not started', 'in progress', 'work completed', 'closed'];
+      }
+
+      // Read: Approved Admins, or assigned Worker (Local field checks only)
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() &&
+                    isOrgAdmin(getUserRecord(), request.resource.data.organizationId) &&
+                    hasValidMissionNumber(request.resource.data) &&
+                    hasValidJobStatus(request.resource.data);
+
+      allow update: if isAuthenticated() && (
+        (isOrgAdmin(getUserRecord(), resource.data.organizationId) && hasValidMissionNumber(request.resource.data) && hasValidJobStatus(request.resource.data)) ||
+        (
+          isOrgWorker(getUserRecord(), resource.data.organizationId) &&
+          resource.data.assignedWorkerId == request.auth.uid &&
+          request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
+          request.resource.data.organizationId == resource.data.organizationId &&
+          request.resource.data.missionNumber == resource.data.missionNumber &&
+          hasValidJobStatus(request.resource.data)
+        )
+      );
+
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // ====================================================
+    // 5. DENORMALIZED RELATION RULES
+    // ====================================================
+    // To resolve the N+1 Query limit (10 get() rules limit), fields like
+    // organizationId and assignedWorkerId are denormalized onto these collections.
+    // This allows local field checks without querying the parent job document.
+
+    // Payment Slots
+    match /paymentSlots/{slotId} {
+      function isValidPaymentSlot(slot) {
+        return slot.organizationId != null &&
+               slot.jobId != null &&
+               slot.slotPosition in [1, 2, 3] &&
+               slot.paymentMethod in ['qr_image', 'cash_override'] &&
+               (slot.paymentMethod != 'qr_image' || slot.imageQrRef != null) &&
+               (slot.paymentMethod != 'cash_override' || (
+                 slot.confirmedByUserId != null &&
+                 slot.confirmedTimestamp != null &&
+                 slot.auditLogEntryId != null
+               ));
+      }
+
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() && 
+                    isOrgAdmin(getUserRecord(), request.resource.data.organizationId) && 
+                    isValidPaymentSlot(request.resource.data);
+
+      allow update: if isAuthenticated() && (
+        (isOrgAdmin(getUserRecord(), resource.data.organizationId) && isValidPaymentSlot(request.resource.data)) ||
+        (
+          isOrgWorker(getUserRecord(), resource.data.organizationId) &&
+          resource.data.assignedWorkerId == request.auth.uid &&
+          request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
+          request.resource.data.organizationId == resource.data.organizationId &&
+          request.resource.data.jobId == resource.data.jobId &&
+          request.resource.data.slotPosition == resource.data.slotPosition &&
+          isValidPaymentSlot(request.resource.data)
+        )
+      );
+
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // Comments
+    match /comments/{commentId} {
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), request.resource.data.organizationId) ||
+        (
+          isOrgWorker(getUserRecord(), request.resource.data.organizationId) &&
+          request.resource.data.assignedWorkerId == request.auth.uid &&
+          request.resource.data.authorId == request.auth.uid
+        )
+      );
+
+      allow update: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (
+          isOrgWorker(getUserRecord(), resource.data.organizationId) &&
+          resource.data.assignedWorkerId == request.auth.uid &&
+          resource.data.authorId == request.auth.uid &&
+          request.resource.data.authorId == resource.data.authorId &&
+          request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
+          request.resource.data.jobId == resource.data.jobId &&
+          request.resource.data.organizationId == resource.data.organizationId
+        )
+      );
+
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // Part Line Items
+    match /partLineItems/{itemId} {
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+      
+      allow create: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), request.resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), request.resource.data.organizationId) && request.resource.data.assignedWorkerId == request.auth.uid)
+      );
+      
+      allow update: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (
+          isOrgWorker(getUserRecord(), resource.data.organizationId) &&
+          resource.data.assignedWorkerId == request.auth.uid &&
+          request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
+          request.resource.data.jobId == resource.data.jobId &&
+          request.resource.data.organizationId == resource.data.organizationId
+        )
+      );
+
+      allow delete: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+    }
+
+    // Safety Checklist Responses
+    match /safetyChecklistResponses/{responseId} {
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+
+      allow create: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), request.resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), request.resource.data.organizationId) && request.resource.data.assignedWorkerId == request.auth.uid)
+      );
+
+      allow update: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (
+          isOrgWorker(getUserRecord(), resource.data.organizationId) &&
+          resource.data.assignedWorkerId == request.auth.uid &&
+          request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
+          request.resource.data.jobId == resource.data.jobId &&
+          request.resource.data.organizationId == resource.data.organizationId
+        )
+      );
+
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // Quotes
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // Invoices
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated() && (
+        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
+        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
+      );
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    // ====================================================
+    // 6. STANDARD ROOT COLLECTIONS
+    // ====================================================
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && isTenant(resource.data.organizationId, getUserRecord());
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    match /assets/{assetId} {
+      allow read: if isAuthenticated() && isTenant(resource.data.organizationId, getUserRecord());
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    match /safetyChecklistTemplates/{templateId} {
+      allow read: if isAuthenticated() && isTenant(resource.data.organizationId, getUserRecord());
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    match /certifications/{certId} {
+      allow read: if isAuthenticated() && (
+        resource.data.workerId == request.auth.uid ||
+        isOrgAdmin(getUserRecord(), resource.data.organizationId)
+      );
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    match /integrationConfigs/{configId} {
+      allow read: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    match /approvalRequests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isOrgAdmin(getUserRecord(), resource.data.organizationId)
+      );
+      allow create: if isAuthenticated() &&
+                    request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
+    match /auditLogEntries/{entryId} {
+      allow read: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow create: if isAuthenticated() &&
+                    isApproved(getUserRecord()) &&
+                    request.resource.data.actorId == request.auth.uid &&
+                    isTenant(request.resource.data.organizationId, getUserRecord());
+      allow update: if false;
+      allow delete: if false;
+    }
+
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "801307611460",
+    "project_id": "takipversi1",
+    "storage_bucket": "takipversi1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:801307611460:android:f4640801a3c88d04c9c711",
+        "android_client_info": {
+          "package_name": "com.example.takipversie1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "801307611460-3d76cqssvmtgabq557se7krduabm9s3p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWIFaooJ-yL3_U1gtRPdHzTy0cw9jMLgg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "801307611460-3d76cqssvmtgabq557se7krduabm9s3p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "801307611460-ttooj37oeoe4dbptf1qkqoddesjfqpnc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.takipversie1"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
