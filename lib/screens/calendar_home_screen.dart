@@ -11,6 +11,9 @@ import 'job_detail_screen.dart';
 import 'admin_dashboard.dart';
 import 'module_settings_screen.dart';
 import '../providers/module_provider.dart';
+import '../widgets/calendar/job_card.dart';
+import '../widgets/calendar/view_toggle.dart';
+import '../widgets/calendar/join_code_card.dart';
 
 class CalendarHomeScreen extends ConsumerStatefulWidget {
   const CalendarHomeScreen({super.key});
@@ -38,8 +41,10 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     final isAdmin = authState is ApprovedAdmin;
     final orgAsync = ref.watch(currentOrganizationProvider);
     
-    // Admin ise tüm işleri, Worker ise sadece kendine atananları izle
-    final jobsAsync = isAdmin ? ref.watch(allJobsProvider) : ref.watch(workerJobsProvider);
+    // Admin ise tüm işleri, Worker ise sadece kendine atananları izle (Aylık bazlı)
+    final jobsAsync = isAdmin 
+      ? ref.watch(allJobsProvider(_focusedDay)) 
+      : ref.watch(workerJobsProvider(_focusedDay));
     final workersAsync = ref.watch(organizationWorkersProvider); // CAL-03
     final l10n = ref.read(translationProvider.notifier);
 
@@ -260,7 +265,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       itemCount: selectedJobs.length,
       itemBuilder: (context, index) {
         final job = selectedJobs[index];
-        return _JobCard(job: job, isAdmin: isAdmin, l10n: l10n, onStatusColor: _getStatusColor(job.status));
+        return JobCard(job: job, isAdmin: isAdmin, l10n: l10n, onStatusColor: _getStatusColor(job.status));
       },
     );
   }
@@ -337,110 +342,5 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       case JobStatus.workCompleted: return Colors.blue;
       case JobStatus.closed: return Colors.green;
     }
-  }
-}
-
-class _JobCard extends StatelessWidget {
-  final Job job;
-  final bool isAdmin;
-  final TranslationNotifier l10n;
-  final Color onStatusColor;
-
-  const _JobCard({required this.job, required this.isAdmin, required this.l10n, required this.onStatusColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      color: const Color(0xFF1A2A3A),
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        leading: Container(width: 4, height: double.infinity, color: onStatusColor),
-        title: Text(job.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        subtitle: Text(
-          '${isAdmin ? job.assignedWorkerName : job.address} • ${l10n.translate('job_status_${job.status.name}')}',
-          style: const TextStyle(color: Color(0xFF90A4AE)),
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Color(0xFF4FC3F7)),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobDetailScreen(job: job))),
-      ),
-    );
-  }
-}
-
-class _ViewToggle extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ViewToggle({required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4FC3F7) : const Color(0xFF1A2A3A),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? const Color(0xFF0D1B2A) : Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JoinCodeCard extends StatelessWidget {
-  final Organization org;
-  final TranslationNotifier l10n;
-  final bool showCode;
-
-  const _JoinCodeCard({required this.org, required this.l10n, required this.showCode});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A2A3A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1565C0), width: 1),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(org.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                if (showCode)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4.0),
-                    child: Text('${l10n.translate('admin_join_code')}: ${org.joinCode}',
-                        style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-              ],
-            ),
-          ),
-          if (showCode)
-            IconButton(
-              icon: const Icon(Icons.copy, color: Color(0xFF4FC3F7), size: 20),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Kod kopyalandı!')),
-                );
-              },
-            ),
-        ],
-      ),
-    );
   }
 }

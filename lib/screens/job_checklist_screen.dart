@@ -5,6 +5,11 @@ import '../models/organization.dart';
 import '../providers/job_provider.dart' hide required;
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
+import '../widgets/checklist/safety_step.dart';
+import '../widgets/checklist/payment_step.dart';
+import '../widgets/checklist/parts_step.dart';
+import '../widgets/checklist/photo_step.dart';
+import '../widgets/checklist/comments_section.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class JobChecklistScreen extends ConsumerStatefulWidget {
@@ -215,7 +220,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           ),
           Step(
             title: Text(l10n.translate('job_before_photo'), style: const TextStyle(color: Colors.white)),
-            content: _PhotoUploadContent(
+            content: PhotoStep(
               url: _beforePhotoUrl,
               onTap: () => _takePhoto(true),
               l10n: l10n,
@@ -225,13 +230,13 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           ),
           Step(
             title: Text(l10n.translate('job_parts_title'), style: const TextStyle(color: Colors.white)),
-            content: _PartsContent(job: widget.job, l10n: l10n, ref: ref),
+            content: PartsStep(job: widget.job, l10n: l10n, ref: ref),
             isActive: _currentStep >= 2,
             state: _currentStep > 2 ? StepState.complete : StepState.indexed,
           ),
           Step(
             title: Text(l10n.translate('job_after_photo'), style: const TextStyle(color: Colors.white)),
-            content: _PhotoUploadContent(
+            content: PhotoStep(
               url: _afterPhotoUrl,
               onTap: () => _takePhoto(false),
               l10n: l10n,
@@ -242,13 +247,13 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           if (ref.watch(moduleRegistryProvider)['SAFE-01'] ?? false)
             Step(
               title: Text(l10n.translate('safe_checklist_title'), style: const TextStyle(color: Colors.white)),
-              content: _SafetyContent(job: widget.job),
+              content: SafetyStep(job: widget.job),
               isActive: _currentStep >= 4,
               state: _currentStep > 4 ? StepState.complete : StepState.indexed,
             ),
           Step(
             title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
-            content: _PaymentContent(job: widget.job, org: org, l10n: l10n, ref: ref),
+            content: PaymentStep(job: widget.job, org: org, l10n: l10n, ref: ref),
             isActive: _currentStep >= 5,
             state: _currentStep > 5 ? StepState.complete : StepState.indexed,
           ),
@@ -261,271 +266,10 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         ],
       ),
       const Divider(color: Color(0xFF1A2A3A), thickness: 2),
-      _CommentsSection(jobId: widget.job.id, l10n: l10n),
+      CommentsSection(jobId: widget.job.id, l10n: l10n),
     ],
   ),
 ),
 );
 }
-
-class _CommentsSection extends ConsumerWidget {
-  final String jobId;
-  final TranslationNotifier l10n;
-  const _CommentsSection({required this.jobId, required this.l10n});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final commentsAsync = ref.watch(commentsProvider(jobId));
-    final controller = TextEditingController();
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(l10n.translate('job_notes_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          commentsAsync.when(
-            data: (comments) => ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: comments.length,
-              itemBuilder: (context, i) {
-                final c = comments[i];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('${c.authorName}: ${c.text}', style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
-                );
-              },
-            ),
-            loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text(l10n.translate('error_loading', {'error': e.toString()})),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  decoration: InputDecoration(hintText: l10n.translate('job_notes_hint'), hintStyle: const TextStyle(color: Color(0xFF546E7A))),
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.send, color: Color(0xFF4FC3F7)),
-                onPressed: () {
-                  if (controller.text.trim().isNotEmpty) {
-                    ref.read(jobOperationsProvider.notifier).addComment(jobId, controller.text.trim());
-                    controller.clear();
-                  }
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PartsContent extends StatelessWidget {
-  final Job job;
-  final TranslationNotifier l10n;
-  final WidgetRef ref;
-
-  const _PartsContent({required this.job, required this.l10n, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (job.usedParts != null)
-          ...job.usedParts!.map((p) => ListTile(
-            title: Text(p['name'], style: const TextStyle(color: Colors.white)),
-            trailing: Text('x${p['qty']}', style: const TextStyle(color: Color(0xFF4FC3F7))),
-          )),
-        OutlinedButton.icon(
-          onPressed: () async {
-            final nameController = TextEditingController();
-            final qtyController = TextEditingController(text: '1');
-            await showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: Text(l10n.translate('job_add_part')),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(controller: nameController, decoration: const InputDecoration(hintText: 'Parça Adı')),
-                    TextField(controller: qtyController, decoration: const InputDecoration(hintText: 'Adet'), keyboardType: TextInputType.number),
-                  ],
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
-                  TextButton(onPressed: () {
-                    ref.read(jobOperationsProvider.notifier).addJobPart(job.id, {
-                      'name': nameController.text,
-                      'qty': int.tryParse(qtyController.text) ?? 1,
-                    });
-                    Navigator.pop(ctx);
-                  }, child: const Text('Ekle')),
-                ],
-              ),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: Text(l10n.translate('job_add_part')),
-        ),
-      ],
-    );
-  }
-}
-
-class _PaymentContent extends StatelessWidget {
-  final Job job;
-  final Organization? org;
-  final TranslationNotifier l10n;
-  final WidgetRef ref;
-
-  const _PaymentContent({required this.job, this.org, required this.l10n, required this.ref});
-
-  @override
-  Widget build(BuildContext context) {
-    if (job.isPaid) {
-      return Row(
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green),
-          const SizedBox(width: 8),
-          Text(l10n.translate('job_payment_received') + ' (${job.paymentMethod == 'cash' ? l10n.translate('job_payment_cash') : l10n.translate('job_payment_qr')})',
-               style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (org?.paymentQrUrl != null)
-          Container(
-            height: 200,
-            width: 200,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              image: DecorationImage(image: NetworkImage(org!.paymentQrUrl!), fit: BoxFit.contain),
-            ),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(l10n.translate('job_payment_qr_not_available'), style: const TextStyle(color: Colors.orange, fontSize: 12)),
-          ),
-        Row(
-          children: [
-            if (org?.paymentQrUrl != null)
-              ElevatedButton(
-                onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr'),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7)),
-                child: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
-              ),
-            if (org?.paymentQrUrl != null) const SizedBox(width: 12),
-            OutlinedButton(
-              onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash'),
-              child: Text(l10n.translate('job_payment_cash')),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _PhotoUploadContent extends StatelessWidget {
-  final String? url;
-  final VoidCallback onTap;
-  final TranslationNotifier l10n;
-
-  const _PhotoUploadContent({required this.url, required this.onTap, required this.l10n});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (url != null)
-          Container(
-            height: 200,
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              image: DecorationImage(image: NetworkImage(url!), fit: BoxFit.cover),
-            ),
-          ),
-        OutlinedButton.icon(
-          onPressed: onTap,
-          icon: const Icon(Icons.camera_alt),
-          label: Text(url == null ? 'Fotoğraf Çek' : 'Fotoğrafı Değiştir'),
-          style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF4FC3F7)),
-        ),
-      ],
-    );
-  }
-}
-
-class _SafetyContent extends ConsumerWidget {
-  final Job job;
-
-  const _SafetyContent({required this.job});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = ref.read(translationProvider.notifier);
-    final checklist = job.safetyChecklist ?? {
-      'ppe': false,
-      'hazard': false,
-      'lockout': false,
-    };
-
-    void update(String key, bool value) {
-      final next = Map<String, bool>.from(checklist);
-      next[key] = value;
-      ref.read(jobOperationsProvider.notifier).updateSafetyChecklist(job.id, next);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CheckboxListTile(
-          title: Text(l10n.translate('safe_checklist_item_ppe'), style: const TextStyle(color: Colors.white, fontSize: 14)),
-          value: checklist['ppe'],
-          onChanged: (val) => update('ppe', val ?? false),
-          controlAffinity: ListTileControlAffinity.leading,
-          activeColor: const Color(0xFF4FC3F7),
-        ),
-        CheckboxListTile(
-          title: Text(l10n.translate('safe_checklist_item_hazard'), style: const TextStyle(color: Colors.white, fontSize: 14)),
-          value: checklist['hazard'],
-          onChanged: (val) => update('hazard', val ?? false),
-          controlAffinity: ListTileControlAffinity.leading,
-          activeColor: const Color(0xFF4FC3F7),
-        ),
-        CheckboxListTile(
-          title: Text(l10n.translate('safe_checklist_item_lockout'), style: const TextStyle(color: Colors.white, fontSize: 14)),
-          value: checklist['lockout'],
-          onChanged: (val) => update('lockout', val ?? false),
-          controlAffinity: ListTileControlAffinity.leading,
-          activeColor: const Color(0xFF4FC3F7),
-        ),
-        const SizedBox(height: 12),
-        if (job.isSafetyConfirmed)
-          const Row(
-            children: [
-              Icon(Icons.verified_user, color: Colors.green, size: 16),
-              SizedBox(width: 8),
-              Text('Güvenlik adımları onaylandı.', style: TextStyle(color: Colors.green, fontSize: 12)),
-            ],
-          ),
-      ],
-    );
-  }
 }

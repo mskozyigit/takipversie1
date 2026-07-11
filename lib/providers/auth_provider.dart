@@ -1,12 +1,13 @@
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/app_user.dart';
 import '../models/organization.dart';
-import 'translations.dart';
 
 // -----------------------------------------------------------------------
 // Auth State Sealed Class
@@ -353,21 +354,32 @@ final currentUserProvider = Provider<AppUser?>((ref) {
 // -----------------------------------------------------------------------
 
 class TranslationNotifier extends AsyncNotifier<String> {
+  Map<String, String> _map = {};
+
   @override
   Future<String> build() async {
     // Auth state'i dinle
     final authState = ref.watch(authProvider).value;
 
+    String lang = 'tr';
     if (authState is ApprovedAdmin) {
-      return _getOrgLanguage(authState.appUser.organizationId);
+      lang = await _getOrgLanguage(authState.appUser.organizationId);
     } else if (authState is ApprovedWorker) {
-      return _getOrgLanguage(authState.appUser.organizationId);
+      lang = await _getOrgLanguage(authState.appUser.organizationId);
     } else if (authState is PendingApproval) {
-      return _getOrgLanguage(authState.appUser.organizationId);
+      lang = await _getOrgLanguage(authState.appUser.organizationId);
     }
 
-    // Varsayılan dil (Giriş ekranı vb. için)
-    return 'tr';
+    try {
+      final jsonStr = await rootBundle.loadString('assets/lang/$lang.json');
+      final Map<String, dynamic> decoded = json.decode(jsonStr);
+      _map = decoded.map((key, value) => MapEntry(key, value.toString()));
+    } catch (e) {
+      debugPrint('Translation load error: $e');
+      _map = {};
+    }
+
+    return lang;
   }
 
   Future<String> _getOrgLanguage(String orgId) async {
@@ -385,8 +397,7 @@ class TranslationNotifier extends AsyncNotifier<String> {
   }
 
   String translate(String key, [Map<String, String>? params]) {
-    final lang = state.value ?? 'tr';
-    String text = translations[lang]?[key] ?? translations['tr']?[key] ?? key;
+    String text = _map[key] ?? key;
     
     if (params != null) {
       params.forEach((k, v) {

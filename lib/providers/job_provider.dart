@@ -39,31 +39,47 @@ final commentsProvider = StreamProvider.family<List<JobComment>, String>((ref, j
       .map((snapshot) => snapshot.docs.map((doc) => JobComment.fromFirestore(doc)).toList());
 });
 
-/// Organization-wide jobs stream (for Admins)
-final allJobsProvider = StreamProvider<List<Job>>((ref) {
+/// Organization-wide jobs stream (for Admins) - Month based
+final allJobsProvider = StreamProvider.family<List<Job>, DateTime>((ref, date) {
   final authState = ref.watch(authProvider).value;
   if (authState is! ApprovedAdmin) return Stream.value([]);
+
+  final start = DateTime(date.year, date.month, 1);
+  final end = DateTime(date.year, date.month + 1, 1).subtract(const Duration(milliseconds: 1));
 
   return _firestore
       .collection('jobs')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
-      .orderBy('scheduledDate', descending: true)
+      .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+      .where('scheduledDate', isLessThanOrEqualTo: Timestamp.fromDate(end))
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList());
+      .map((snapshot) {
+        final jobs = snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList();
+        jobs.sort((a, b) => b.scheduledDate.compareTo(a.scheduledDate));
+        return jobs;
+      });
 });
 
-/// Worker-specific jobs stream
-final workerJobsProvider = StreamProvider<List<Job>>((ref) {
+/// Worker-specific jobs stream - Month based
+final workerJobsProvider = StreamProvider.family<List<Job>, DateTime>((ref, date) {
   final authState = ref.watch(authProvider).value;
   if (authState is! ApprovedWorker) return Stream.value([]);
+
+  final start = DateTime(date.year, date.month, 1);
+  final end = DateTime(date.year, date.month + 1, 1).subtract(const Duration(milliseconds: 1));
 
   return _firestore
       .collection('jobs')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
       .where('assignedWorkerId', isEqualTo: authState.appUser.id)
-      .orderBy('scheduledDate', descending: true)
+      .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+      .where('scheduledDate', isLessThanOrEqualTo: Timestamp.fromDate(end))
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList());
+      .map((snapshot) {
+        final jobs = snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList();
+        jobs.sort((a, b) => b.scheduledDate.compareTo(a.scheduledDate));
+        return jobs;
+      });
 });
 
 /// All approved workers in the organization (for Job Assignment)

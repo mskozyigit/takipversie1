@@ -6,6 +6,7 @@ import '../models/job.dart';
 import '../providers/job_provider.dart';
 import 'job_creation_screen.dart';
 import 'module_settings_screen.dart';
+import '../widgets/calendar/join_code_card.dart';
 
 class AdminDashboard extends ConsumerWidget {
   final AppUser adminUser;
@@ -38,66 +39,12 @@ class AdminDashboard extends ConsumerWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Organizasyon Bilgi Kartı (Join Code buraya eklendi)
+          // Organizasyon Bilgi Kartı
           orgAsync.when(
-            data: (org) => org == null
-                ? const SizedBox()
-                : Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A2A3A),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF1565C0), width: 1),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          org.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Text(
-                              '${l10n.translate('admin_join_code')}: ',
-                              style: const TextStyle(color: Color(0xFF90A4AE)),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0D1B2A),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                org.joinCode,
-                                style: const TextStyle(
-                                  color: Color(0xFF4FC3F7),
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              icon: const Icon(Icons.copy, color: Color(0xFF4FC3F7), size: 20),
-                              onPressed: () {
-                                // Opsiyonel: Panoya kopyalama eklenebilir
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Kod kopyalandı!')),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+            data: (org) => org == null ? const SizedBox() : JoinCodeCard(org: org, l10n: l10n, showCode: true),
+            loading: () => const LinearProgressIndicator(),
+            error: (_, __) => const SizedBox(),
+          ),
                       ],
                     ),
                   ),
