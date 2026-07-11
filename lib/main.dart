@@ -7,6 +7,7 @@ import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/org_setup_screen.dart';
 import 'screens/pending_screen.dart';
+import 'screens/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,34 +87,8 @@ class AuthGate extends ConsumerWidget {
         // Onay bekliyor → Pending ekranı
         PendingApproval() => const PendingScreen(),
 
-        // Onaylanmış Admin → Admin Dashboard (sonraki aşama)
-        ApprovedAdmin(appUser: final user) => Scaffold(
-            backgroundColor: const Color(0xFF0D1B2A),
-            appBar: AppBar(
-              title: Text('${l10n.translate('admin_panel_title')} — ${user.name}'),
-              backgroundColor: const Color(0xFF1565C0),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.logout),
-                  onPressed: () => ref.read(authProvider.notifier).signOut(),
-                ),
-              ],
-            ),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.admin_panel_settings, size: 64, color: Color(0xFF4FC3F7)),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${l10n.translate('admin_panel_title')}\nSonraki aşamada inşa edilecek.',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        // Onaylanmış Admin → Admin Dashboard
+        ApprovedAdmin(appUser: final user) => AdminDashboard(adminUser: user),
 
         // Onaylanmış Worker → Worker Dashboard (sonraki aşama)
         ApprovedWorker(appUser: final user) => Scaffold(

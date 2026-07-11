@@ -224,6 +224,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }
 
   // -----------------------------------------------------------------------
+  // ADM-03: Kullanıcı Onaylama / Reddetme
+  // -----------------------------------------------------------------------
+
+  Future<void> updateUserStatus(String userId, ApprovalStatus newStatus) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'approvalStatus': newStatus.name,
+      });
+    } catch (e) {
+      debugPrint('Kullanıcı durumu güncellenemedi: $e');
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Sign Out
   // -----------------------------------------------------------------------
 
@@ -256,8 +270,22 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
 /// Ana auth state provider
 final authProvider = AsyncNotifierProvider<AuthNotifier, AuthState>(
-  AuthNotifier.new,
+  () => AuthNotifier(),
 );
+
+/// Onay bekleyen kullanıcıları dinleyen provider
+final pendingUsersProvider = StreamProvider<List<AppUser>>((ref) {
+  final authState = ref.watch(authProvider).value;
+  if (authState is! ApprovedAdmin) return Stream.value([]);
+
+  return _firestore
+      .collection('users')
+      .where('organizationId', isEqualTo: authState.appUser.organizationId)
+      .where('approvalStatus', isEqualTo: 'pending')
+      .snapshots()
+      .map((snapshot) =>
+          snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList());
+});
 
 /// Mevcut AppUser'ı döndürür (null ise giriş yapılmamış)
 final currentUserProvider = Provider<AppUser?>((ref) {
