@@ -108,6 +108,25 @@ class JobNotifier extends Notifier<void> {
       'isPaid': true,
     });
   }
+
+  Future<void> updateJob({
+    required String jobId,
+    required String title,
+    required String description,
+    required String assignedWorkerId,
+    required String assignedWorkerName,
+    required String address,
+    required DateTime scheduledDate,
+  }) async {
+    await _firestore.collection('jobs').doc(jobId).update({
+      'title': title,
+      'description': description,
+      'assignedWorkerId': assignedWorkerId,
+      'assignedWorkerName': assignedWorkerName,
+      'address': address,
+      'scheduledDate': Timestamp.fromDate(scheduledDate),
+    });
+  }
 }
 
 final jobOperationsProvider = NotifierProvider<JobNotifier, void>(() => JobNotifier());

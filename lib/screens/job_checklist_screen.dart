@@ -4,6 +4,7 @@ import '../models/job.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class JobChecklistScreen extends ConsumerStatefulWidget {
   final Job job;
@@ -103,9 +104,23 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     }
   }
 
+  void _prevStep() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    }
+  }
+
+  Future<void> _launchMaps(String address) async {
+    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = ref.read(translationProvider.notifier);
+    final org = ref.watch(currentOrganizationProvider).value;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
@@ -117,28 +132,65 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         type: StepperType.vertical,
         currentStep: _currentStep,
         onStepContinue: _isUploading ? null : _nextStep,
+        onStepCancel: _prevStep,
+        onStepTapped: (step) {
+          if (step < _currentStep) {
+            setState(() => _currentStep = step);
+          }
+        },
         controlsBuilder: (context, details) {
+          final isFirst = _currentStep == 0;
+          final isLast = _currentStep == 5;
+
           return Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: ElevatedButton(
-              onPressed: details.onStepContinue,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _currentStep == 5 ? Colors.green : const Color(0xFF1565C0),
-                minimumSize: const Size(120, 45),
-              ),
-              child: _isUploading 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : Text(
-                    _currentStep == 5 ? l10n.translate('job_checklist_finish') : l10n.translate('job_checklist_start'),
-                    style: const TextStyle(color: Colors.white),
+            child: Row(
+              children: [
+                if (!isFirst)
+                  TextButton(
+                    onPressed: details.onStepCancel,
+                    child: Text(l10n.translate('job_checklist_back'), style: const TextStyle(color: Color(0xFF90A4AE))),
                   ),
+                if (!isFirst) const Spacer(),
+                ElevatedButton(
+                  onPressed: details.onStepContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isLast ? Colors.green : const Color(0xFF1565C0),
+                    minimumSize: const Size(120, 45),
+                  ),
+                  child: _isUploading 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(
+                        isLast 
+                          ? l10n.translate('job_checklist_finish') 
+                          : (isFirst ? l10n.translate('job_checklist_start') : l10n.translate('job_checklist_next')),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                ),
+              ],
             ),
           );
         },
         steps: [
           Step(
             title: Text(l10n.translate('job_checklist_start'), style: const TextStyle(color: Colors.white)),
-            content: Text(l10n.translate('job_description') + ': ' + widget.job.description, style: const TextStyle(color: Color(0xFF90A4AE))),
+            content: InkWell(
+              onTap: () => _launchMaps(widget.job.address),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.translate('job_description') + ': ' + widget.job.description, style: const TextStyle(color: Color(0xFF90A4AE))),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.map, color: Color(0xFF4FC3F7), size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(child: Text(widget.job.address, style: const TextStyle(color: Color(0xFF4FC3F7), decoration: TextDecoration.underline))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             isActive: _currentStep >= 0,
             state: _currentStep > 0 ? StepState.complete : StepState.indexed,
           ),
@@ -170,7 +222,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           ),
           Step(
             title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
-            content: _PaymentContent(job: widget.job, l10n: l10n, ref: ref),
+            content: _PaymentContent(job: widget.job, org: org, l10n: l10n, ref: ref),
             isActive: _currentStep >= 4,
             state: _currentStep > 4 ? StepState.complete : StepState.indexed,
           ),
@@ -241,10 +293,11 @@ class _PartsContent extends StatelessWidget {
 
 class _PaymentContent extends StatelessWidget {
   final Job job;
+  final Organization? org;
   final TranslationNotifier l10n;
   final WidgetRef ref;
 
-  const _PaymentContent({required this.job, required this.l10n, required this.ref});
+  const _PaymentContent({required this.job, this.org, required this.l10n, required this.ref});
 
   @override
   Widget build(BuildContext context) {
@@ -253,23 +306,44 @@ class _PaymentContent extends StatelessWidget {
         children: [
           const Icon(Icons.check_circle, color: Colors.green),
           const SizedBox(width: 8),
-          Text(l10n.translate('job_payment_received') + ' (${job.paymentMethod?.toUpperCase()})',
+          Text(l10n.translate('job_payment_received') + ' (${job.paymentMethod == 'cash' ? l10n.translate('job_payment_cash') : l10n.translate('job_payment_qr')})',
                style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
         ],
       );
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ElevatedButton(
-          onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr'),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7)),
-          child: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
-        ),
-        const SizedBox(width: 12),
-        OutlinedButton(
-          onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash'),
-          child: Text(l10n.translate('job_payment_cash')),
+        if (org?.paymentQrUrl != null)
+          Container(
+            height: 200,
+            width: 200,
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              image: DecorationImage(image: NetworkImage(org!.paymentQrUrl!), fit: BoxFit.contain),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(l10n.translate('job_payment_qr_not_available'), style: const TextStyle(color: Colors.orange, fontSize: 12)),
+          ),
+        Row(
+          children: [
+            if (org?.paymentQrUrl != null)
+              ElevatedButton(
+                onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr'),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7)),
+                child: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
+              ),
+            if (org?.paymentQrUrl != null) const SizedBox(width: 12),
+            OutlinedButton(
+              onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash'),
+              child: Text(l10n.translate('job_payment_cash')),
+            ),
+          ],
         ),
       ],
     );

@@ -8,6 +8,7 @@ import '../models/organization.dart';
 import 'job_creation_screen.dart';
 import 'job_checklist_screen.dart';
 import 'admin_dashboard.dart';
+import 'job_edit_screen.dart';
 
 class CalendarHomeScreen extends ConsumerStatefulWidget {
   const CalendarHomeScreen({super.key});
@@ -258,7 +259,11 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                       final job = dayJobs[i];
                       return GestureDetector(
                         onTap: () {
-                           if (!isAdmin) Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
+                           if (isAdmin) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)));
+                          } else {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
+                          }
                         },
                         child: Container(
                           margin: const EdgeInsets.all(4),
@@ -326,7 +331,9 @@ class _JobCard extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right, color: Color(0xFF4FC3F7)),
         onTap: () {
-          if (!isAdmin) {
+          if (isAdmin) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)));
+          } else {
             Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
           }
         },

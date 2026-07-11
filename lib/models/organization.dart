@@ -6,6 +6,7 @@ class Organization {
   final String joinCode;
   final DateTime createdDate;
   final String activeLanguage;
+  final String? paymentQrUrl;
 
   const Organization({
     required this.id,
@@ -13,6 +14,7 @@ class Organization {
     required this.joinCode,
     required this.createdDate,
     this.activeLanguage = 'nl',
+    this.paymentQrUrl,
   });
 
   factory Organization.fromFirestore(DocumentSnapshot doc) {
@@ -23,6 +25,7 @@ class Organization {
       joinCode: data['joinCode'] as String,
       createdDate: (data['createdDate'] as Timestamp).toDate(),
       activeLanguage: data['activeLanguage'] as String? ?? 'nl',
+      paymentQrUrl: data['paymentQrUrl'] as String?,
     );
   }
 
@@ -32,6 +35,7 @@ class Organization {
       'joinCode': joinCode,
       'createdDate': Timestamp.fromDate(createdDate),
       'activeLanguage': activeLanguage,
+      'paymentQrUrl': paymentQrUrl,
     };
   }
 }
