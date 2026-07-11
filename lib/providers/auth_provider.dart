@@ -237,6 +237,18 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     }
   }
 
+  Future<void> cancelJoinRequest() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _firestore.collection('users').doc(user.uid).delete();
+      state = AsyncValue.data(Unauthenticated());
+    } catch (e) {
+      debugPrint('İstek iptal edilemedi: $e');
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Sign Out
   // -----------------------------------------------------------------------

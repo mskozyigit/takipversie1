@@ -20,6 +20,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.week;
+  bool _isMultiDayView = false;
 
   @override
   void initState() {
@@ -72,7 +73,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   error: (_, __) => const SizedBox(),
                 ),
 
-              // Görünüm Seçici (1 Gün, 3 Gün, Hafta, Ay)
+              // Görünüm Seçici (3 Gün, Hafta, Ay)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: SingleChildScrollView(
@@ -80,21 +81,30 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   child: Row(
                     children: [
                       _ViewToggle(
-                        label: l10n.translate('view_1day'),
-                        isSelected: _calendarFormat == CalendarFormat.week && false, // placeholder logic
-                        onTap: () => setState(() => _calendarFormat = CalendarFormat.week),
+                        label: l10n.translate('view_3day'),
+                        isSelected: _calendarFormat == CalendarFormat.week && _isMultiDayView,
+                        onTap: () => setState(() {
+                          _calendarFormat = CalendarFormat.week;
+                          _isMultiDayView = true;
+                        }),
                       ),
                       const SizedBox(width: 8),
                       _ViewToggle(
                         label: l10n.translate('view_week'),
-                        isSelected: _calendarFormat == CalendarFormat.week,
-                        onTap: () => setState(() => _calendarFormat = CalendarFormat.week),
+                        isSelected: _calendarFormat == CalendarFormat.week && !_isMultiDayView,
+                        onTap: () => setState(() {
+                          _calendarFormat = CalendarFormat.week;
+                          _isMultiDayView = false;
+                        }),
                       ),
                       const SizedBox(width: 8),
                       _ViewToggle(
                         label: l10n.translate('view_month'),
                         isSelected: _calendarFormat == CalendarFormat.month,
-                        onTap: () => setState(() => _calendarFormat = CalendarFormat.month),
+                        onTap: () => setState(() {
+                          _calendarFormat = CalendarFormat.month;
+                          _isMultiDayView = false;
+                        }),
                       ),
                     ],
                   ),
@@ -114,7 +124,10 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   });
                 },
                 onFormatChanged: (format) {
-                  setState(() => _calendarFormat = format);
+                  setState(() {
+                    _calendarFormat = format;
+                    _isMultiDayView = false;
+                  });
                 },
                 calendarStyle: CalendarStyle(
                   defaultTextStyle: const TextStyle(color: Colors.white),
@@ -135,38 +148,9 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               ),
               const Divider(color: Color(0xFF1A2A3A), thickness: 2),
               Expanded(
-                child: selectedJobs.isEmpty
-                    ? Center(child: Text(l10n.translate('admin_no_pending'), style: const TextStyle(color: Color(0xFF90A4AE))))
-                    : ListView.builder(
-                        itemCount: selectedJobs.length,
-                        itemBuilder: (context, index) {
-                          final job = selectedJobs[index];
-                          return Card(
-                            color: const Color(0xFF1A2A3A),
-                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: ListTile(
-                              leading: Container(
-                                width: 4,
-                                height: double.infinity,
-                                color: _getStatusColor(job.status),
-                              ),
-                              title: Text(job.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              subtitle: Text(
-                                '${isAdmin ? job.assignedWorkerName : job.address} • ${l10n.translate('job_status_${job.status.name}')}',
-                                style: const TextStyle(color: Color(0xFF90A4AE)),
-                              ),
-                              trailing: const Icon(Icons.chevron_right, color: Color(0xFF4FC3F7)),
-                              onTap: () {
-                                if (isAdmin) {
-                                  // Admin için iş detay eklenebilir
-                                } else {
-                                  Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
+                child: _isMultiDayView
+                    ? _buildMultiDayView(jobs, l10n, isAdmin)
+                    : _buildSingleDayList(selectedJobs, l10n, isAdmin),
               ),
             ],
           );
@@ -182,6 +166,102 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
             )
           : null,
     );
+  }
+
+  Widget _buildSingleDayList(List<Job> selectedJobs, TranslationNotifier l10n, bool isAdmin) {
+    if (selectedJobs.isEmpty) {
+      return Center(child: Text(l10n.translate('admin_no_pending'), style: const TextStyle(color: Color(0xFF90A4AE))));
+    }
+    return ListView.builder(
+      itemCount: selectedJobs.length,
+      itemBuilder: (context, index) {
+        final job = selectedJobs[index];
+        return Card(
+          color: const Color(0xFF1A2A3A),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ListTile(
+            leading: Container(
+              width: 4,
+              height: double.infinity,
+              color: _getStatusColor(job.status),
+            ),
+            title: Text(job.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: Text(
+              '${isAdmin ? job.assignedWorkerName : job.address} • ${l10n.translate('job_status_${job.status.name}')}',
+              style: const TextStyle(color: Color(0xFF90A4AE)),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: Color(0xFF4FC3F7)),
+            onTap: () {
+              if (!isAdmin) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMultiDayView(List<Job> allJobs, TranslationNotifier l10n, bool isAdmin) {
+    final startDay = _selectedDay ?? _focusedDay;
+    final days = List.generate(3, (i) => startDay.add(Duration(days: i)));
+
+    return Row(
+      children: days.map((day) {
+        final dayJobs = allJobs.where((j) => isSameDay(j.scheduledDate, day)).toList();
+        return Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: Colors.white.withOpacity(0.1))),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  color: const Color(0xFF1A2A3A),
+                  width: double.infinity,
+                  child: Text(
+                    '${day.day} ${_getMonthName(day.month)}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: dayJobs.length,
+                    itemBuilder: (context, i) {
+                      final job = dayJobs[i];
+                      return Container(
+                        margin: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(job.status).withOpacity(0.2),
+                          border: Border(left: BorderSide(color: _getStatusColor(job.status), width: 3)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(job.title, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 4),
+                            Text(isAdmin ? job.assignedWorkerName : job.address, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  String _getMonthName(int month) {
+    const names = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    return names[month - 1];
   }
 
   Color _getStatusColor(JobStatus status) {

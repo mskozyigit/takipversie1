@@ -7,6 +7,8 @@ class PendingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       body: SafeArea(
@@ -21,10 +23,10 @@ class PendingScreen extends ConsumerWidget {
               const SizedBox(height: 40),
 
               // Başlık
-              const Text(
-                'Onay Bekleniyor',
+              Text(
+                l10n.translate('pending_title'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -33,10 +35,10 @@ class PendingScreen extends ConsumerWidget {
               const SizedBox(height: 16),
 
               // Açıklama
-              const Text(
-                'Organizasyonunuza başarıyla katıldınız.\nHesabınızın aktif hale gelebilmesi için organizasyon yöneticisinden onay bekleniyor.',
+              Text(
+                l10n.translate('pending_subtitle'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF90A4AE),
                   fontSize: 15,
                   height: 1.6,
@@ -47,18 +49,27 @@ class PendingScreen extends ConsumerWidget {
               // Bilgi kartları
               _InfoCard(
                 icon: Icons.admin_panel_settings_outlined,
-                title: 'Admin ne yapmalı?',
-                description:
-                    'Organizasyon yöneticinize hesabınızın onaylanmasını isteyin. Onay işlemi tamamlandığında uygulamaya erişim sağlayabilirsiniz.',
+                title: l10n.translate('pending_admin_help'),
+                description: l10n.translate('pending_admin_desc'),
               ),
               const SizedBox(height: 16),
               _InfoCard(
                 icon: Icons.refresh_rounded,
-                title: 'Sayfa güncelleme',
-                description:
-                    'Onaylandığınızda uygulama otomatik olarak güncellenecektir. Manuel yenileme gerekmez.',
+                title: l10n.translate('pending_auto_refresh'),
+                description: l10n.translate('pending_auto_refresh_desc'),
               ),
               const SizedBox(height: 48),
+
+              // İsteği İptal Et butonu
+              TextButton(
+                onPressed: () => ref.read(authProvider.notifier).cancelJoinRequest(),
+                child: Text(
+                  l10n.translate('pending_cancel_request'),
+                  style: const TextStyle(color: Color(0xFF4FC3F7)),
+                ),
+              ),
+
+              const SizedBox(height: 16),
 
               // Çıkış yap butonu
               OutlinedButton.icon(
@@ -72,7 +83,7 @@ class PendingScreen extends ConsumerWidget {
                   ),
                 ),
                 icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Çıkış Yap'),
+                label: Text(l10n.translate('logout')),
               ),
             ],
           ),
@@ -80,6 +91,8 @@ class PendingScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
 }
 
 // -----------------------------------------------------------------------
