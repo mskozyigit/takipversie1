@@ -227,13 +227,14 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   // -----------------------------------------------------------------------
 
   Future<void> signOut() async {
+    // Hatalardan bağımsız olarak arayüzü giriş ekranına döndürmek için AsyncValue.data(Unauthenticated())'ı en başta set ediyoruz.
+    state = AsyncValue.data(Unauthenticated());
+    
     try {
       await _auth.signOut();
       await _googleSignIn.signOut();
-    } catch (_) {
-      // Hata olsa bile arayüzde çıkış yapılmış gibi davran
-    } finally {
-      state = AsyncValue.data(Unauthenticated());
+    } catch (e) {
+      debugPrint('Çıkış yaparken hata oluştu (önemsiz): $e');
     }
   }
 
