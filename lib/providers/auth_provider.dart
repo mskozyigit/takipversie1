@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/app_user.dart';
 import '../models/organization.dart';
+import 'translations.dart';
 
 // -----------------------------------------------------------------------
 // Auth State Sealed Class
@@ -271,3 +272,49 @@ final currentUserProvider = Provider<AppUser?>((ref) {
     _ => null,
   };
 });
+
+// -----------------------------------------------------------------------
+// Translation Notifier
+// -----------------------------------------------------------------------
+
+class TranslationNotifier extends AsyncNotifier<String> {
+  @override
+  Future<String> build() async {
+    // Auth state'i dinle
+    final authState = ref.watch(authProvider).value;
+
+    if (authState is ApprovedAdmin) {
+      return _getOrgLanguage(authState.appUser.organizationId);
+    } else if (authState is ApprovedWorker) {
+      return _getOrgLanguage(authState.appUser.organizationId);
+    } else if (authState is PendingApproval) {
+      return _getOrgLanguage(authState.appUser.organizationId);
+    }
+
+    // Varsayılan dil (Giriş ekranı vb. için)
+    return 'tr';
+  }
+
+  Future<String> _getOrgLanguage(String orgId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(orgId)
+          .get();
+      
+      if (doc.exists) {
+        return doc.data()?['activeLanguage'] ?? 'tr';
+      }
+    } catch (_) {}
+    return 'tr';
+  }
+
+  String translate(String key) {
+    final lang = state.value ?? 'tr';
+    return translations[lang]?[key] ?? translations['tr']?[key] ?? key;
+  }
+}
+
+final translationProvider = AsyncNotifierProvider<TranslationNotifier, String>(
+  () => TranslationNotifier(),
+);

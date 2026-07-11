@@ -53,6 +53,7 @@ class AuthGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authAsync = ref.watch(authProvider);
+    final l10n = ref.read(translationProvider.notifier);
 
     return authAsync.when(
       // Yükleniyor
@@ -89,7 +90,7 @@ class AuthGate extends ConsumerWidget {
         ApprovedAdmin(appUser: final user) => Scaffold(
             backgroundColor: const Color(0xFF0D1B2A),
             appBar: AppBar(
-              title: Text('Admin Panel — ${user.name}'),
+              title: Text('${l10n.translate('admin_panel_title')} — ${user.name}'),
               backgroundColor: const Color(0xFF1565C0),
               actions: [
                 IconButton(
@@ -98,16 +99,16 @@ class AuthGate extends ConsumerWidget {
                 ),
               ],
             ),
-            body: const Center(
+            body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.admin_panel_settings, size: 64, color: Color(0xFF4FC3F7)),
-                  SizedBox(height: 16),
+                  const Icon(Icons.admin_panel_settings, size: 64, color: Color(0xFF4FC3F7)),
+                  const SizedBox(height: 16),
                   Text(
-                    'Admin Dashboard\nSonraki aşamada inşa edilecek.',
+                    '${l10n.translate('admin_panel_title')}\nSonraki aşamada inşa edilecek.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 ],
               ),
@@ -118,7 +119,7 @@ class AuthGate extends ConsumerWidget {
         ApprovedWorker(appUser: final user) => Scaffold(
             backgroundColor: const Color(0xFF0D1B2A),
             appBar: AppBar(
-              title: Text('İş Listesi — ${user.name}'),
+              title: Text('${l10n.translate('worker_panel_title')} — ${user.name}'),
               backgroundColor: const Color(0xFF0D47A1),
               actions: [
                 IconButton(
@@ -127,16 +128,16 @@ class AuthGate extends ConsumerWidget {
                 ),
               ],
             ),
-            body: const Center(
+            body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.work_outline, size: 64, color: Color(0xFF4FC3F7)),
-                  SizedBox(height: 16),
+                  const Icon(Icons.work_outline, size: 64, color: Color(0xFF4FC3F7)),
+                  const SizedBox(height: 16),
                   Text(
-                    'Worker Dashboard\nSonraki aşamada inşa edilecek.',
+                    '${l10n.translate('worker_panel_title')}\nSonraki aşamada inşa edilecek.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 ],
               ),
@@ -162,7 +163,7 @@ class AuthGate extends ConsumerWidget {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => ref.read(authProvider.notifier).signOut(),
-                      child: const Text('Geri Dön'),
+                      child: Text(l10n.translate('back_to_login')),
                     ),
                   ],
                 ),

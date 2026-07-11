@@ -57,6 +57,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authProvider).isLoading;
+    final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
@@ -65,12 +66,12 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.logout, color: Color(0xFF90A4AE)),
-          tooltip: 'Çıkış Yap',
+          tooltip: l10n.translate('logout'),
           onPressed: () => ref.read(authProvider.notifier).signOut(),
         ),
-        title: const Text(
-          'Organizasyon Kurulumu',
-          style: TextStyle(color: Colors.white, fontSize: 18),
+        title: Text(
+          l10n.translate('org_setup_title'),
+          style: const TextStyle(color: Colors.white, fontSize: 18),
         ),
       ),
       body: SingleChildScrollView(
@@ -82,7 +83,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
             children: [
               // Karşılama mesajı
               Text(
-                'Hoş geldiniz, ${widget.firebaseUser.displayName?.split(' ').first ?? 'Kullanıcı'}!',
+                '${l10n.translate('org_setup_welcome')}, ${widget.firebaseUser.displayName?.split(' ').first ?? 'Kullanıcı'}!',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -90,9 +91,9 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Devam etmek için bir organizasyona sahip olmanız gerekiyor.',
-                style: TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
+              Text(
+                l10n.translate('org_setup_subtitle'),
+                style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
               ),
               const SizedBox(height: 32),
 
@@ -105,13 +106,13 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
                 child: Row(
                   children: [
                     _ModeTab(
-                      label: 'Yeni Oluştur',
+                      label: l10n.translate('org_setup_create'),
                       icon: Icons.add_business,
                       isSelected: _mode == 'create',
                       onTap: () => setState(() => _mode = 'create'),
                     ),
                     _ModeTab(
-                      label: 'Katıl',
+                      label: l10n.translate('org_setup_join'),
                       icon: Icons.group_add,
                       isSelected: _mode == 'join',
                       onTap: () => setState(() => _mode = 'join'),
@@ -151,7 +152,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
                         ),
                       )
                     : Text(
-                        _mode == 'create' ? 'Organizasyonu Oluştur' : 'Organizasyona Katıl',
+                        _mode == 'create' ? l10n.translate('org_setup_submit_create') : l10n.translate('org_setup_submit_join'),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -221,28 +222,29 @@ class _ModeTab extends StatelessWidget {
 // Create Org Form
 // -----------------------------------------------------------------------
 
-class _CreateOrgForm extends StatelessWidget {
+class _CreateOrgForm extends ConsumerWidget {
   final TextEditingController controller;
 
   const _CreateOrgForm({required this.controller});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Column(
       key: const ValueKey('create'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _Label('Organizasyon Adı'),
+        _Label(l10n.translate('org_setup_name_label')),
         const SizedBox(height: 8),
         _StyledField(
           controller: controller,
-          hint: 'örn. Ratel Solutions BV',
+          hint: l10n.translate('org_setup_name_hint'),
           prefixIcon: Icons.business,
           validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Organizasyon adı boş bırakılamaz' : null,
+              v == null || v.trim().isEmpty ? l10n.translate('org_setup_name_label') : null,
         ),
         const SizedBox(height: 16),
-        _InfoBox(
+        const _InfoBox(
           icon: Icons.info_outline,
           text:
               'Siz organizasyonu oluşturan Admin olacaksınız. Katılım kodu otomatik olarak oluşturulacak ve Dashboard\'da görüntülenebilecek.',
@@ -256,32 +258,33 @@ class _CreateOrgForm extends StatelessWidget {
 // Join Org Form
 // -----------------------------------------------------------------------
 
-class _JoinOrgForm extends StatelessWidget {
+class _JoinOrgForm extends ConsumerWidget {
   final TextEditingController controller;
 
   const _JoinOrgForm({required this.controller});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Column(
       key: const ValueKey('join'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _Label('Katılım Kodu'),
+        _Label(l10n.translate('org_setup_join_label')),
         const SizedBox(height: 8),
         _StyledField(
           controller: controller,
-          hint: 'örn. AB12CD',
+          hint: l10n.translate('org_setup_join_hint'),
           prefixIcon: Icons.vpn_key,
           textCapitalization: TextCapitalization.characters,
           validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Katılım kodu boş bırakılamaz';
+            if (v == null || v.trim().isEmpty) return l10n.translate('org_setup_join_label');
             if (v.trim().length != 6) return 'Kod 6 karakter olmalıdır';
             return null;
           },
         ),
         const SizedBox(height: 16),
-        _InfoBox(
+        const _InfoBox(
           icon: Icons.schedule,
           text:
               'Kodunu girdikten sonra hesabınız Admin onayına gönderilecek. Onay süreci tamamlanana kadar sisteme giriş yapamazsınız.',

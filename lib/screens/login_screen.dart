@@ -9,6 +9,7 @@ class LoginScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authAsync = ref.watch(authProvider);
     final isLoading = authAsync.isLoading;
+    final l10n = ref.read(translationProvider.notifier);
 
     // Hata mesajı varsa göster
     ref.listen(authProvider, (previous, next) {
@@ -37,10 +38,10 @@ class LoginScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Başlık
-              const Text(
-                'Ratel Solutions',
+              Text(
+                l10n.translate('login_title'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -48,10 +49,10 @@ class LoginScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Field Service Management',
+              Text(
+                l10n.translate('login_subtitle'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF90A4AE),
                   fontSize: 14,
                 ),
@@ -85,7 +86,7 @@ class LoginScreen extends ConsumerWidget {
                         errorBuilder: (_, _, _) => const Icon(Icons.login),
                       ),
                 label: Text(
-                  isLoading ? 'Giriş yapılıyor...' : 'Google ile Giriş Yap',
+                  isLoading ? l10n.translate('login_logging_in') : l10n.translate('login_google_button'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -96,10 +97,10 @@ class LoginScreen extends ConsumerWidget {
               const SizedBox(height: 32),
 
               // Alt bilgi
-              const Text(
-                'Giriş yaparak Kullanım Koşullarını kabul etmiş olursunuz.',
+              Text(
+                l10n.translate('login_terms'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Color(0xFF546E7A),
                   fontSize: 12,
                 ),
