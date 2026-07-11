@@ -18,6 +18,8 @@ class Job {
   final DateTime scheduledDate;
   final JobStatus status;
   final String? missionNumber;
+  final String? beforePhotoUrl;
+  final String? afterPhotoUrl;
   final DateTime createdDate;
 
   const Job({
@@ -32,6 +34,8 @@ class Job {
     required this.status,
     required this.createdDate,
     this.missionNumber,
+    this.beforePhotoUrl,
+    this.afterPhotoUrl,
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -48,6 +52,8 @@ class Job {
       status: _parseStatus(data['status'] as String),
       createdDate: (data['createdDate'] as Timestamp).toDate(),
       missionNumber: data['missionNumber'] as String?,
+      beforePhotoUrl: data['beforePhotoUrl'] as String?,
+      afterPhotoUrl: data['afterPhotoUrl'] as String?,
     );
   }
 
@@ -63,6 +69,8 @@ class Job {
       'status': status.name,
       'createdDate': Timestamp.fromDate(createdDate),
       'missionNumber': missionNumber,
+      'beforePhotoUrl': beforePhotoUrl,
+      'afterPhotoUrl': afterPhotoUrl,
     };
   }
 
@@ -81,6 +89,8 @@ class Job {
     String? address,
     DateTime? scheduledDate,
     JobStatus? status,
+    String? beforePhotoUrl,
+    String? afterPhotoUrl,
   }) {
     return Job(
       id: id,
@@ -94,6 +104,8 @@ class Job {
       status: status ?? this.status,
       createdDate: createdDate,
       missionNumber: missionNumber,
+      beforePhotoUrl: beforePhotoUrl ?? this.beforePhotoUrl,
+      afterPhotoUrl: afterPhotoUrl ?? this.afterPhotoUrl,
     );
   }
 }

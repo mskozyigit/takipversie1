@@ -98,12 +98,8 @@ service cloud.firestore {
     // ====================================================
     match /jobs/{jobId} {
       
-      function hasValidMissionNumber(job) {
-        return job.missionNumber != null && (job.missionNumber is string || job.missionNumber is int);
-      }
-
       function hasValidJobStatus(job) {
-        return job.status in ['not started', 'in progress', 'work completed', 'closed'];
+        return job.status in ['notStarted', 'inProgress', 'workCompleted', 'closed'];
       }
 
       // Read: Approved Admins, or assigned Worker (Local field checks only)
@@ -114,17 +110,15 @@ service cloud.firestore {
 
       allow create: if isAuthenticated() &&
                     isOrgAdmin(getUserRecord(), request.resource.data.organizationId) &&
-                    hasValidMissionNumber(request.resource.data) &&
                     hasValidJobStatus(request.resource.data);
 
       allow update: if isAuthenticated() && (
-        (isOrgAdmin(getUserRecord(), resource.data.organizationId) && hasValidMissionNumber(request.resource.data) && hasValidJobStatus(request.resource.data)) ||
+        (isOrgAdmin(getUserRecord(), resource.data.organizationId) && hasValidJobStatus(request.resource.data)) ||
         (
           isOrgWorker(getUserRecord(), resource.data.organizationId) &&
           resource.data.assignedWorkerId == request.auth.uid &&
           request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
           request.resource.data.organizationId == resource.data.organizationId &&
-          request.resource.data.missionNumber == resource.data.missionNumber &&
           hasValidJobStatus(request.resource.data)
         )
       );

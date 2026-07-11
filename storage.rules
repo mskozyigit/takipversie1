@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper: Is the user authenticated?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Get user record from Firestore to check organizationId
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Storage path: {orgId}/jobs/{jobId}/{fileName}
+    match /{orgId}/jobs/{jobId}/{fileName} {
+      // Allow read if user belongs to the same organization
+      allow read: if isAuthenticated() && getUserData().organizationId == orgId;
+      
+      // Allow write (upload/delete) if user belongs to the same organization
+      // and it's an image under 5MB (just in case client compression fails)
+      allow write: if isAuthenticated() 
+                   && getUserData().organizationId == orgId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

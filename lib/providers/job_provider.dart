@@ -85,6 +85,16 @@ class JobNotifier extends Notifier<void> {
       'status': newStatus.name,
     });
   }
+
+  Future<void> updateJobPhotos(String jobId, {String? beforeUrl, String? afterUrl}) async {
+    final Map<String, dynamic> data = {};
+    if (beforeUrl != null) data['beforePhotoUrl'] = beforeUrl;
+    if (afterUrl != null) data['afterPhotoUrl'] = afterUrl;
+
+    if (data.isNotEmpty) {
+      await _firestore.collection('jobs').doc(jobId).update(data);
+    }
+  }
 }
 
 final jobOperationsProvider = NotifierProvider<JobNotifier, void>(() => JobNotifier());
