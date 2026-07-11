@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../models/app_user.dart';
 import '../models/job.dart';
+import '../providers/job_provider.dart';
 import 'job_creation_screen.dart';
 
 class AdminDashboard extends ConsumerWidget {
@@ -152,8 +153,6 @@ class AdminDashboard extends ConsumerWidget {
               error: (err, _) => Center(child: Text('Hata: $err', style: const TextStyle(color: Colors.red))),
             ),
           ),
-          const SizedBox(height: 16),
-          JobEditScreen(job: adminUser.jobs.first),
         ],
       ),
     );
