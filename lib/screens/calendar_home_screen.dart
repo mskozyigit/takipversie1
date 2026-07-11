@@ -104,7 +104,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 data: (org) => org == null ? const SizedBox() : _JoinCodeCard(org: org, l10n: l10n, showCode: isAdmin),
                 loading: () => const SizedBox(),
                 error: (_, __) => const SizedBox(),
-              },
+              ),
 
               // Görünüm Seçici
               Padding(
@@ -151,7 +151,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     ],
                   ),
                 ),
-              },
+              ),
 
               if (_viewMode != 3) // Hafta/Ay/Gün görünümlerinde takvimi göster
                 TableCalendar(
