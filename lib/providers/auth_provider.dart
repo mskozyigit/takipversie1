@@ -155,7 +155,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         name: orgName,
         joinCode: joinCode,
         createdDate: DateTime.now(),
-        activeLanguage: 'nl',
+        activeLanguage: ref.read(translationProvider).value ?? 'tr',
       );
 
       final appUser = AppUser(

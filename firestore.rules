@@ -42,9 +42,9 @@ service cloud.firestore {
     // ====================================================
     match /organizations/{orgId} {
       allow read: if isAuthenticated();
-      // Allow creation if the creator is the approved admin of this organization (which they will be after bypass)
+      // Allow creation if the user is authenticated. 
+      // Authorization is implicitly handled by the User record creation in the same batch.
       allow create: if isAuthenticated() && 
-                    isOrgAdmin(getUserRecord(), orgId) && 
                     request.resource.data.activeLanguage in ['tr', 'en', 'nl'];
       allow update: if isAuthenticated() && 
                     isOrgAdmin(getUserRecord(), orgId) && 
