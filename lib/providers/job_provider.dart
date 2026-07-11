@@ -307,25 +307,5 @@ class JobNotifier extends Notifier<void> {
     return JobStatus.values.firstWhere((e) => e.name == value, orElse: () => JobStatus.notStarted);
   }
 }
-    required String description,
-    required String assignedWorkerId,
-    required String assignedWorkerName,
-    required String address,
-    String? customerName,
-    String? customerPhone,
-    required DateTime scheduledDate,
-  }) async {
-    await _firestore.collection('jobs').doc(jobId).update({
-      'title': title,
-      'description': description,
-      'assignedWorkerId': assignedWorkerId,
-      'assignedWorkerName': assignedWorkerName,
-      'address': address,
-      'customerName': customerName,
-      'customerPhone': customerPhone,
-      'scheduledDate': Timestamp.fromDate(scheduledDate),
-    });
-  }
-}
 
 final jobOperationsProvider = NotifierProvider<JobNotifier, void>(() => JobNotifier());

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/job.dart';
 import '../models/organization.dart';
-import '../providers/job_provider.dart';
+import '../providers/job_provider.dart' hide required;
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -479,6 +479,12 @@ class _SafetyContent extends StatelessWidget {
 
   const _SafetyContent({required this.job, required this.l10n, required this.ref});
 
+  void _update(Map<String, bool> current, String key, bool value) {
+    final next = Map<String, bool>.from(current);
+    next[key] = value;
+    ref.read(jobOperationsProvider.notifier).updateSafetyChecklist(job.id, next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final checklist = job.safetyChecklist ?? {
@@ -522,11 +528,5 @@ class _SafetyContent extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  void _update(Map<String, bool> current, String key, bool value) {
-    final next = Map<String, bool>.from(current);
-    next[key] = value;
-    ref.read(jobOperationsProvider.notifier).updateSafetyChecklist(job.id, next);
   }
 }
