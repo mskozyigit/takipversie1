@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -61,6 +62,37 @@ class MediaNotifier extends Notifier<void> {
 
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
+  }
+
+  /// Upload payment QR code for the organization
+  Future<String?> uploadPaymentQr(String orgId) async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
+    if (pickedFile == null) return null;
+
+    final Uint8List bytes = await pickedFile.readAsBytes();
+    final img.Image? image = img.decodeImage(bytes);
+    if (image == null) return null;
+
+    img.Image resized = image;
+    if (image.width > 1024) {
+      resized = img.copyResize(image, width: 1024);
+    }
+    final compressed = Uint8List.fromList(img.encodeJpg(resized, quality: 90));
+
+    final path = '$orgId/settings/payment_qr.jpg';
+    final refStorage = _storage.ref().child(path);
+    await refStorage.putData(compressed, SettableMetadata(contentType: 'image/jpeg'));
+    final url = await refStorage.getDownloadURL();
+
+    // Update organization
+    await FirebaseFirestore.instance.collection('organizations').doc(orgId).update({
+      'paymentQrUrl': url,
+    });
+
+    return url;
   }
 }
 

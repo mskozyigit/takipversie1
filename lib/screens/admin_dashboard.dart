@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../providers/media_provider.dart';
 import '../models/app_user.dart';
 import '../models/job.dart';
 import '../providers/job_provider.dart';
@@ -40,7 +42,11 @@ class AdminDashboard extends ConsumerWidget {
         children: [
           // Organizasyon Bilgi Kartı
           orgAsync.when(
-            data: (org) => org == null ? const SizedBox() : JoinCodeCard(org: org, showCode: true),
+            data: (org) => org == null ? const SizedBox() : Column(children: [
+              JoinCodeCard(org: org, showCode: true),
+              // QR Kod Yükleme
+              _PaymentQrSection(orgId: org.id, currentQrUrl: org.paymentQrUrl),
+            ]),
             loading: () => const LinearProgressIndicator(),
             error: (_, __) => const SizedBox(),
           ),
@@ -266,6 +272,89 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
       validator: (v) => v == null || v.trim().isEmpty ? 'Bu alan zorunludur' : null,
+    );
+  }
+}
+
+class _PaymentQrSection extends ConsumerStatefulWidget {
+  final String orgId;
+  final String? currentQrUrl;
+  const _PaymentQrSection({required this.orgId, this.currentQrUrl});
+
+  @override
+  ConsumerState<_PaymentQrSection> createState() => _PaymentQrSectionState();
+}
+
+class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
+  bool _isUploading = false;
+
+  Future<void> _uploadQr() async {
+    setState(() => _isUploading = true);
+    try {
+      final url = await ref.read(mediaProvider.notifier).uploadPaymentQr(widget.orgId);
+      if (url != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QR Kod yüklendi'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF1A2A3A),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D1B2A),
+                borderRadius: BorderRadius.circular(8),
+                image: widget.currentQrUrl != null
+                    ? DecorationImage(image: NetworkImage(widget.currentQrUrl!), fit: BoxFit.contain)
+                    : null,
+              ),
+              child: widget.currentQrUrl == null
+                  ? const Icon(Icons.qr_code, color: Color(0xFF546E7A), size: 32)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Ödeme QR Kodu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.currentQrUrl != null ? 'QR kod yüklendi ✓' : 'Henüz QR kod yüklenmedi',
+                    style: TextStyle(color: widget.currentQrUrl != null ? Colors.green : const Color(0xFF90A4AE), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            _isUploading
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Color(0xFF4FC3F7), strokeWidth: 2))
+                : IconButton(
+                    icon: Icon(widget.currentQrUrl != null ? Icons.refresh : Icons.upload, color: const Color(0xFF4FC3F7)),
+                    onPressed: _uploadQr,
+                    tooltip: widget.currentQrUrl != null ? 'QR Kodu Değiştir' : 'QR Kod Yükle',
+                  ),
+          ],
+        ),
+      ),
     );
   }
 }
