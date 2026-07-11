@@ -175,34 +175,13 @@ service cloud.firestore {
 
     // Comments
     match /comments/{commentId} {
-      allow read: if isAuthenticated() && (
-        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
-        (isOrgWorker(getUserRecord(), resource.data.organizationId) && resource.data.assignedWorkerId == request.auth.uid)
-      );
-
-      allow create: if isAuthenticated() && (
-        isOrgAdmin(getUserRecord(), request.resource.data.organizationId) ||
-        (
-          isOrgWorker(getUserRecord(), request.resource.data.organizationId) &&
-          request.resource.data.assignedWorkerId == request.auth.uid &&
-          request.resource.data.authorId == request.auth.uid
-        )
-      );
-
-      allow update: if isAuthenticated() && (
-        isOrgAdmin(getUserRecord(), resource.data.organizationId) ||
-        (
-          isOrgWorker(getUserRecord(), resource.data.organizationId) &&
-          resource.data.assignedWorkerId == request.auth.uid &&
-          resource.data.authorId == request.auth.uid &&
-          request.resource.data.authorId == resource.data.authorId &&
-          request.resource.data.assignedWorkerId == resource.data.assignedWorkerId &&
-          request.resource.data.jobId == resource.data.jobId &&
-          request.resource.data.organizationId == resource.data.organizationId
-        )
-      );
-
-      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow read: if isAuthenticated() && isTenant(resource.data.organizationId, getUserRecord());
+      allow create: if isAuthenticated() && 
+                    isApproved(getUserRecord()) &&
+                    request.resource.data.authorId == request.auth.uid &&
+                    isTenant(request.resource.data.organizationId, getUserRecord());
+      allow update: if false;
+      allow delete: if false;
     }
 
     // Part Line Items
@@ -335,7 +314,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
     }
 
-    match /auditLogEntries/{entryId} {
+    match /auditLogs/{entryId} {
       allow read: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
       allow create: if isAuthenticated() &&
                     isApproved(getUserRecord()) &&

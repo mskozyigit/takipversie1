@@ -31,9 +31,14 @@ final auditLogProvider = StreamProvider.family<List<AuditLogEntry>, String>((ref
 // -----------------------------------------------------------------------
 
 final commentsProvider = StreamProvider.family<List<JobComment>, String>((ref, jobId) {
+  final authState = ref.watch(authProvider).value;
+  final orgId = authState?.appUser?.organizationId;
+  if (orgId == null) return Stream.value([]);
+
   return _firestore
       .collection('comments')
       .where('jobId', isEqualTo: jobId)
+      .where('organizationId', isEqualTo: orgId)
       .orderBy('timestamp', descending: false)
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) => JobComment.fromFirestore(doc)).toList());
@@ -268,6 +273,7 @@ class JobNotifier extends Notifier<void> {
 
     await _firestore.collection('comments').add({
       'jobId': jobId,
+      'organizationId': authState.appUser!.organizationId,
       'authorId': authState.appUser!.id,
       'authorName': authState.appUser!.name,
       'text': text,

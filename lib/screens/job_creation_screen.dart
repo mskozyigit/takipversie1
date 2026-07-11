@@ -4,7 +4,6 @@ import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
-import '../providers/module_provider.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key});
@@ -49,6 +48,50 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     setState(() {
       _extraDescControllers.add(TextEditingController());
     });
+  }
+
+  void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A2A3A),
+        title: const Text('Yeni Müşteri Ekle', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Ad', labelStyle: TextStyle(color: Color(0xFF90A4AE)))),
+            const SizedBox(height: 8),
+            TextField(controller: phoneCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Telefon', labelStyle: TextStyle(color: Color(0xFF90A4AE)))),
+            const SizedBox(height: 8),
+            TextField(controller: addressCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Adres', labelStyle: TextStyle(color: Color(0xFF90A4AE)))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) return;
+              await ref.read(jobOperationsProvider.notifier).createCustomer(
+                name: nameCtrl.text.trim(),
+                address: addressCtrl.text.trim(),
+                phone: phoneCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              // Form alanlarını doldur
+              _customerNameController.text = nameCtrl.text.trim();
+              _customerPhoneController.text = phoneCtrl.text.trim();
+              _addressController.text = addressCtrl.text.trim();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0)),
+            child: const Text('Ekle'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -97,8 +140,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     final workersAsync = ref.watch(organizationWorkersProvider);
     final customersAsync = ref.watch(customersProvider);
     final l10n = ref.read(translationProvider.notifier);
-    final registry = ref.watch(moduleRegistryProvider);
-    final isCrmOn = registry['CRM-01'] ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
@@ -113,51 +154,55 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isCrmOn) ...[
-                Text(
-                  l10n.translate('crm_customer_search'),
-                  style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                customersAsync.when(
-                  data: (customers) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A2A3A),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<Customer?>(
-                        value: _selectedCustomer,
-                        hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey)),
-                        dropdownColor: const Color(0xFF1A2A3A),
-                        isExpanded: true,
-                        style: const TextStyle(color: Colors.white),
-                        items: [
-                          const DropdownMenuItem(value: null, child: Text('Manual Giriş')),
-                          ...customers.map((c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(c.name),
-                          )),
-                        ],
-                        onChanged: (val) {
-                          setState(() {
-                            _selectedCustomer = val;
-                            if (val != null) {
-                              _customerNameController.text = val.name;
-                              _customerPhoneController.text = val.phone;
-                              _addressController.text = val.address;
-                            }
-                          });
-                        },
+              // CRM: Müşteri seçimi (her zaman görünür)
+              Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              const SizedBox(height: 8),
+              customersAsync.when(
+                data: (customers) => Row(children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<Customer?>(
+                          value: _selectedCustomer,
+                          hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey)),
+                          dropdownColor: const Color(0xFF1A2A3A),
+                          isExpanded: true,
+                          style: const TextStyle(color: Colors.white),
+                          items: [
+                            const DropdownMenuItem(value: null, child: Text('Manuel Giriş', style: TextStyle(color: Colors.grey))),
+                            ...customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name, style: const TextStyle(color: Colors.white)))),
+                          ],
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedCustomer = val;
+                              if (val != null) {
+                                _customerNameController.text = val.name;
+                                _customerPhoneController.text = val.phone;
+                                _addressController.text = val.address;
+                              } else {
+                                _customerNameController.clear();
+                                _customerPhoneController.clear();
+                                _addressController.clear();
+                              }
+                            });
+                          },
+                        ),
                       ),
                     ),
                   ),
-                  loading: () => const LinearProgressIndicator(),
-                  error: (e, _) => Text('Hata: $e', style: const TextStyle(color: Colors.red)),
-                ),
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)),
+                    tooltip: 'Yeni Müşteri Ekle',
+                    onPressed: () => _showAddCustomerDialog(context, ref),
+                  ),
+                ]),
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Hata: $e', style: const TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(height: 24),
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
