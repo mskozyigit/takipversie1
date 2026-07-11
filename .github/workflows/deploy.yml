@@ -27,8 +27,7 @@ jobs:
 
       - name: Build Web
         run: |
-          # --base-href /repo_name/ formatting is critical for GitHub Pages
-          flutter build web --release --base-href "/takipversie1/" --web-renderer canvaskit
+          flutter build web --release --base-href "/takipversie1/"
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
