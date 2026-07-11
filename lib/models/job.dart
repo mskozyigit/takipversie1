@@ -20,6 +20,9 @@ class Job {
   final String? missionNumber;
   final String? beforePhotoUrl;
   final String? afterPhotoUrl;
+  final List<Map<String, dynamic>>? usedParts;
+  final String? paymentMethod; // 'qr' or 'cash'
+  final bool isPaid;
   final DateTime createdDate;
 
   const Job({
@@ -36,6 +39,9 @@ class Job {
     this.missionNumber,
     this.beforePhotoUrl,
     this.afterPhotoUrl,
+    this.usedParts,
+    this.paymentMethod,
+    this.isPaid = false,
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -54,6 +60,9 @@ class Job {
       missionNumber: data['missionNumber'] as String?,
       beforePhotoUrl: data['beforePhotoUrl'] as String?,
       afterPhotoUrl: data['afterPhotoUrl'] as String?,
+      usedParts: (data['usedParts'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList(),
+      paymentMethod: data['paymentMethod'] as String?,
+      isPaid: data['isPaid'] as bool? ?? false,
     );
   }
 
@@ -71,6 +80,9 @@ class Job {
       'missionNumber': missionNumber,
       'beforePhotoUrl': beforePhotoUrl,
       'afterPhotoUrl': afterPhotoUrl,
+      'usedParts': usedParts,
+      'paymentMethod': paymentMethod,
+      'isPaid': isPaid,
     };
   }
 
@@ -91,6 +103,9 @@ class Job {
     JobStatus? status,
     String? beforePhotoUrl,
     String? afterPhotoUrl,
+    List<Map<String, dynamic>>? usedParts,
+    String? paymentMethod,
+    bool? isPaid,
   }) {
     return Job(
       id: id,
@@ -106,6 +121,9 @@ class Job {
       missionNumber: missionNumber,
       beforePhotoUrl: beforePhotoUrl ?? this.beforePhotoUrl,
       afterPhotoUrl: afterPhotoUrl ?? this.afterPhotoUrl,
+      usedParts: usedParts ?? this.usedParts,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      isPaid: isPaid ?? this.isPaid,
     );
   }
 }

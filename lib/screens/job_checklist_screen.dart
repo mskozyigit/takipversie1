@@ -76,16 +76,22 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       }
       setState(() => _currentStep = 2);
     } else if (_currentStep == 2) {
-      // Location verified (simulated)
+      // Materials Step (Allowing skip if none used, but usually some are)
       setState(() => _currentStep = 3);
     } else if (_currentStep == 3) {
-      // Note added (simulated)
-      setState(() => _currentStep = 4);
-    } else if (_currentStep == 4) {
       // After Photo Step
       if (_afterPhotoUrl == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lütfen iş sonrası fotoğrafını yükleyin.')),
+        );
+        return;
+      }
+      setState(() => _currentStep = 4);
+    } else if (_currentStep == 4) {
+      // Payment Step
+      if (!widget.job.isPaid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen önce ödemeyi kaydedin.')),
         );
         return;
       }
@@ -147,22 +153,10 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             state: _currentStep > 1 ? StepState.complete : StepState.indexed,
           ),
           Step(
-            title: Text(l10n.translate('job_checklist_location'), style: const TextStyle(color: Colors.white)),
-            content: Text(widget.job.address, style: const TextStyle(color: Color(0xFF90A4AE))),
+            title: Text(l10n.translate('job_parts_title'), style: const TextStyle(color: Colors.white)),
+            content: _PartsContent(job: widget.job, l10n: l10n, ref: ref),
             isActive: _currentStep >= 2,
             state: _currentStep > 2 ? StepState.complete : StepState.indexed,
-          ),
-          Step(
-            title: Text(l10n.translate('job_checklist_note'), style: const TextStyle(color: Colors.white)),
-            content: const TextField(
-              decoration: InputDecoration(
-                hintText: 'İşle ilgili notlarınızı girin...',
-                hintStyle: TextStyle(color: Color(0xFF546E7A)),
-              ),
-              style: TextStyle(color: Colors.white),
-            ),
-            isActive: _currentStep >= 3,
-            state: _currentStep > 3 ? StepState.complete : StepState.indexed,
           ),
           Step(
             title: Text(l10n.translate('job_after_photo'), style: const TextStyle(color: Colors.white)),
@@ -171,17 +165,113 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
               onTap: () => _takePhoto(false),
               l10n: l10n,
             ),
+            isActive: _currentStep >= 3,
+            state: _currentStep > 3 ? StepState.complete : StepState.indexed,
+          ),
+          Step(
+            title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
+            content: _PaymentContent(job: widget.job, l10n: l10n, ref: ref),
             isActive: _currentStep >= 4,
             state: _currentStep > 4 ? StepState.complete : StepState.indexed,
           ),
           Step(
             title: Text(l10n.translate('job_checklist_finish'), style: const TextStyle(color: Colors.white)),
-            content: Text('Tüm adımlar tamamlandı. İşi bitirebilirsiniz.', style: const TextStyle(color: Color(0xFF90A4AE))),
+            content: Text('Tüm adımlar ve ödeme tamamlandı. İşi kapatabilirsiniz.', style: const TextStyle(color: Color(0xFF90A4AE))),
             isActive: _currentStep >= 5,
             state: _currentStep == 5 ? StepState.complete : StepState.indexed,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PartsContent extends StatelessWidget {
+  final Job job;
+  final TranslationNotifier l10n;
+  final WidgetRef ref;
+
+  const _PartsContent({required this.job, required this.l10n, required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (job.usedParts != null)
+          ...job.usedParts!.map((p) => ListTile(
+            title: Text(p['name'], style: const TextStyle(color: Colors.white)),
+            trailing: Text('x${p['qty']}', style: const TextStyle(color: Color(0xFF4FC3F7))),
+          )),
+        OutlinedButton.icon(
+          onPressed: () async {
+            final nameController = TextEditingController();
+            final qtyController = TextEditingController(text: '1');
+            await showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: Text(l10n.translate('job_add_part')),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: nameController, decoration: const InputDecoration(hintText: 'Parça Adı')),
+                    TextField(controller: qtyController, decoration: const InputDecoration(hintText: 'Adet'), keyboardType: TextInputType.number),
+                  ],
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+                  TextButton(onPressed: () {
+                    ref.read(jobOperationsProvider.notifier).addJobPart(job.id, {
+                      'name': nameController.text,
+                      'qty': int.tryParse(qtyController.text) ?? 1,
+                    });
+                    Navigator.pop(ctx);
+                  }, child: const Text('Ekle')),
+                ],
+              ),
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: Text(l10n.translate('job_add_part')),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentContent extends StatelessWidget {
+  final Job job;
+  final TranslationNotifier l10n;
+  final WidgetRef ref;
+
+  const _PaymentContent({required this.job, required this.l10n, required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    if (job.isPaid) {
+      return Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colors.green),
+          const SizedBox(width: 8),
+          Text(l10n.translate('job_payment_received') + ' (${job.paymentMethod?.toUpperCase()})',
+               style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        ElevatedButton(
+          onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr'),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7)),
+          child: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
+        ),
+        const SizedBox(width: 12),
+        OutlinedButton(
+          onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash'),
+          child: Text(l10n.translate('job_payment_cash')),
+        ),
+      ],
     );
   }
 }

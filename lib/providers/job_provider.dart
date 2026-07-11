@@ -95,6 +95,19 @@ class JobNotifier extends Notifier<void> {
       await _firestore.collection('jobs').doc(jobId).update(data);
     }
   }
+
+  Future<void> addJobPart(String jobId, Map<String, dynamic> part) async {
+    await _firestore.collection('jobs').doc(jobId).update({
+      'usedParts': FieldValue.arrayUnion([part]),
+    });
+  }
+
+  Future<void> recordPayment(String jobId, String method) async {
+    await _firestore.collection('jobs').doc(jobId).update({
+      'paymentMethod': method,
+      'isPaid': true,
+    });
+  }
 }
 
 final jobOperationsProvider = NotifierProvider<JobNotifier, void>(() => JobNotifier());
