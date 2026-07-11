@@ -4,7 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
 
 class CommentsSection extends ConsumerStatefulWidget {
-  final String jobId;\n
+  final String jobId;
   const CommentsSection({super.key, required this.jobId});
 
   @override
