@@ -144,7 +144,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
 
               // Organizasyon Katılım Kartı (HERKES İÇİN - Admin kodu görsün, İşçi sadece bilsin)
               orgAsync.when(
-                data: (org) => org == null ? const SizedBox() : _JoinCodeCard(org: org, l10n: l10n, showCode: isAdmin),
+                data: (org) => org == null ? const SizedBox() : JoinCodeCard(org: org, showCode: isAdmin),
                 loading: () => const SizedBox(),
                 error: (_, __) => const SizedBox(),
               ),
@@ -156,7 +156,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _ViewToggle(
+                      ViewToggle(
                         label: l10n.translate('view_1day'),
                         isSelected: _viewMode == 0,
                         onTap: () => setState(() {
@@ -165,7 +165,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                         }),
                       ),
                       const SizedBox(width: 8),
-                      _ViewToggle(
+                      ViewToggle(
                         label: l10n.translate('view_3day'),
                         isSelected: _viewMode == 3,
                         onTap: () => setState(() {
@@ -174,7 +174,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                         }),
                       ),
                       const SizedBox(width: 8),
-                      _ViewToggle(
+                      ViewToggle(
                         label: l10n.translate('view_week'),
                         isSelected: _viewMode == 1,
                         onTap: () => setState(() {
@@ -183,7 +183,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                         }),
                       ),
                       const SizedBox(width: 8),
-                      _ViewToggle(
+                      ViewToggle(
                         label: l10n.translate('view_month'),
                         isSelected: _viewMode == 2,
                         onTap: () => setState(() {
@@ -265,7 +265,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       itemCount: selectedJobs.length,
       itemBuilder: (context, index) {
         final job = selectedJobs[index];
-        return JobCard(job: job, isAdmin: isAdmin, l10n: l10n, onStatusColor: _getStatusColor(job.status));
+        return JobCard(job: job, isAdmin: isAdmin, onStatusColor: _getStatusColor(job.status));
       },
     );
   }

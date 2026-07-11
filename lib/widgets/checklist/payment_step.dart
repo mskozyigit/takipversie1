@@ -5,22 +5,19 @@ import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
 
-class PaymentStep extends StatelessWidget {
+class PaymentStep extends ConsumerWidget {
   final Job job;
   final Organization? org;
-  final TranslationNotifier l10n;
-  final WidgetRef ref;
 
   const PaymentStep({
     super.key,
     required this.job,
     this.org,
-    required this.l10n,
-    required this.ref,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     if (job.isPaid) {
       return Row(
         children: [

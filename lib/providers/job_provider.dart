@@ -200,12 +200,12 @@ class JobNotifier extends Notifier<void> {
       // Validate uniqueness if edited
       final collision = await _firestore
           .collection('jobs')
-          .where('organizationId', isEqualTo: authState.appUser.organizationId)
+          .where('organizationId', isEqualTo: authState.appUser!.organizationId)
           .where('missionNumber', isEqualTo: missionNumber)
           .get();
       
       if (collision.docs.isNotEmpty && collision.docs.first.id != jobId) {
-        final nextNum = (await _firestore.collection('organizations').doc(authState.appUser.organizationId).get()).data()?['lastMissionNumber'] ?? 1000;
+        final nextNum = (await _firestore.collection('organizations').doc(authState.appUser!.organizationId).get()).data()?['lastMissionNumber'] ?? 1000;
         final l10n = ref.read(translationProvider.notifier);
         throw Exception(l10n.translate('job_mission_collision', {'next': '#${nextNum + 1}'}));
       }
@@ -221,7 +221,7 @@ class JobNotifier extends Notifier<void> {
     if (authState == null) return;
 
     await _firestore.collection('customers').add({
-      'organizationId': authState.appUser.organizationId,
+      'organizationId': authState.appUser!.organizationId,
       'name': name,
       'address': address,
       'phone': phone,
@@ -268,8 +268,8 @@ class JobNotifier extends Notifier<void> {
 
     await _firestore.collection('comments').add({
       'jobId': jobId,
-      'authorId': authState.appUser.id,
-      'authorName': authState.appUser.name,
+      'authorId': authState.appUser!.id,
+      'authorName': authState.appUser!.name,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
@@ -309,9 +309,9 @@ class JobNotifier extends Notifier<void> {
     if (authState == null) return;
 
     await _firestore.collection('auditLogs').add({
-      'organizationId': authState.appUser.organizationId,
-      'actorId': authState.appUser.id,
-      'actorName': authState.appUser.name,
+      'organizationId': authState.appUser!.organizationId,
+      'actorId': authState.appUser!.id,
+      'actorName': authState.appUser!.name,
       'actionType': type,
       'jobId': jobId,
       'timestamp': FieldValue.serverTimestamp(),

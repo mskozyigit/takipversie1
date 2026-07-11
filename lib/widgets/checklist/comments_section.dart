@@ -5,16 +5,15 @@ import '../../providers/job_provider.dart';
 
 class CommentsSection extends ConsumerWidget {
   final String jobId;
-  final TranslationNotifier l10n;
 
   const CommentsSection({
     super.key,
     required this.jobId,
-    required this.l10n,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     final commentsAsync = ref.watch(commentsProvider(jobId));
     final controller = TextEditingController();
 

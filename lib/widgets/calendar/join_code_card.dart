@@ -1,22 +1,21 @@
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
 
-class JoinCodeCard extends StatelessWidget {
+class JoinCodeCard extends ConsumerWidget {
   final Organization org;
-  final TranslationNotifier l10n;
   final bool showCode;
 
   const JoinCodeCard({
     super.key,
     required this.org,
-    required this.l10n,
     required this.showCode,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),

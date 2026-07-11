@@ -1,24 +1,23 @@
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/job.dart';
 import '../../providers/auth_provider.dart';
 import '../../screens/job_detail_screen.dart';
 
-class JobCard extends StatelessWidget {
+class JobCard extends ConsumerWidget {
   final Job job;
   final bool isAdmin;
-  final TranslationNotifier l10n;
   final Color onStatusColor;
 
   const JobCard({
     super.key,
     required this.job,
     required this.isAdmin,
-    required this.l10n,
     required this.onStatusColor,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Card(
       color: const Color(0xFF1A2A3A),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

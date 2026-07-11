@@ -4,7 +4,6 @@ import '../providers/auth_provider.dart';
 import '../models/app_user.dart';
 import '../models/job.dart';
 import '../providers/job_provider.dart';
-import 'job_creation_screen.dart';
 import 'module_settings_screen.dart';
 import '../widgets/calendar/join_code_card.dart';
 
@@ -41,14 +40,8 @@ class AdminDashboard extends ConsumerWidget {
         children: [
           // Organizasyon Bilgi Kartı
           orgAsync.when(
-            data: (org) => org == null ? const SizedBox() : JoinCodeCard(org: org, l10n: l10n, showCode: true),
+            data: (org) => org == null ? const SizedBox() : JoinCodeCard(org: org, showCode: true),
             loading: () => const LinearProgressIndicator(),
-            error: (_, __) => const SizedBox(),
-          ),
-                      ],
-                    ),
-                  ),
-            loading: () => const SizedBox(height: 100, child: Center(child: CircularProgressIndicator())),
             error: (_, __) => const SizedBox(),
           ),
 
@@ -258,10 +251,11 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
+  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
+      keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,

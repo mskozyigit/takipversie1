@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 
-class PhotoStep extends StatelessWidget {
+class PhotoStep extends ConsumerWidget {
   final String? url;
   final VoidCallback onTap;
-  final TranslationNotifier l10n;
 
   const PhotoStep({
     super.key,
     required this.url,
     required this.onTap,
-    required this.l10n,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

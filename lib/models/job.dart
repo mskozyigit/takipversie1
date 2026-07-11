@@ -21,7 +21,6 @@ class Job {
   final String? customerPhone;
   final DateTime scheduledDate;
   final JobStatus status;
-  final String? missionNumber;
   final String? beforePhotoUrl;
   final String? afterPhotoUrl;
   final List<Map<String, dynamic>>? usedParts;
@@ -112,10 +111,6 @@ class Job {
       'isSafetyConfirmed': isSafetyConfirmed,
       'safetyChecklist': safetyChecklist,
       'fee': fee,
-    };
-  }
-      'isPaid': isPaid,
-      'travelMinutes': estimatedTravelTime?.inMinutes,
     };
   }
 

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/org_setup_screen.dart';
 import 'screens/pending_screen.dart';
-import 'screens/admin_dashboard.dart';
 import 'screens/calendar_home_screen.dart';
 
 void main() async {
@@ -18,7 +18,10 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 2. Offline-First Yapılandırması (Section 5)
+  // 2. Google Sign-In Başlatma (Version 7.0+ require initialize)
+  await GoogleSignIn.instance.initialize();
+
+  // 3. Offline-First Yapılandırması (Section 5)
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );

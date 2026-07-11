@@ -4,6 +4,7 @@ import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
+import '../providers/module_provider.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key});
@@ -167,7 +168,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
               const SizedBox(height: 16),
-              _buildField(l10n.translate('log_distance_label') ?? 'Mesafe (KM)', _distanceController, Icons.map, keyboardType: TextInputType.number),
+              _buildField(l10n.translate('log_distance_label'), _distanceController, Icons.map, keyboardType: TextInputType.number),
               const SizedBox(height: 16),
 
               // JOB-04: Extra Description Blocks
@@ -286,10 +287,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
+  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType}) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
+      keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,

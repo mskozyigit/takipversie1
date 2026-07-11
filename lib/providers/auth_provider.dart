@@ -13,7 +13,9 @@ import '../models/organization.dart';
 // Auth State Sealed Class
 // -----------------------------------------------------------------------
 
-sealed class AuthState {}
+sealed class AuthState {
+  AppUser? get appUser => null;
+}
 
 /// Kullanıcı oturum açmamış
 class Unauthenticated extends AuthState {}
@@ -54,7 +56,7 @@ class AuthError extends AuthState {
 
 final _auth = FirebaseAuth.instance;
 final _firestore = FirebaseFirestore.instance;
-final _googleSignIn = GoogleSignIn();
+final _googleSignIn = GoogleSignIn.instance;
 
 // -----------------------------------------------------------------------
 // Auth State Notifier
@@ -119,17 +121,16 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         await _auth.signInWithPopup(googleProvider);
       } else {
         // Mobil için Google Identity Services (GIS) akışı
-        final googleUser = await _googleSignIn.signIn();
+        final googleUser = await _googleSignIn.authenticate();
         if (googleUser == null) {
           state = AsyncValue.data(Unauthenticated());
           return;
         }
         
-        final googleAuth = await googleUser.authentication;
+        final googleAuth = googleUser.authentication;
 
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
-          accessToken: googleAuth.accessToken,
         );
 
         await _auth.signInWithCredential(credential);

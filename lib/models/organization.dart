@@ -5,6 +5,7 @@ class Organization {
   final String name;
   final String joinCode;
   final DateTime createdDate;
+  final String activeLanguage;
   final String? paymentQrUrl;
   final int lastMissionNumber;
   final Map<String, bool> enabledModules;

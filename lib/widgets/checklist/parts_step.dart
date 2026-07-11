@@ -4,20 +4,17 @@ import '../../models/job.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
 
-class PartsStep extends StatelessWidget {
+class PartsStep extends ConsumerWidget {
   final Job job;
-  final TranslationNotifier l10n;
-  final WidgetRef ref;
 
   const PartsStep({
     super.key,
     required this.job,
-    required this.l10n,
-    required this.ref,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

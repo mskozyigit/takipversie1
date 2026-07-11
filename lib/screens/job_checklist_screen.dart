@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/job.dart';
 import '../models/organization.dart';
-import '../providers/job_provider.dart' hide required;
+import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
+import '../providers/module_provider.dart';
 import '../widgets/checklist/safety_step.dart';
 import '../widgets/checklist/payment_step.dart';
 import '../widgets/checklist/parts_step.dart';
@@ -38,6 +39,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   }
 
   Future<void> _takePhoto(bool isBefore) async {
+    final l10n = ref.read(translationProvider.notifier);
     setState(() => _isUploading = true);
     try {
       final url = await ref.read(mediaProvider.notifier).uploadJobPhoto(
@@ -152,7 +154,6 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           children: [
             Stepper(
               physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
               type: StepperType.vertical,
               currentStep: _currentStep,
         onStepContinue: _isUploading ? null : _nextStep,
@@ -223,14 +224,13 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             content: PhotoStep(
               url: _beforePhotoUrl,
               onTap: () => _takePhoto(true),
-              l10n: l10n,
             ),
             isActive: _currentStep >= 1,
             state: _currentStep > 1 ? StepState.complete : StepState.indexed,
           ),
           Step(
             title: Text(l10n.translate('job_parts_title'), style: const TextStyle(color: Colors.white)),
-            content: PartsStep(job: widget.job, l10n: l10n, ref: ref),
+            content: PartsStep(job: widget.job),
             isActive: _currentStep >= 2,
             state: _currentStep > 2 ? StepState.complete : StepState.indexed,
           ),
@@ -239,7 +239,6 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             content: PhotoStep(
               url: _afterPhotoUrl,
               onTap: () => _takePhoto(false),
-              l10n: l10n,
             ),
             isActive: _currentStep >= 3,
             state: _currentStep > 3 ? StepState.complete : StepState.indexed,
@@ -253,7 +252,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             ),
           Step(
             title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
-            content: PaymentStep(job: widget.job, org: org, l10n: l10n, ref: ref),
+            content: PaymentStep(job: widget.job, org: org),
             isActive: _currentStep >= 5,
             state: _currentStep > 5 ? StepState.complete : StepState.indexed,
           ),
@@ -266,7 +265,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         ],
       ),
       const Divider(color: Color(0xFF1A2A3A), thickness: 2),
-      CommentsSection(jobId: widget.job.id, l10n: l10n),
+      CommentsSection(jobId: widget.job.id),
     ],
   ),
 ),
