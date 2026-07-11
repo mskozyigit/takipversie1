@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/media_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
 
@@ -154,64 +156,78 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // CRM: Müşteri seçimi (her zaman görünür)
-              Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
-              const SizedBox(height: 8),
-              customersAsync.when(
-                data: (customers) => Row(children: [
+              // 1. Müşteri Adı (en üstte) + ekle butonu sağda
+              Row(
+                children: [
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<Customer?>(
-                          value: _selectedCustomer,
-                          hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey)),
-                          dropdownColor: const Color(0xFF1A2A3A),
-                          isExpanded: true,
-                          style: const TextStyle(color: Colors.white),
-                          items: [
-                            const DropdownMenuItem(value: null, child: Text('Manuel Giriş', style: TextStyle(color: Colors.grey))),
-                            ...customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name, style: const TextStyle(color: Colors.white)))),
-                          ],
-                          onChanged: (val) {
-                            setState(() {
-                              _selectedCustomer = val;
-                              if (val != null) {
-                                _customerNameController.text = val.name;
-                                _customerPhoneController.text = val.phone;
-                                _addressController.text = val.address;
-                              } else {
-                                _customerNameController.clear();
-                                _customerPhoneController.clear();
-                                _addressController.clear();
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                    ),
+                    child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)),
                     tooltip: 'Yeni Müşteri Ekle',
                     onPressed: () => _showAddCustomerDialog(context, ref),
+                    style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
                   ),
-                ]),
-                loading: () => const LinearProgressIndicator(),
-                error: (e, _) => Text('Hata: $e', style: const TextStyle(color: Colors.red)),
+                ],
               ),
+              const SizedBox(height: 12),
+
+              // 2. CRM: Mevcut müşterilerden seç
+              customersAsync.when(
+                data: (customers) => customers.isEmpty ? const SizedBox() : Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<Customer?>(
+                      value: _selectedCustomer,
+                      hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      dropdownColor: const Color(0xFF1A2A3A),
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Kayıtlı müşteri seç...', style: TextStyle(color: Colors.grey, fontSize: 13))),
+                        ...customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name, style: const TextStyle(color: Colors.white, fontSize: 13)))),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedCustomer = val;
+                          if (val != null) {
+                            _customerNameController.text = val.name;
+                            _customerPhoneController.text = val.phone;
+                            _addressController.text = val.address;
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                loading: () => const SizedBox(),
+                error: (_, __) => const SizedBox(),
+              ),
+              const SizedBox(height: 12),
+
+              // 3. Telefon + Adres
+              _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
+              const SizedBox(height: 12),
+              _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
               const SizedBox(height: 24),
+
+              // 4. İş Başlığı + Açıklama
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
               const SizedBox(height: 16),
-              _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
-              const SizedBox(height: 16),
-              _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
-              const SizedBox(height: 16),
-              _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
+
+              // 5. Resim Ekleme
+              _ImageUploadField(
+                onImagePicked: (url) {
+                  // Add to description blocks as image reference
+                  if (url != null) {
+                    _extraDescControllers.add(TextEditingController(text: '[RESIM]$url'));
+                  }
+                },
+              ),
               const SizedBox(height: 16),
               _buildField(l10n.translate('log_distance_label'), _distanceController, Icons.map, keyboardType: TextInputType.number),
               const SizedBox(height: 16),
@@ -347,6 +363,69 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
       validator: (v) => v == null || v.trim().isEmpty ? 'Bu alan zorunludur' : null,
+    );
+  }
+}
+
+class _ImageUploadField extends ConsumerStatefulWidget {
+  final void Function(String?) onImagePicked;
+  const _ImageUploadField({required this.onImagePicked});
+
+  @override
+  ConsumerState<_ImageUploadField> createState() => _ImageUploadFieldState();
+}
+
+class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
+  String? _imageUrl;
+  bool _isUploading = false;
+
+  Future<void> _pickAndUpload() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (picked == null) return;
+
+    setState(() => _isUploading = true);
+    try {
+      final url = await ref.read(mediaProvider.notifier).uploadJobPhoto(
+        jobId: 'creation_${DateTime.now().millisecondsSinceEpoch}',
+        isBefore: true,
+      );
+      if (url != null) {
+        setState(() => _imageUrl = url);
+        widget.onImagePicked(url);
+      }
+    } catch (_) {} finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _isUploading ? null : _pickAndUpload,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A2A3A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.3), width: 1),
+        ),
+        child: _isUploading
+            ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Color(0xFF4FC3F7))))
+            : _imageUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(_imageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.add_photo_alternate, color: Color(0xFF4FC3F7), size: 28),
+                      SizedBox(width: 12),
+                      Text('Resim Ekle', style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+      ),
     );
   }
 }

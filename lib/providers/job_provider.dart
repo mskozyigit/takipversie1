@@ -221,6 +221,14 @@ class JobNotifier extends Notifier<void> {
     await _logAction(jobId, 'Job Updated');
   }
 
+  Future<void> deleteJob(String jobId) async {
+    final authState = ref.read(authProvider).value;
+    if (authState is! ApprovedAdmin) return;
+
+    await _firestore.collection('jobs').doc(jobId).delete();
+    await _logAction(jobId, 'Job Deleted');
+  }
+
   Future<void> createCustomer({required String name, required String address, required String phone}) async {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
