@@ -9,6 +9,7 @@ import 'job_creation_screen.dart';
 import 'job_checklist_screen.dart';
 import 'job_detail_screen.dart';
 import 'admin_dashboard.dart';
+import 'admin_analytics_screen.dart';
 import 'module_settings_screen.dart';
 import '../providers/module_provider.dart';
 import '../widgets/calendar/job_card.dart';
@@ -66,6 +67,11 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
         backgroundColor: isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1),
         actions: [
           if (isAdmin) ...[
+            IconButton(
+              icon: const Icon(Icons.analytics),
+              tooltip: 'Analitik',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminAnalyticsScreen())),
+            ),
             IconButton(
               icon: const Icon(Icons.settings),
               tooltip: 'Modüller',

@@ -41,6 +41,7 @@ const List<Module> availableModules = [
   Module(id: 'INV-01', name: 'Inventory', description: 'Materials/parts line-items'),
   Module(id: 'SAFE-01', name: 'Safety Checklist', description: 'Configurable safety/compliance checklist'),
   Module(id: 'TEAM-01', name: 'Comments', description: 'Task-level comments'),
+  Module(id: 'REP-01', name: 'Analytics', description: 'Admin analytics dashboard'),
   Module(id: 'ADM-03', name: 'Audit Log', description: 'Who changed what, when'),
 ];
 

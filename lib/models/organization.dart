@@ -10,6 +10,10 @@ class Organization {
   final int lastMissionNumber;
   final Map<String, bool> enabledModules;
 
+  final bool useBranding;
+  final String? logoUrl;
+  final String? primaryColorHex;
+
   const Organization({
     required this.id,
     required this.name,
@@ -19,6 +23,9 @@ class Organization {
     this.paymentQrUrl,
     this.lastMissionNumber = 1000,
     this.enabledModules = const {},
+    this.useBranding = false,
+    this.logoUrl,
+    this.primaryColorHex,
   });
 
   factory Organization.fromFirestore(DocumentSnapshot doc) {
@@ -32,6 +39,9 @@ class Organization {
       paymentQrUrl: data['paymentQrUrl'] as String?,
       lastMissionNumber: data['lastMissionNumber'] as int? ?? 1000,
       enabledModules: Map<String, bool>.from(data['enabledModules'] ?? {}),
+      useBranding: data['useBranding'] as bool? ?? false,
+      logoUrl: data['logoUrl'] as String?,
+      primaryColorHex: data['primaryColorHex'] as String?,
     );
   }
 
@@ -44,6 +54,9 @@ class Organization {
       'paymentQrUrl': paymentQrUrl,
       'lastMissionNumber': lastMissionNumber,
       'enabledModules': enabledModules,
+      'useBranding': useBranding,
+      'logoUrl': logoUrl,
+      'primaryColorHex': primaryColorHex,
     };
   }
 }
