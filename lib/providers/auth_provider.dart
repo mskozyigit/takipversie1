@@ -287,6 +287,24 @@ final pendingUsersProvider = StreamProvider<List<AppUser>>((ref) {
           snapshot.docs.map((doc) => AppUser.fromFirestore(doc)).toList());
 });
 
+/// Mevcut organizasyon bilgilerini dinleyen provider
+final currentOrganizationProvider = StreamProvider<Organization?>((ref) {
+  final authState = ref.watch(authProvider).value;
+  String? orgId;
+  
+  if (authState is ApprovedAdmin) orgId = authState.appUser.organizationId;
+  if (authState is ApprovedWorker) orgId = authState.appUser.organizationId;
+  if (authState is PendingApproval) orgId = authState.appUser.organizationId;
+
+  if (orgId == null) return Stream.value(null);
+
+  return _firestore
+      .collection('organizations')
+      .doc(orgId)
+      .snapshots()
+      .map((doc) => doc.exists ? Organization.fromFirestore(doc) : null);
+});
+
 /// Mevcut AppUser'ı döndürür (null ise giriş yapılmamış)
 final currentUserProvider = Provider<AppUser?>((ref) {
   // Riverpod v3: .value yerine .whenData veya switch kullan
