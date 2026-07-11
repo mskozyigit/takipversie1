@@ -242,7 +242,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           if (ref.watch(moduleRegistryProvider)['SAFE-01'] ?? false)
             Step(
               title: Text(l10n.translate('safe_checklist_title'), style: const TextStyle(color: Colors.white)),
-              content: _SafetyContent(job: widget.job, l10n: l10n, ref: ref),
+              content: _SafetyContent(job: widget.job),
               isActive: _currentStep >= 4,
               state: _currentStep > 4 ? StepState.complete : StepState.indexed,
             ),
@@ -472,26 +472,25 @@ class _PhotoUploadContent extends StatelessWidget {
   }
 }
 
-class _SafetyContent extends StatelessWidget {
+class _SafetyContent extends ConsumerWidget {
   final Job job;
-  final TranslationNotifier l10n;
-  final WidgetRef ref;
 
-  const _SafetyContent({required this.job, required this.l10n, required this.ref});
-
-  void _update(Map<String, bool> current, String key, bool value) {
-    final next = Map<String, bool>.from(current);
-    next[key] = value;
-    ref.read(jobOperationsProvider.notifier).updateSafetyChecklist(job.id, next);
-  }
+  const _SafetyContent({required this.job});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     final checklist = job.safetyChecklist ?? {
       'ppe': false,
       'hazard': false,
       'lockout': false,
     };
+
+    void update(String key, bool value) {
+      final next = Map<String, bool>.from(checklist);
+      next[key] = value;
+      ref.read(jobOperationsProvider.notifier).updateSafetyChecklist(job.id, next);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,21 +498,21 @@ class _SafetyContent extends StatelessWidget {
         CheckboxListTile(
           title: Text(l10n.translate('safe_checklist_item_ppe'), style: const TextStyle(color: Colors.white, fontSize: 14)),
           value: checklist['ppe'],
-          onChanged: (val) => _update(checklist, 'ppe', val ?? false),
+          onChanged: (val) => update('ppe', val ?? false),
           controlAffinity: ListTileControlAffinity.leading,
           activeColor: const Color(0xFF4FC3F7),
         ),
         CheckboxListTile(
           title: Text(l10n.translate('safe_checklist_item_hazard'), style: const TextStyle(color: Colors.white, fontSize: 14)),
           value: checklist['hazard'],
-          onChanged: (val) => _update(checklist, 'hazard', val ?? false),
+          onChanged: (val) => update('hazard', val ?? false),
           controlAffinity: ListTileControlAffinity.leading,
           activeColor: const Color(0xFF4FC3F7),
         ),
         CheckboxListTile(
           title: Text(l10n.translate('safe_checklist_item_lockout'), style: const TextStyle(color: Colors.white, fontSize: 14)),
           value: checklist['lockout'],
-          onChanged: (val) => _update(checklist, 'lockout', val ?? false),
+          onChanged: (val) => update('lockout', val ?? false),
           controlAffinity: ListTileControlAffinity.leading,
           activeColor: const Color(0xFF4FC3F7),
         ),
