@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:table_calendar/flutter_table_calendar.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/job.dart';
@@ -62,18 +62,18 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     _focusedDay = focusedDay;
                   });
                 },
-                calendarStyle: const CalendarStyle(
-                  defaultTextStyle: TextStyle(color: Colors.white),
-                  weekendTextStyle: TextStyle(color: Color(0xFF90A4AE)),
-                  selectedDecoration: BoxDecoration(color: Color(0xFF4FC3F7), shape: BoxShape.circle),
-                  todayDecoration: BoxDecoration(color: Color(0xFF1A2A3A), shape: BoxShape.circle),
-                  markerDecoration: BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                calendarStyle: CalendarStyle(
+                  defaultTextStyle: const TextStyle(color: Colors.white),
+                  weekendTextStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                  selectedDecoration: const BoxDecoration(color: Color(0xFF4FC3F7), shape: BoxShape.circle),
+                  todayDecoration: const BoxDecoration(color: Color(0xFF1A2A3A), shape: BoxShape.circle),
+                  markerDecoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
                 ),
-                headerStyle: const HeaderStyle(
+                headerStyle: HeaderStyle(
                   formatButtonVisible: false,
-                  titleTextStyle: TextStyle(color: Colors.white, fontSize: 18),
-                  leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
-                  rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
+                  titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18),
+                  leftChevronIcon: const Icon(Icons.chevron_left, color: Colors.white),
+                  rightChevronIcon: const Icon(Icons.chevron_right, color: Colors.white),
                 ),
                 eventLoader: (day) {
                   return jobs.where((job) => isSameDay(job.scheduledDate, day)).toList();
