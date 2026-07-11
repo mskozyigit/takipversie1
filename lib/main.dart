@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,18 +14,27 @@ import 'screens/calendar_home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Firebase Başlatma
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    // 1. Firebase Başlatma
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  // 2. Google Sign-In Başlatma (Version 7.0+ require initialize)
-  await GoogleSignIn.instance.initialize();
+    // 2. Google Sign-In Başlatma (Version 7.0+ require initialize)
+    if (!kIsWeb) {
+      await GoogleSignIn.instance.initialize();
+    }
 
-  // 3. Offline-First Yapılandırması (Section 5)
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-  );
+    // 3. Offline-First Yapılandırması (Section 5)
+    if (!kIsWeb) {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+    }
+  } catch (e, stack) {
+    debugPrint('Initialization error: $e');
+    debugPrint(stack.toString());
+  }
 
   // 3. Riverpod ProviderScope ile sarmalama
   runApp(const ProviderScope(child: FieldServiceApp()));
