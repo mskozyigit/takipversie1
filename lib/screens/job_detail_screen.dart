@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/job_provider.dart';
 import 'job_checklist_screen.dart';
 import 'admin_dashboard.dart';
+import 'audit_log_screen.dart';
 
 class JobDetailScreen extends ConsumerWidget {
   final Job job;
@@ -30,12 +31,22 @@ class JobDetailScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider).value;
     final isAdmin = authState is ApprovedAdmin;
     final l10n = ref.read(translationProvider.notifier);
+    final commentsAsync = ref.watch(commentsProvider(job.id));
+    final commentController = TextEditingController();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        title: Text(l10n.translate('job_details')),
+        title: Text('${job.missionNumber} - ${l10n.translate('job_details')}'),
         backgroundColor: isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1),
+        actions: [
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.history_toggle_off),
+              tooltip: 'İş Geçmişi',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AuditLogScreen(jobId: job.id))),
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -64,6 +75,19 @@ class JobDetailScreen extends ConsumerWidget {
               icon: Icons.description_outlined,
               onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
             ),
+
+            // JOB-04: Description Blocks
+            if (job.descriptionBlocks.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Text('Ek Bilgiler', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              ...job.descriptionBlocks.map((block) => _DetailCard(
+                title: 'Bilgi',
+                value: block,
+                icon: Icons.info_outline,
+              )),
+            ],
 
             // Customer Info
             _DetailCard(
@@ -106,6 +130,66 @@ class JobDetailScreen extends ConsumerWidget {
                 ],
               ),
             ],
+
+            const SizedBox(height: 32),
+
+            // TEAM-01: Threaded Comments
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text('Yorumlar & Notlar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+            const SizedBox(height: 12),
+            commentsAsync.when(
+              data: (comments) => ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: comments.length,
+                itemBuilder: (context, i) {
+                  final c = comments[i];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(c.authorName, style: const TextStyle(color: Color(0xFF4FC3F7), fontWeight: FontWeight.bold, fontSize: 12)),
+                            const Spacer(),
+                            Text('${c.timestamp.hour}:${c.timestamp.minute}', style: const TextStyle(color: Color(0xFF546E7A), fontSize: 10)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(c.text, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text('Hata: $e'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: commentController,
+                    decoration: const InputDecoration(hintText: 'Mesaj yazın...', hintStyle: TextStyle(color: Color(0xFF546E7A))),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Color(0xFF4FC3F7)),
+                  onPressed: () async {
+                    if (commentController.text.trim().isNotEmpty) {
+                      await ref.read(jobOperationsProvider.notifier).addComment(job.id, commentController.text.trim());
+                      commentController.clear();
+                    }
+                  },
+                ),
+              ],
+            ),
 
             const SizedBox(height: 32),
 

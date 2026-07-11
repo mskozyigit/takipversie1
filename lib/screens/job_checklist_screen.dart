@@ -53,7 +53,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fotoğraf yüklenemedi: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(l10n.translate('job_checklist_photo_error', {'error': e.toString()})), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -63,6 +63,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
 
   void _nextStep() async {
     final l10n = ref.read(translationProvider.notifier);
+    final registry = ref.read(moduleRegistryProvider);
+    final isMandatory = registry['JOB-03'] ?? false;
+    final isSafetyOn = registry['SAFE-01'] ?? false;
     
     if (_currentStep == 0) {
       // Start -> In Progress
@@ -70,9 +73,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
       // Before Photo Step
-      if (_beforePhotoUrl == null) {
+      if (isMandatory && _beforePhotoUrl == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen iş öncesi fotoğrafını yükleyin.')),
+          SnackBar(content: Text(l10n.translate('job_checklist_before_photo_needed'))),
         );
         return;
       }
@@ -82,23 +85,33 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       setState(() => _currentStep = 3);
     } else if (_currentStep == 3) {
       // After Photo Step
-      if (_afterPhotoUrl == null) {
+      if (isMandatory && _afterPhotoUrl == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen iş sonrası fotoğrafını yükleyin.')),
+          SnackBar(content: Text(l10n.translate('job_checklist_after_photo_needed'))),
         );
         return;
       }
-      setState(() => _currentStep = 4);
+      // If Safety is ON, next is Safety, else Payment
+      setState(() => _currentStep = isSafetyOn ? 4 : 5);
     } else if (_currentStep == 4) {
-      // Payment Step
-      if (!widget.job.isPaid) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen önce ödemeyi kaydedin.')),
+      // Safety Checklist Step
+      if (!widget.job.isSafetyConfirmed) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen güvenlik kontrolünü onaylayın.')),
         );
         return;
       }
       setState(() => _currentStep = 5);
     } else if (_currentStep == 5) {
+      // Payment Step
+      if (isMandatory && !widget.job.isPaid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.translate('job_checklist_payment_needed'))),
+        );
+        return;
+      }
+      setState(() => _currentStep = 6);
+    } else if (_currentStep == 6) {
       // Finish -> Work Completed
       await ref.read(jobOperationsProvider.notifier).updateJobStatus(widget.job.id, JobStatus.workCompleted);
       if (mounted) Navigator.pop(context);
@@ -126,12 +139,17 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        title: Text(widget.job.title),
+        title: Text('${widget.job.missionNumber} - ${widget.job.title}'),
         backgroundColor: const Color(0xFF0D47A1),
       ),
-      body: Stepper(
-        type: StepperType.vertical,
-        currentStep: _currentStep,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Stepper(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              type: StepperType.vertical,
+              currentStep: _currentStep,
         onStepContinue: _isUploading ? null : _nextStep,
         onStepCancel: _prevStep,
         onStepTapped: (step) {
@@ -141,7 +159,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         },
         controlsBuilder: (context, details) {
           final isFirst = _currentStep == 0;
-          final isLast = _currentStep == 5;
+          final isLast = _currentStep == 6;
 
           return Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -221,17 +239,87 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             isActive: _currentStep >= 3,
             state: _currentStep > 3 ? StepState.complete : StepState.indexed,
           ),
+          if (ref.watch(moduleRegistryProvider)['SAFE-01'] ?? false)
+            Step(
+              title: Text(l10n.translate('safe_checklist_title'), style: const TextStyle(color: Colors.white)),
+              content: _SafetyContent(job: widget.job, l10n: l10n, ref: ref),
+              isActive: _currentStep >= 4,
+              state: _currentStep > 4 ? StepState.complete : StepState.indexed,
+            ),
           Step(
             title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
             content: _PaymentContent(job: widget.job, org: org, l10n: l10n, ref: ref),
-            isActive: _currentStep >= 4,
-            state: _currentStep > 4 ? StepState.complete : StepState.indexed,
+            isActive: _currentStep >= 5,
+            state: _currentStep > 5 ? StepState.complete : StepState.indexed,
           ),
           Step(
             title: Text(l10n.translate('job_checklist_finish'), style: const TextStyle(color: Colors.white)),
-            content: Text('Tüm adımlar ve ödeme tamamlandı. İşi kapatabilirsiniz.', style: const TextStyle(color: Color(0xFF90A4AE))),
-            isActive: _currentStep >= 5,
-            state: _currentStep == 5 ? StepState.complete : StepState.indexed,
+            content: Text(l10n.translate('job_checklist_completed_msg'), style: const TextStyle(color: Color(0xFF90A4AE))),
+            isActive: _currentStep >= 6,
+            state: _currentStep == 6 ? StepState.complete : StepState.indexed,
+          ),
+        ],
+      ),
+      const Divider(color: Color(0xFF1A2A3A), thickness: 2),
+      _CommentsSection(jobId: widget.job.id, l10n: l10n),
+    ],
+  ),
+),
+);
+}
+
+class _CommentsSection extends ConsumerWidget {
+  final String jobId;
+  final TranslationNotifier l10n;
+  const _CommentsSection({required this.jobId, required this.l10n});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final commentsAsync = ref.watch(commentsProvider(jobId));
+    final controller = TextEditingController();
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.translate('job_notes_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          commentsAsync.when(
+            data: (comments) => ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: comments.length,
+              itemBuilder: (context, i) {
+                final c = comments[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('${c.authorName}: ${c.text}', style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                );
+              },
+            ),
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text(l10n.translate('error_loading', {'error': e.toString()})),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  decoration: InputDecoration(hintText: l10n.translate('job_notes_hint'), hintStyle: const TextStyle(color: Color(0xFF546E7A))),
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.send, color: Color(0xFF4FC3F7)),
+                onPressed: () {
+                  if (controller.text.trim().isNotEmpty) {
+                    ref.read(jobOperationsProvider.notifier).addComment(jobId, controller.text.trim());
+                    controller.clear();
+                  }
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -381,5 +469,64 @@ class _PhotoUploadContent extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _SafetyContent extends StatelessWidget {
+  final Job job;
+  final TranslationNotifier l10n;
+  final WidgetRef ref;
+
+  const _SafetyContent({required this.job, required this.l10n, required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    final checklist = job.safetyChecklist ?? {
+      'ppe': false,
+      'hazard': false,
+      'lockout': false,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CheckboxListTile(
+          title: Text(l10n.translate('safe_checklist_item_ppe'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+          value: checklist['ppe'],
+          onChanged: (val) => _update(checklist, 'ppe', val ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          activeColor: const Color(0xFF4FC3F7),
+        ),
+        CheckboxListTile(
+          title: Text(l10n.translate('safe_checklist_item_hazard'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+          value: checklist['hazard'],
+          onChanged: (val) => _update(checklist, 'hazard', val ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          activeColor: const Color(0xFF4FC3F7),
+        ),
+        CheckboxListTile(
+          title: Text(l10n.translate('safe_checklist_item_lockout'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+          value: checklist['lockout'],
+          onChanged: (val) => _update(checklist, 'lockout', val ?? false),
+          controlAffinity: ListTileControlAffinity.leading,
+          activeColor: const Color(0xFF4FC3F7),
+        ),
+        const SizedBox(height: 12),
+        if (job.isSafetyConfirmed)
+          const Row(
+            children: [
+              Icon(Icons.verified_user, color: Colors.green, size: 16),
+              SizedBox(width: 8),
+              Text('Güvenlik adımları onaylandı.', style: TextStyle(color: Colors.green, fontSize: 12)),
+            ],
+          ),
+      ],
+    );
+  }
+
+  void _update(Map<String, bool> current, String key, bool value) {
+    final next = Map<String, bool>.from(current);
+    next[key] = value;
+    ref.read(jobOperationsProvider.notifier).updateSafetyChecklist(job.id, next);
   }
 }

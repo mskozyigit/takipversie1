@@ -5,6 +5,7 @@ import '../models/app_user.dart';
 import '../models/job.dart';
 import '../providers/job_provider.dart';
 import 'job_creation_screen.dart';
+import 'module_settings_screen.dart';
 
 class AdminDashboard extends ConsumerWidget {
   final AppUser adminUser;
@@ -23,6 +24,11 @@ class AdminDashboard extends ConsumerWidget {
         title: Text('${l10n.translate('admin_panel_title')} — ${adminUser.name}'),
         backgroundColor: const Color(0xFF1565C0),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_suggest_outlined),
+            tooltip: 'Modül Ayarları',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => ref.read(authProvider.notifier).signOut(),

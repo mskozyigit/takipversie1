@@ -10,8 +10,10 @@ enum JobStatus {
 class Job {
   final String id;
   final String organizationId;
+  final String missionNumber;
   final String title;
   final String description;
+  final List<String> descriptionBlocks;
   final String assignedWorkerId;
   final String assignedWorkerName;
   final String address;
@@ -25,13 +27,19 @@ class Job {
   final List<Map<String, dynamic>>? usedParts;
   final String? paymentMethod; // 'qr' or 'cash'
   final bool isPaid;
+  final Duration? estimatedTravelTime;
   final DateTime createdDate;
+  final bool isSafetyConfirmed;
+  final Map<String, bool>? safetyChecklist;
+  final double? fee;
 
   const Job({
     required this.id,
     required this.organizationId,
+    required this.missionNumber,
     required this.title,
     required this.description,
+    this.descriptionBlocks = const [],
     required this.assignedWorkerId,
     required this.assignedWorkerName,
     required this.address,
@@ -40,12 +48,15 @@ class Job {
     required this.scheduledDate,
     required this.status,
     required this.createdDate,
-    this.missionNumber,
     this.beforePhotoUrl,
     this.afterPhotoUrl,
     this.usedParts,
     this.paymentMethod,
     this.isPaid = false,
+    this.estimatedTravelTime,
+    this.isSafetyConfirmed = false,
+    this.safetyChecklist,
+    this.fee,
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -53,8 +64,10 @@ class Job {
     return Job(
       id: doc.id,
       organizationId: data['organizationId'] as String,
+      missionNumber: data['missionNumber'] as String? ?? '',
       title: data['title'] as String,
       description: data['description'] as String,
+      descriptionBlocks: List<String>.from(data['descriptionBlocks'] ?? []),
       assignedWorkerId: data['assignedWorkerId'] as String,
       assignedWorkerName: data['assignedWorkerName'] as String,
       address: data['address'] as String,
@@ -63,20 +76,25 @@ class Job {
       scheduledDate: (data['scheduledDate'] as Timestamp).toDate(),
       status: _parseStatus(data['status'] as String),
       createdDate: (data['createdDate'] as Timestamp).toDate(),
-      missionNumber: data['missionNumber'] as String?,
       beforePhotoUrl: data['beforePhotoUrl'] as String?,
       afterPhotoUrl: data['afterPhotoUrl'] as String?,
       usedParts: (data['usedParts'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList(),
       paymentMethod: data['paymentMethod'] as String?,
       isPaid: data['isPaid'] as bool? ?? false,
+      estimatedTravelTime: data['travelMinutes'] != null ? Duration(minutes: data['travelMinutes'] as int) : null,
+      isSafetyConfirmed: data['isSafetyConfirmed'] as bool? ?? false,
+      safetyChecklist: data['safetyChecklist'] != null ? Map<String, bool>.from(data['safetyChecklist']) : null,
+      fee: (data['fee'] as num?)?.toDouble(),
     );
   }
 
   Map<String, dynamic> toFirestore() {
     return {
       'organizationId': organizationId,
+      'missionNumber': missionNumber,
       'title': title,
       'description': description,
+      'descriptionBlocks': descriptionBlocks,
       'assignedWorkerId': assignedWorkerId,
       'assignedWorkerName': assignedWorkerName,
       'address': address,
@@ -85,12 +103,19 @@ class Job {
       'scheduledDate': Timestamp.fromDate(scheduledDate),
       'status': status.name,
       'createdDate': Timestamp.fromDate(createdDate),
-      'missionNumber': missionNumber,
       'beforePhotoUrl': beforePhotoUrl,
       'afterPhotoUrl': afterPhotoUrl,
       'usedParts': usedParts,
       'paymentMethod': paymentMethod,
       'isPaid': isPaid,
+      'travelMinutes': estimatedTravelTime?.inMinutes,
+      'isSafetyConfirmed': isSafetyConfirmed,
+      'safetyChecklist': safetyChecklist,
+      'fee': fee,
+    };
+  }
+      'isPaid': isPaid,
+      'travelMinutes': estimatedTravelTime?.inMinutes,
     };
   }
 

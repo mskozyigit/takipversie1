@@ -5,8 +5,9 @@ class Organization {
   final String name;
   final String joinCode;
   final DateTime createdDate;
-  final String activeLanguage;
   final String? paymentQrUrl;
+  final int lastMissionNumber;
+  final Map<String, bool> enabledModules;
 
   const Organization({
     required this.id,
@@ -15,6 +16,8 @@ class Organization {
     required this.createdDate,
     this.activeLanguage = 'nl',
     this.paymentQrUrl,
+    this.lastMissionNumber = 1000,
+    this.enabledModules = const {},
   });
 
   factory Organization.fromFirestore(DocumentSnapshot doc) {
@@ -26,6 +29,8 @@ class Organization {
       createdDate: (data['createdDate'] as Timestamp).toDate(),
       activeLanguage: data['activeLanguage'] as String? ?? 'nl',
       paymentQrUrl: data['paymentQrUrl'] as String?,
+      lastMissionNumber: data['lastMissionNumber'] as int? ?? 1000,
+      enabledModules: Map<String, bool>.from(data['enabledModules'] ?? {}),
     );
   }
 
@@ -36,6 +41,8 @@ class Organization {
       'createdDate': Timestamp.fromDate(createdDate),
       'activeLanguage': activeLanguage,
       'paymentQrUrl': paymentQrUrl,
+      'lastMissionNumber': lastMissionNumber,
+      'enabledModules': enabledModules,
     };
   }
 }

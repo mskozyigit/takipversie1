@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/app_user.dart';
+import '../models/customer.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key});
@@ -18,10 +19,15 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _addressController = TextEditingController();
   final _customerNameController = TextEditingController();
   final _customerPhoneController = TextEditingController();
+  final _distanceController = TextEditingController();
+  final _feeController = TextEditingController();
+  final List<TextEditingController> _extraDescControllers = [];
   
   DateTime _selectedDate = DateTime.now();
   AppUser? _selectedWorker;
+  Customer? _selectedCustomer;
   bool _isLoading = false;
+  bool _showFeeField = false;
 
   @override
   void dispose() {
@@ -30,7 +36,18 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     _addressController.dispose();
     _customerNameController.dispose();
     _customerPhoneController.dispose();
+    _distanceController.dispose();
+    _feeController.dispose();
+    for (var c in _extraDescControllers) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  void _addDescriptionBlock() {
+    setState(() {
+      _extraDescControllers.add(TextEditingController());
+    });
   }
 
   Future<void> _submit() async {
@@ -46,15 +63,21 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final distance = double.tryParse(_distanceController.text);
+      final fee = double.tryParse(_feeController.text);
+      
       await ref.read(jobOperationsProvider.notifier).createJob(
             title: _titleController.text.trim(),
             description: _descController.text.trim(),
+            descriptionBlocks: _extraDescControllers.map((c) => c.text.trim()).toList(),
             assignedWorkerId: _selectedWorker!.id,
             assignedWorkerName: _selectedWorker!.name,
             address: _addressController.text.trim(),
             customerName: _customerNameController.text.trim(),
             customerPhone: _customerPhoneController.text.trim(),
             scheduledDate: _selectedDate,
+            distanceKm: distance,
+            fee: fee,
           );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -71,7 +94,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   @override
   Widget build(BuildContext context) {
     final workersAsync = ref.watch(organizationWorkersProvider);
+    final customersAsync = ref.watch(customersProvider);
     final l10n = ref.read(translationProvider.notifier);
+    final registry = ref.watch(moduleRegistryProvider);
+    final isCrmOn = registry['CRM-01'] ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
@@ -86,6 +112,51 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (isCrmOn) ...[
+                Text(
+                  l10n.translate('crm_customer_search'),
+                  style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                customersAsync.when(
+                  data: (customers) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A2A3A),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<Customer?>(
+                        value: _selectedCustomer,
+                        hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey)),
+                        dropdownColor: const Color(0xFF1A2A3A),
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white),
+                        items: [
+                          const DropdownMenuItem(value: null, child: Text('Manual Giriş')),
+                          ...customers.map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(c.name),
+                          )),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedCustomer = val;
+                            if (val != null) {
+                              _customerNameController.text = val.name;
+                              _customerPhoneController.text = val.phone;
+                              _addressController.text = val.address;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  loading: () => const LinearProgressIndicator(),
+                  error: (e, _) => Text('Hata: $e', style: const TextStyle(color: Colors.red)),
+                ),
+                const SizedBox(height: 24),
+              ],
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
@@ -95,6 +166,40 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
+              const SizedBox(height: 16),
+              _buildField(l10n.translate('log_distance_label') ?? 'Mesafe (KM)', _distanceController, Icons.map, keyboardType: TextInputType.number),
+              const SizedBox(height: 16),
+
+              // JOB-04: Extra Description Blocks
+              ..._extraDescControllers.asMap().entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment),
+                );
+              }),
+
+              if (_showFeeField) ...[
+                _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number),
+                const SizedBox(height: 16),
+              ],
+
+              Wrap(
+                spacing: 8,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.add, size: 16),
+                    label: const Text('Açıklama Bloğu'),
+                    onPressed: _addDescriptionBlock,
+                  ),
+                  if (!_showFeeField)
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 16),
+                      label: const Text('Ücret Ekle'),
+                      onPressed: () => setState(() => _showFeeField = true),
+                    ),
+                ],
+              ),
+
               const SizedBox(height: 24),
               
               // Personel Seçimi

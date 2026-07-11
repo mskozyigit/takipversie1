@@ -9,6 +9,8 @@ import 'job_creation_screen.dart';
 import 'job_checklist_screen.dart';
 import 'job_detail_screen.dart';
 import 'admin_dashboard.dart';
+import 'module_settings_screen.dart';
+import '../providers/module_provider.dart';
 
 class CalendarHomeScreen extends ConsumerStatefulWidget {
   const CalendarHomeScreen({super.key});
@@ -22,6 +24,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.week;
   int _viewMode = 1; // 0: 1-Day, 1: Week, 2: Month, 3: 3-Day Agenda
+  String? _selectedWorkerId; // CAL-03
 
   @override
   void initState() {
@@ -37,6 +40,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     
     // Admin ise tüm işleri, Worker ise sadece kendine atananları izle
     final jobsAsync = isAdmin ? ref.watch(allJobsProvider) : ref.watch(workerJobsProvider);
+    final workersAsync = ref.watch(organizationWorkersProvider); // CAL-03
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
@@ -56,7 +60,12 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
         ),
         backgroundColor: isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1),
         actions: [
-          if (isAdmin)
+          if (isAdmin) ...[
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Modüller',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
+            ),
             IconButton(
               icon: const Icon(Icons.group_add),
               tooltip: l10n.translate('admin_pending_users'),
@@ -65,6 +74,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 MaterialPageRoute(builder: (_) => AdminDashboard(adminUser: (authState as ApprovedAdmin).appUser)),
               ),
             ),
+          ],
           PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'logout') {
@@ -96,10 +106,37 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       ),
       body: jobsAsync.when(
         data: (jobs) {
-          final selectedJobs = jobs.where((job) => isSameDay(job.scheduledDate, _selectedDay)).toList();
+          // CAL-03: Apply worker filter
+          final filteredJobs = _selectedWorkerId == null 
+            ? jobs 
+            : jobs.where((j) => j.assignedWorkerId == _selectedWorkerId).toList();
+
+          final selectedJobs = filteredJobs.where((job) => isSameDay(job.scheduledDate, _selectedDay)).toList();
 
           return Column(
             children: [
+              // CAL-03: Admin Filter
+              if (isAdmin && (ref.watch(moduleRegistryProvider)['CAL-03'] ?? false))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: workersAsync.when(
+                    data: (workers) => DropdownButton<String?>(
+                      value: _selectedWorkerId,
+                      hint: const Text('Personel Filtresi', style: TextStyle(color: Colors.white70)),
+                      dropdownColor: const Color(0xFF1A2A3A),
+                      isExpanded: true,
+                      style: const TextStyle(color: Colors.white),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Tüm Personeller')),
+                        ...workers.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name))),
+                      ],
+                      onChanged: (val) => setState(() => _selectedWorkerId = val),
+                    ),
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const SizedBox(),
+                  ),
+                ),
+
               // Organizasyon Katılım Kartı (HERKES İÇİN - Admin kodu görsün, İşçi sadece bilsin)
               orgAsync.when(
                 data: (org) => org == null ? const SizedBox() : _JoinCodeCard(org: org, l10n: l10n, showCode: isAdmin),
@@ -188,7 +225,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     rightChevronIcon: const Icon(Icons.chevron_right, color: Colors.white),
                   ),
                   eventLoader: (day) {
-                    return jobs.where((job) => isSameDay(job.scheduledDate, day)).toList();
+                    return filteredJobs.where((job) => isSameDay(job.scheduledDate, day)).toList();
                   },
                 ),
               
@@ -196,7 +233,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               
               Expanded(
                 child: _viewMode == 3
-                    ? _buildAgendaView(jobs, l10n, isAdmin)
+                    ? _buildAgendaView(filteredJobs, l10n, isAdmin)
                     : _buildJobList(selectedJobs, l10n, isAdmin),
               ),
             ],
@@ -296,9 +333,9 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   Color _getStatusColor(JobStatus status) {
     switch (status) {
       case JobStatus.notStarted: return Colors.grey;
-      case JobStatus.inProgress: return Colors.blue;
-      case JobStatus.workCompleted: return Colors.green;
-      case JobStatus.closed: return Colors.deepPurple;
+      case JobStatus.inProgress: return Colors.orange; // Yellow/Orange
+      case JobStatus.workCompleted: return Colors.blue;
+      case JobStatus.closed: return Colors.green;
     }
   }
 }

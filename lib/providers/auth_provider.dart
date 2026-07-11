@@ -53,7 +53,7 @@ class AuthError extends AuthState {
 
 final _auth = FirebaseAuth.instance;
 final _firestore = FirebaseFirestore.instance;
-final _googleSignIn = GoogleSignIn.instance;
+final _googleSignIn = GoogleSignIn();
 
 // -----------------------------------------------------------------------
 // Auth State Notifier
@@ -118,14 +118,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         await _auth.signInWithPopup(googleProvider);
       } else {
         // Mobil için Google Identity Services (GIS) akışı
-        final googleUser = await _googleSignIn.authenticate();
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          state = AsyncValue.data(Unauthenticated());
+          return;
+        }
         
-        final googleAuth = googleUser.authentication;
-        final authClient = await googleUser.authorizationClient.authorizeScopes([]);
+        final googleAuth = await googleUser.authentication;
 
         final credential = GoogleAuthProvider.credential(
           idToken: googleAuth.idToken,
-          accessToken: authClient.accessToken,
+          accessToken: googleAuth.accessToken,
         );
 
         await _auth.signInWithCredential(credential);
@@ -381,9 +384,16 @@ class TranslationNotifier extends AsyncNotifier<String> {
     return 'tr';
   }
 
-  String translate(String key) {
+  String translate(String key, [Map<String, String>? params]) {
     final lang = state.value ?? 'tr';
-    return translations[lang]?[key] ?? translations['tr']?[key] ?? key;
+    String text = translations[lang]?[key] ?? translations['tr']?[key] ?? key;
+    
+    if (params != null) {
+      params.forEach((k, v) {
+        text = text.replaceAll('{$k}', v);
+      });
+    }
+    return text;
   }
 }
 
