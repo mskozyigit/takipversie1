@@ -20,7 +20,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   CalendarFormat _calendarFormat = CalendarFormat.week;
-  bool _isMultiDayView = false;
+  int _viewMode = 1; // 0: 1-Day, 1: Week, 2: Month, 3: 3-Day Agenda
 
   @override
   void initState() {
@@ -41,7 +41,18 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        title: Text(isAdmin ? l10n.translate('admin_panel_title') : l10n.translate('worker_panel_title')),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isAdmin ? l10n.translate('admin_panel_title') : l10n.translate('worker_panel_title'), 
+                 style: const TextStyle(fontSize: 16)),
+            orgAsync.when(
+              data: (org) => Text(org?.name ?? '', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              loading: () => const SizedBox(),
+              error: (_, __) => const SizedBox(),
+            ),
+          ],
+        ),
         backgroundColor: isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1),
         actions: [
           if (isAdmin)
@@ -53,9 +64,32 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 MaterialPageRoute(builder: (_) => AdminDashboard(adminUser: (authState as ApprovedAdmin).appUser)),
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authProvider.notifier).signOut(),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'logout') {
+                ref.read(authProvider.notifier).signOut();
+              } else if (value == 'leave') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(l10n.translate('leave_org')),
+                    content: Text(l10n.translate('leave_org_confirm')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  ref.read(authProvider.notifier).leaveOrganization();
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'leave', child: Text(l10n.translate('leave_org'))),
+              PopupMenuItem(value: 'logout', child: Text(l10n.translate('logout'))),
+            ],
+            icon: const Icon(Icons.more_vert),
           ),
         ],
       ),
@@ -65,15 +99,14 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
 
           return Column(
             children: [
-              // Admin için Join Code Kartı
-              if (isAdmin)
-                orgAsync.when(
-                  data: (org) => org == null ? const SizedBox() : _JoinCodeCard(org: org, l10n: l10n),
-                  loading: () => const SizedBox(),
-                  error: (_, __) => const SizedBox(),
-                ),
+              // Organizasyon Katılım Kartı (HERKES İÇİN - Admin kodu görsün, İşçi sadece bilsin)
+              orgAsync.when(
+                data: (org) => org == null ? const SizedBox() : _JoinCodeCard(org: org, l10n: l10n, showCode: isAdmin),
+                loading: () => const SizedBox(),
+                error: (_, __) => const SizedBox(),
+              },
 
-              // Görünüm Seçici (3 Gün, Hafta, Ay)
+              // Görünüm Seçici
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: SingleChildScrollView(
@@ -81,76 +114,89 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   child: Row(
                     children: [
                       _ViewToggle(
-                        label: l10n.translate('view_3day'),
-                        isSelected: _calendarFormat == CalendarFormat.week && _isMultiDayView,
+                        label: l10n.translate('view_1day'),
+                        isSelected: _viewMode == 0,
                         onTap: () => setState(() {
+                          _viewMode = 0;
                           _calendarFormat = CalendarFormat.week;
-                          _isMultiDayView = true;
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      _ViewToggle(
+                        label: l10n.translate('view_3day'),
+                        isSelected: _viewMode == 3,
+                        onTap: () => setState(() {
+                          _viewMode = 3;
+                          _calendarFormat = CalendarFormat.week;
                         }),
                       ),
                       const SizedBox(width: 8),
                       _ViewToggle(
                         label: l10n.translate('view_week'),
-                        isSelected: _calendarFormat == CalendarFormat.week && !_isMultiDayView,
+                        isSelected: _viewMode == 1,
                         onTap: () => setState(() {
+                          _viewMode = 1;
                           _calendarFormat = CalendarFormat.week;
-                          _isMultiDayView = false;
                         }),
                       ),
                       const SizedBox(width: 8),
                       _ViewToggle(
                         label: l10n.translate('view_month'),
-                        isSelected: _calendarFormat == CalendarFormat.month,
+                        isSelected: _viewMode == 2,
                         onTap: () => setState(() {
+                          _viewMode = 2;
                           _calendarFormat = CalendarFormat.month;
-                          _isMultiDayView = false;
                         }),
                       ),
                     ],
                   ),
                 ),
-              ),
+              },
 
-              TableCalendar(
-                firstDay: DateTime.now().subtract(const Duration(days: 365)),
-                lastDay: DateTime.now().add(const Duration(days: 365)),
-                focusedDay: _focusedDay,
-                calendarFormat: _calendarFormat,
-                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                onDaySelected: (selectedDay, focusedDay) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay;
-                  });
-                },
-                onFormatChanged: (format) {
-                  setState(() {
-                    _calendarFormat = format;
-                    _isMultiDayView = false;
-                  });
-                },
-                calendarStyle: CalendarStyle(
-                  defaultTextStyle: const TextStyle(color: Colors.white),
-                  weekendTextStyle: const TextStyle(color: Color(0xFF90A4AE)),
-                  selectedDecoration: const BoxDecoration(color: Color(0xFF4FC3F7), shape: BoxShape.circle),
-                  todayDecoration: const BoxDecoration(color: Color(0xFF1A2A3A), shape: BoxShape.circle),
-                  markerDecoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+              if (_viewMode != 3) // Hafta/Ay/Gün görünümlerinde takvimi göster
+                TableCalendar(
+                  firstDay: DateTime.now().subtract(const Duration(days: 365)),
+                  lastDay: DateTime.now().add(const Duration(days: 365)),
+                  focusedDay: _focusedDay,
+                  calendarFormat: _calendarFormat,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                  },
+                  onFormatChanged: (format) {
+                    setState(() {
+                      _calendarFormat = format;
+                      if (format == CalendarFormat.month) _viewMode = 2;
+                      if (format == CalendarFormat.week) _viewMode = 1;
+                    });
+                  },
+                  calendarStyle: CalendarStyle(
+                    defaultTextStyle: const TextStyle(color: Colors.white),
+                    weekendTextStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                    selectedDecoration: const BoxDecoration(color: Color(0xFF4FC3F7), shape: BoxShape.circle),
+                    todayDecoration: const BoxDecoration(color: Color(0xFF1A2A3A), shape: BoxShape.circle),
+                    markerDecoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                  ),
+                  headerStyle: HeaderStyle(
+                    formatButtonVisible: false,
+                    titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18),
+                    leftChevronIcon: const Icon(Icons.chevron_left, color: Colors.white),
+                    rightChevronIcon: const Icon(Icons.chevron_right, color: Colors.white),
+                  ),
+                  eventLoader: (day) {
+                    return jobs.where((job) => isSameDay(job.scheduledDate, day)).toList();
+                  },
                 ),
-                headerStyle: HeaderStyle(
-                  formatButtonVisible: false,
-                  titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18),
-                  leftChevronIcon: const Icon(Icons.chevron_left, color: Colors.white),
-                  rightChevronIcon: const Icon(Icons.chevron_right, color: Colors.white),
-                ),
-                eventLoader: (day) {
-                  return jobs.where((job) => isSameDay(job.scheduledDate, day)).toList();
-                },
-              ),
+              
               const Divider(color: Color(0xFF1A2A3A), thickness: 2),
+              
               Expanded(
-                child: _isMultiDayView
-                    ? _buildMultiDayView(jobs, l10n, isAdmin)
-                    : _buildSingleDayList(selectedJobs, l10n, isAdmin),
+                child: _viewMode == 3
+                    ? _buildAgendaView(jobs, l10n, isAdmin)
+                    : _buildJobList(selectedJobs, l10n, isAdmin),
               ),
             ],
           );
@@ -168,7 +214,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     );
   }
 
-  Widget _buildSingleDayList(List<Job> selectedJobs, TranslationNotifier l10n, bool isAdmin) {
+  Widget _buildJobList(List<Job> selectedJobs, TranslationNotifier l10n, bool isAdmin) {
     if (selectedJobs.isEmpty) {
       return Center(child: Text(l10n.translate('admin_no_pending'), style: const TextStyle(color: Color(0xFF90A4AE))));
     }
@@ -176,33 +222,12 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       itemCount: selectedJobs.length,
       itemBuilder: (context, index) {
         final job = selectedJobs[index];
-        return Card(
-          color: const Color(0xFF1A2A3A),
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ListTile(
-            leading: Container(
-              width: 4,
-              height: double.infinity,
-              color: _getStatusColor(job.status),
-            ),
-            title: Text(job.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text(
-              '${isAdmin ? job.assignedWorkerName : job.address} • ${l10n.translate('job_status_${job.status.name}')}',
-              style: const TextStyle(color: Color(0xFF90A4AE)),
-            ),
-            trailing: const Icon(Icons.chevron_right, color: Color(0xFF4FC3F7)),
-            onTap: () {
-              if (!isAdmin) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
-              }
-            },
-          ),
-        );
+        return _JobCard(job: job, isAdmin: isAdmin, l10n: l10n, onStatusColor: _getStatusColor(job.status));
       },
     );
   }
 
-  Widget _buildMultiDayView(List<Job> allJobs, TranslationNotifier l10n, bool isAdmin) {
+  Widget _buildAgendaView(List<Job> allJobs, TranslationNotifier l10n, bool isAdmin) {
     final startDay = _selectedDay ?? _focusedDay;
     final days = List.generate(3, (i) => startDay.add(Duration(days: i)));
 
@@ -231,21 +256,26 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     itemCount: dayJobs.length,
                     itemBuilder: (context, i) {
                       final job = dayJobs[i];
-                      return Container(
-                        margin: const EdgeInsets.all(4),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(job.status).withOpacity(0.2),
-                          border: Border(left: BorderSide(color: _getStatusColor(job.status), width: 3)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(job.title, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
-                            Text(isAdmin ? job.assignedWorkerName : job.address, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1),
-                          ],
+                      return GestureDetector(
+                        onTap: () {
+                           if (!isAdmin) Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(job.status).withOpacity(0.2),
+                            border: Border(left: BorderSide(color: _getStatusColor(job.status), width: 3)),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(job.title, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 4),
+                              Text(isAdmin ? job.assignedWorkerName : job.address, style: const TextStyle(color: Colors.white70, fontSize: 9), maxLines: 1),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -271,6 +301,37 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       case JobStatus.workCompleted: return Colors.green;
       case JobStatus.closed: return Colors.deepPurple;
     }
+  }
+}
+
+class _JobCard extends StatelessWidget {
+  final Job job;
+  final bool isAdmin;
+  final TranslationNotifier l10n;
+  final Color onStatusColor;
+
+  const _JobCard({required this.job, required this.isAdmin, required this.l10n, required this.onStatusColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF1A2A3A),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        leading: Container(width: 4, height: double.infinity, color: onStatusColor),
+        title: Text(job.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        subtitle: Text(
+          '${isAdmin ? job.assignedWorkerName : job.address} • ${l10n.translate('job_status_${job.status.name}')}',
+          style: const TextStyle(color: Color(0xFF90A4AE)),
+        ),
+        trailing: const Icon(Icons.chevron_right, color: Color(0xFF4FC3F7)),
+        onTap: () {
+          if (!isAdmin) {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job)));
+          }
+        },
+      ),
+    );
   }
 }
 
@@ -306,8 +367,9 @@ class _ViewToggle extends StatelessWidget {
 class _JoinCodeCard extends StatelessWidget {
   final Organization org;
   final TranslationNotifier l10n;
+  final bool showCode;
 
-  const _JoinCodeCard({required this.org, required this.l10n});
+  const _JoinCodeCard({required this.org, required this.l10n, required this.showCode});
 
   @override
   Widget build(BuildContext context) {
@@ -322,24 +384,29 @@ class _JoinCodeCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(org.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text('${l10n.translate('admin_join_code')}: ${org.joinCode}',
-                  style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 16, fontWeight: FontWeight.bold)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(org.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                if (showCode)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text('${l10n.translate('admin_join_code')}: ${org.joinCode}',
+                        style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
           ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.copy, color: Color(0xFF4FC3F7), size: 20),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Kod kopyalandı!')),
-              );
-            },
-          ),
+          if (showCode)
+            IconButton(
+              icon: const Icon(Icons.copy, color: Color(0xFF4FC3F7), size: 20),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Kod kopyalandı!')),
+                );
+              },
+            ),
         ],
       ),
     );

@@ -249,6 +249,20 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     }
   }
 
+  Future<void> leaveOrganization() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Sadece kullanıcı dokümanını siliyoruz, bu sayede tekrar girdiğinde OrgSetupScreen'e düşecek.
+      // Not: Admin ise kurum sahipsiz kalabilir (bu aşamada basit tutuyoruz).
+      await _firestore.collection('users').doc(user.uid).delete();
+      state = AsyncValue.data(Unauthenticated());
+    } catch (e) {
+      debugPrint('Kurumdan ayrılamadı: $e');
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Sign Out
   // -----------------------------------------------------------------------
