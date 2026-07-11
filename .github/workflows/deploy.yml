@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Web
         run: |
-          flutter build web --release --base-href "/takipversie1/"
+          flutter build web --release --base-href "/takipversie1/" --no-wasm-dry-run
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
