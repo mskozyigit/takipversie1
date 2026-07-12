@@ -167,8 +167,8 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
 
             const SizedBox(height: 32),
 
-            // Action Button for Worker
-            if (!isAdmin && job.status != JobStatus.closed)
+            // Action Button
+            if (!isAdmin && job.status != JobStatus.closed && job.status != JobStatus.workCompleted)
               ElevatedButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job))),
                 style: ElevatedButton.styleFrom(
@@ -182,6 +182,14 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                     : l10n.translate('job_continue_checklist'),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
+              ),
+            if ((!isAdmin && (job.status == JobStatus.closed || job.status == JobStatus.workCompleted)) || 
+                (isAdmin && job.status == JobStatus.closed))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('✅ ${l10n.translate('job_status_${job.status.name}')}', 
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
           ],
         ),

@@ -31,7 +31,6 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   @override
   void initState() {
     super.initState();
-    // Eğer iş zaten başladıysa adımı güncelle
     if (widget.job.status == JobStatus.inProgress) {
       _currentStep = 1;
     }
@@ -63,6 +62,11 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
           if (isBefore) _beforePhotoUrl = url;
           else _afterPhotoUrl = url;
         });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(isBefore ? 'İş öncesi fotoğraf yüklendi ✓' : 'İş sonrası fotoğraf yüklendi ✓'), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -81,65 +85,46 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     final isMandatory = registry['JOB-03'] ?? false;
     final isSafetyOn = registry['SAFE-01'] ?? false;
 
-    // Step indices (max with SAFE-01: 8 steps, without: 7 steps)
-    // 0=Start, 1=Location, 2=BeforePhoto, 3=Note, 4=AfterPhoto,
-    // 5=Safety(if on), 6(or5)=Finish, 7(or6)=Payment
-
+    // Steps: 0=Start, 1=BeforePhoto, 2=Note, 3=AfterPhoto, 4(or5)=Safety, 5(or6)=Finish, 6(or7)=Payment
     final safetyOffset = isSafetyOn ? 1 : 0;
-    final finishStep = 5 + safetyOffset;
-    final paymentStep = 6 + safetyOffset;
+    final finishStep = 4 + safetyOffset;
+    final paymentStep = 5 + safetyOffset;
     final lastStep = paymentStep;
 
     if (_currentStep == 0) {
-      // Start → log timestamp, status → In Progress
       await ref.read(jobOperationsProvider.notifier).updateJobStatus(widget.job.id, JobStatus.inProgress);
       setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
-      // Location → just navigate (maps link in the step UI)
-      setState(() => _currentStep = 2);
-    } else if (_currentStep == 2) {
       // Before Photo
       if (isMandatory && _beforePhotoUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.translate('job_checklist_before_photo_needed'))),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_before_photo_needed'))));
         return;
       }
+      setState(() => _currentStep = 2);
+    } else if (_currentStep == 2) {
+      // Note
       setState(() => _currentStep = 3);
     } else if (_currentStep == 3) {
-      // Note → optional free text, always can proceed
-      setState(() => _currentStep = 4);
-    } else if (_currentStep == 4) {
       // After Photo
       if (isMandatory && _afterPhotoUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.translate('job_checklist_after_photo_needed'))),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_after_photo_needed'))));
         return;
       }
-      setState(() => _currentStep = isSafetyOn ? 5 : finishStep);
-    } else if (isSafetyOn && _currentStep == 5) {
-      // Safety Checklist → fixed slot before Finish
+      setState(() => _currentStep = isSafetyOn ? 4 : finishStep);
+    } else if (isSafetyOn && _currentStep == 4) {
       if (!widget.job.isSafetyConfirmed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen güvenlik kontrolünü onaylayın.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen güvenlik kontrolünü onaylayın.')));
         return;
       }
       setState(() => _currentStep = finishStep);
     } else if (_currentStep == finishStep) {
-      // Finish → status → Work Completed
       await ref.read(jobOperationsProvider.notifier).updateJobStatus(widget.job.id, JobStatus.workCompleted);
       setState(() => _currentStep = paymentStep);
     } else if (_currentStep == paymentStep) {
-      // Payment → required if JOB-03 ON, after Finish
       if (isMandatory && !widget.job.isPaid) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.translate('job_checklist_payment_needed'))),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_payment_needed'))));
         return;
       }
-      // Job completed, close screen
       if (mounted) Navigator.pop(context);
     }
   }
@@ -184,9 +169,10 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         },
         controlsBuilder: (context, details) {
           final isSafetyOn = (ref.read(moduleRegistryProvider)['SAFE-01'] ?? false);
-          final lastStep = isSafetyOn ? 7 : 6;
+          final lastStep = isSafetyOn ? 6 : 5;
           final isFirst = _currentStep == 0;
           final isLast = _currentStep == lastStep;
+          final finishStep = isSafetyOn ? 5 : 4;
 
           return Padding(
             padding: const EdgeInsets.only(top: 16),
@@ -245,30 +231,14 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         isActive: _currentStep >= 0,
         state: _currentStep > 0 ? StepState.complete : StepState.indexed,
       ),
-      // 1: Location
-      Step(
-        title: Text(l10n.translate('job_checklist_location'), style: const TextStyle(color: Colors.white)),
-        content: InkWell(
-          onTap: () => _launchMaps(widget.job.address),
-          child: Row(
-            children: [
-              const Icon(Icons.map, color: Color(0xFF4FC3F7), size: 20),
-              const SizedBox(width: 8),
-              Expanded(child: Text(widget.job.address, style: const TextStyle(color: Color(0xFF4FC3F7), decoration: TextDecoration.underline))),
-            ],
-          ),
-        ),
-        isActive: _currentStep >= 1,
-        state: _currentStep > 1 ? StepState.complete : StepState.indexed,
-      ),
-      // 2: Before Photo
+      // 1: Before Photo
       Step(
         title: Text(l10n.translate('job_before_photo'), style: const TextStyle(color: Colors.white)),
         content: PhotoStep(url: _beforePhotoUrl, onTap: () => _takePhoto(true)),
-        isActive: _currentStep >= 2,
-        state: _currentStep > 2 ? StepState.complete : StepState.indexed,
+        isActive: _currentStep >= 1,
+        state: _currentStep > 1 ? StepState.complete : StepState.indexed,
       ),
-      // 3: Note
+      // 2: Note
       Step(
         title: Text(l10n.translate('job_checklist_note'), style: const TextStyle(color: Colors.white)),
         content: TextField(
@@ -283,37 +253,37 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
           ),
         ),
-        isActive: _currentStep >= 3,
-        state: _currentStep > 3 ? StepState.complete : StepState.indexed,
+        isActive: _currentStep >= 2,
+        state: _currentStep > 2 ? StepState.complete : StepState.indexed,
       ),
-      // 4: After Photo
+      // 3: After Photo
       Step(
         title: Text(l10n.translate('job_after_photo'), style: const TextStyle(color: Colors.white)),
         content: PhotoStep(url: _afterPhotoUrl, onTap: () => _takePhoto(false)),
-        isActive: _currentStep >= 4,
-        state: _currentStep > 4 ? StepState.complete : StepState.indexed,
+        isActive: _currentStep >= 3,
+        state: _currentStep > 3 ? StepState.complete : StepState.indexed,
       ),
-      // 5: Safety (conditional)
+      // 4: Safety (conditional)
       if (isSafetyOn)
         Step(
           title: Text(l10n.translate('safe_checklist_title'), style: const TextStyle(color: Colors.white)),
           content: SafetyStep(job: widget.job),
-          isActive: _currentStep >= 5,
-          state: _currentStep > 5 ? StepState.complete : StepState.indexed,
+          isActive: _currentStep >= 4,
+          state: _currentStep > 4 ? StepState.complete : StepState.indexed,
         ),
-      // 6(or5): Finish
+      // Finish
       Step(
         title: Text(l10n.translate('job_checklist_finish'), style: const TextStyle(color: Colors.white)),
         content: Text(l10n.translate('job_checklist_completed_msg'), style: const TextStyle(color: Color(0xFF90A4AE))),
-        isActive: _currentStep >= (isSafetyOn ? 6 : 5),
-        state: _currentStep > (isSafetyOn ? 6 : 5) ? StepState.complete : StepState.indexed,
+        isActive: _currentStep >= (isSafetyOn ? 5 : 4),
+        state: _currentStep > (isSafetyOn ? 5 : 4) ? StepState.complete : StepState.indexed,
       ),
-      // 7(or6): Payment
+      // Payment
       Step(
         title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
         content: PaymentStep(job: widget.job, org: org),
-        isActive: _currentStep >= (isSafetyOn ? 7 : 6),
-        state: _currentStep > (isSafetyOn ? 7 : 6) ? StepState.complete : StepState.indexed,
+        isActive: _currentStep >= (isSafetyOn ? 6 : 5),
+        state: _currentStep > (isSafetyOn ? 6 : 5) ? StepState.complete : StepState.indexed,
       ),
     ];
   }

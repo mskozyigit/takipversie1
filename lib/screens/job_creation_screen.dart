@@ -217,7 +217,16 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 12),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Açıklama Blokları (hemen açıklamanın altında)
+              ..._extraDescControllers.asMap().entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment),
+                );
+              }),
+              const SizedBox(height: 12),
 
               // 5. Resim Ekleme
               _ImageUploadField(
@@ -231,14 +240,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               const SizedBox(height: 16),
               _buildField(l10n.translate('log_distance_label'), _distanceController, Icons.map, keyboardType: TextInputType.number),
               const SizedBox(height: 16),
-
-              // JOB-04: Extra Description Blocks
-              ..._extraDescControllers.asMap().entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment),
-                );
-              }),
 
               if (_showFeeField) ...[
                 _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number),

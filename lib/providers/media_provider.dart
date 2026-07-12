@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,42 +27,40 @@ class MediaNotifier extends Notifier<void> {
     else if (authState is ApprovedWorker) orgId = authState.appUser.organizationId;
     else return null;
 
-    // 1. Pick Image
+    // Pick with low quality for fast upload
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: 70, // Basic picker compression
+      imageQuality: kIsWeb ? 50 : 60,
+      maxWidth: 800,
     );
 
     if (pickedFile == null) return null;
 
-    // 2. Client-side Compression (Resizing to max 1024px)
-    final Uint8List originalBytes = await pickedFile.readAsBytes();
-    final img.Image? image = img.decodeImage(originalBytes);
-    
-    if (image == null) return null;
-
-    // Resize if larger than 1024px
-    img.Image resized = image;
-    if (image.width > 1024 || image.height > 1024) {
-      resized = img.copyResize(image, width: 1024);
+    Uint8List uploadBytes;
+    if (kIsWeb) {
+      // Web: skip Dart-based compression (very slow), use picker's built-in
+      uploadBytes = await pickedFile.readAsBytes();
+    } else {
+      // Mobile: fast client-side resize
+      final original = await pickedFile.readAsBytes();
+      final image = img.decodeImage(original);
+      if (image == null) {
+        uploadBytes = original;
+      } else {
+        img.Image resized = image;
+        if (image.width > 800) {
+          resized = img.copyResize(image, width: 800);
+        }
+        uploadBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 75));
+      }
     }
 
-    // Compress to JPG
-    final Uint8List compressedBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
-
-    // 3. Upload to Firebase Storage
-    // Path: organizationId/jobs/jobId/filename
     final String fileName = '${isBefore ? "before" : "after"}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final String path = '$orgId/jobs/$jobId/$fileName';
     
     final refStorage = _storage.ref().child(path);
-    final uploadTask = refStorage.putData(
-      compressedBytes,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    await refStorage.putData(uploadBytes, SettableMetadata(contentType: 'image/jpeg'));
+    return await refStorage.getDownloadURL();
   }
 
   /// Upload payment QR code for the organization
