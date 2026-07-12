@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/job.dart';
 import '../providers/auth_provider.dart';
 import '../providers/job_provider.dart';
+import '../widgets/web_safe_image.dart';
 import 'job_checklist_screen.dart';
 import 'admin_dashboard.dart';
 import 'audit_log_screen.dart';
@@ -319,13 +320,9 @@ class _PhotoPreview extends StatelessWidget {
               maxScale: 5,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  url,
+                child: WebSafeImage(
+                  url: url,
                   fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progress) {
-                    if (progress == null) return child;
-                    return const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7)));
-                  },
                   errorBuilder: (ctx, err, stack) => const Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.broken_image, color: Colors.red, size: 48),
@@ -369,19 +366,11 @@ class _PhotoPreview extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: Stack(
               children: [
-                Image.network(
-                  url,
+                WebSafeImage(
+                  url: url,
                   height: 120,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 120,
-                      color: const Color(0xFF1A2A3A),
-                      child: const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7), strokeWidth: 2)),
-                    );
-                  },
                   errorBuilder: (context, error, stack) => Container(
                     height: 120,
                     color: const Color(0xFF1A2A3A),
@@ -435,13 +424,9 @@ class _DescriptionImagePreview extends StatelessWidget {
               maxScale: 5,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrl,
+                child: WebSafeImage(
+                  url: imageUrl,
                   fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progress) {
-                    if (progress == null) return child;
-                    return const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7)));
-                  },
                   errorBuilder: (ctx, err, stack) => const Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.broken_image, color: Colors.red, size: 48),
@@ -483,19 +468,11 @@ class _DescriptionImagePreview extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Stack(
           children: [
-            Image.network(
-              imageUrl,
+            WebSafeImage(
+              url: imageUrl,
               height: 120,
               width: double.infinity,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 120,
-                  color: const Color(0xFF1A2A3A),
-                  child: const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7), strokeWidth: 2)),
-                );
-              },
               errorBuilder: (context, error, stack) => Container(
                 height: 120,
                 color: const Color(0xFF1A2A3A),

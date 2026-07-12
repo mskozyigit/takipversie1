@@ -16,6 +16,7 @@ class JobTemplate {
   final bool includeAddress;
   final bool includeFee;
   final bool includeDistance;
+  final bool includeDuration;
 
   // Default values (only used if the corresponding include flag is true)
   final String defaultTitle;
@@ -26,6 +27,7 @@ class JobTemplate {
   final String defaultAddress;
   final double? defaultFee;
   final double? defaultDistance;
+  final int defaultDurationHours;
 
   const JobTemplate({
     required this.id,
@@ -40,6 +42,7 @@ class JobTemplate {
     this.includeAddress = false,
     this.includeFee = false,
     this.includeDistance = false,
+    this.includeDuration = false,
     this.defaultTitle = '',
     this.defaultDescription = '',
     this.defaultDescriptionBlocks = const [],
@@ -48,6 +51,7 @@ class JobTemplate {
     this.defaultAddress = '',
     this.defaultFee,
     this.defaultDistance,
+    this.defaultDurationHours = 2,
   });
 
   factory JobTemplate.fromFirestore(DocumentSnapshot doc) {
@@ -65,6 +69,7 @@ class JobTemplate {
       includeAddress: data['includeAddress'] as bool? ?? false,
       includeFee: data['includeFee'] as bool? ?? false,
       includeDistance: data['includeDistance'] as bool? ?? false,
+      includeDuration: data['includeDuration'] as bool? ?? false,
       defaultTitle: data['defaultTitle'] as String? ?? '',
       defaultDescription: data['defaultDescription'] as String? ?? '',
       defaultDescriptionBlocks: List<String>.from(data['defaultDescriptionBlocks'] ?? []),
@@ -73,6 +78,7 @@ class JobTemplate {
       defaultAddress: data['defaultAddress'] as String? ?? '',
       defaultFee: (data['defaultFee'] as num?)?.toDouble(),
       defaultDistance: (data['defaultDistance'] as num?)?.toDouble(),
+      defaultDurationHours: data['defaultDurationHours'] as int? ?? 2,
     );
   }
 
@@ -89,6 +95,7 @@ class JobTemplate {
       'includeAddress': includeAddress,
       'includeFee': includeFee,
       'includeDistance': includeDistance,
+      'includeDuration': includeDuration,
       'defaultTitle': defaultTitle,
       'defaultDescription': defaultDescription,
       'defaultDescriptionBlocks': defaultDescriptionBlocks,
@@ -97,6 +104,7 @@ class JobTemplate {
       'defaultAddress': defaultAddress,
       'defaultFee': defaultFee,
       'defaultDistance': defaultDistance,
+      'defaultDurationHours': defaultDurationHours,
     };
   }
 }

@@ -87,6 +87,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
     if (t.includeAddress) parts.add('Adres');
     if (t.includeFee) parts.add(t.defaultFee != null ? 'Ücret (${t.defaultFee!.toStringAsFixed(0)}₺)' : 'Ücret');
     if (t.includeDistance) parts.add(t.defaultDistance != null ? 'Mesafe (${t.defaultDistance!.toStringAsFixed(1)} km)' : 'Mesafe');
+    if (t.includeDuration) parts.add('${t.defaultDurationHours} saat');
     return parts.join(' • ');
   }
 
@@ -128,6 +129,8 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
     bool inclAddr = false;
     bool inclFee = false;
     bool inclDist = false;
+    bool inclDuration = false;
+    int defaultDur = 2;
 
     showDialog(
       context: context,
@@ -159,6 +162,28 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                 if (inclFee) _buildDarkField('Varsayılan Ücret', feeCtrl, keyboardType: TextInputType.number),
                 _toggle('Mesafe', inclDist, (v) => setDialogState(() => inclDist = v)),
                 if (inclDist) _buildDarkField('Varsayılan Mesafe (km)', distCtrl, keyboardType: TextInputType.number),
+                _toggle('Süre', inclDuration, (v) => setDialogState(() => inclDuration = v)),
+                if (inclDuration)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const Text('Varsayılan Süre:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                        const SizedBox(width: 8),
+                        DropdownButton<int>(
+                          value: defaultDur,
+                          dropdownColor: const Color(0xFF0D1B2A),
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          underline: const SizedBox(),
+                          items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(
+                            value: h,
+                            child: Text('$h saat', style: const TextStyle(color: Colors.white)),
+                          )).toList(),
+                          onChanged: (v) => setDialogState(() => defaultDur = v ?? 2),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -177,6 +202,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                   includeAddress: inclAddr,
                   includeFee: inclFee,
                   includeDistance: inclDist,
+                  includeDuration: inclDuration,
                   defaultTitle: titleCtrl.text.trim(),
                   defaultDescription: descCtrl.text.trim(),
                   defaultDescriptionBlocks: descBlockCtrl.text.trim().isNotEmpty ? [descBlockCtrl.text.trim()] : [],
@@ -185,6 +211,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                   defaultAddress: addrCtrl.text.trim(),
                   defaultFee: double.tryParse(feeCtrl.text),
                   defaultDistance: double.tryParse(distCtrl.text),
+                  defaultDurationHours: defaultDur,
                 );
                 if (ctx.mounted) Navigator.pop(ctx);
               },

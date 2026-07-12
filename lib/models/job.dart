@@ -33,6 +33,7 @@ class Job {
   final bool isSafetyConfirmed;
   final Map<String, bool>? safetyChecklist;
   final double? fee;
+  final int durationHours;
 
   const Job({
     required this.id,
@@ -60,6 +61,7 @@ class Job {
     this.isSafetyConfirmed = false,
     this.safetyChecklist,
     this.fee,
+    this.durationHours = 2,
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -90,6 +92,7 @@ class Job {
       isSafetyConfirmed: data['isSafetyConfirmed'] as bool? ?? false,
       safetyChecklist: data['safetyChecklist'] != null ? Map<String, bool>.from(data['safetyChecklist']) : null,
       fee: (data['fee'] as num?)?.toDouble(),
+      durationHours: data['durationHours'] as int? ?? 2,
     );
   }
 
@@ -119,6 +122,7 @@ class Job {
       'isSafetyConfirmed': isSafetyConfirmed,
       'safetyChecklist': safetyChecklist,
       'fee': fee,
+      'durationHours': durationHours,
     };
   }
 

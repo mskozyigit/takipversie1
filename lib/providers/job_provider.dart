@@ -133,6 +133,7 @@ class JobNotifier extends Notifier<void> {
     List<String> attachedImages = const [],
     double? distanceKm,
     double? fee,
+    int durationHours = 2,
   }) async {
     final authState = ref.read(authProvider).value;
     if (authState is! ApprovedAdmin) return;
@@ -174,6 +175,7 @@ class JobNotifier extends Notifier<void> {
       createdDate: DateTime.now(),
       estimatedTravelTime: estimatedTravel,
       fee: fee,
+      durationHours: durationHours,
     );
 
     await jobRef.set(job.toFirestore());
@@ -409,6 +411,7 @@ class TemplateNotifier extends Notifier<void> {
     bool includeAddress = false,
     bool includeFee = false,
     bool includeDistance = false,
+    bool includeDuration = false,
     String defaultTitle = '',
     String defaultDescription = '',
     List<String> defaultDescriptionBlocks = const [],
@@ -417,6 +420,7 @@ class TemplateNotifier extends Notifier<void> {
     String defaultAddress = '',
     double? defaultFee,
     double? defaultDistance,
+    int defaultDurationHours = 2,
   }) async {
     final authState = ref.read(authProvider).value;
     if (authState is! ApprovedAdmin) return;
@@ -442,6 +446,7 @@ class TemplateNotifier extends Notifier<void> {
       defaultAddress: defaultAddress,
       defaultFee: defaultFee,
       defaultDistance: defaultDistance,
+      defaultDurationHours: defaultDurationHours,
     );
 
     await _firestore.collection('jobTemplates').doc(template.id).set(template.toFirestore());

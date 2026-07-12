@@ -9,6 +9,7 @@ import '../providers/media_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
 import '../models/job_template.dart';
+import '../widgets/web_safe_image.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key});
@@ -37,6 +38,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   bool _showFeeField = false;
   String? _paymentQrUrl;
   bool _customerDialogShown = false;
+  int _durationHours = 2;
 
   @override
   void initState() {
@@ -307,6 +309,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
             scheduledDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute),
             distanceKm: distance,
             fee: fee,
+            durationHours: _durationHours,
           );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -481,6 +484,35 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Süre seçici
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A2A3A),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.timelapse, color: Color(0xFF4FC3F7)),
+                    const SizedBox(width: 12),
+                    const Text('Süre:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: _durationHours,
+                      dropdownColor: const Color(0xFF1A2A3A),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      underline: const SizedBox(),
+                      items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(
+                        value: h,
+                        child: Text('$h saat', style: const TextStyle(color: Colors.white)),
+                      )).toList(),
+                      onChanged: (v) => setState(() => _durationHours = v ?? 2),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
@@ -792,6 +824,9 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       if (t.includeDistance && t.defaultDistance != null) {
         _distanceController.text = t.defaultDistance!.toStringAsFixed(1);
       }
+      if (t.includeDuration) {
+        _durationHours = t.defaultDurationHours;
+      }
     });
 
     if (mounted) {
@@ -810,6 +845,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     if (t.includeAddress) parts.add('Adres');
     if (t.includeFee) parts.add('Ücret');
     if (t.includeDistance) parts.add('Mesafe');
+    if (t.includeDuration) parts.add('${t.defaultDurationHours}s');
     return parts.join(', ');
   }
 
@@ -852,19 +888,11 @@ class _ImagePreviewBlock extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
-            child: Image.network(
-              imageUrl,
+            child: WebSafeImage(
+              url: imageUrl,
               height: 120,
               width: double.infinity,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 120,
-                  color: const Color(0xFF1A2A3A),
-                  child: const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7), strokeWidth: 2)),
-                );
-              },
               errorBuilder: (context, error, stack) => Container(
                 height: 120,
                 color: const Color(0xFF1A2A3A),
@@ -956,7 +984,7 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
             : _imageUrl != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(_imageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
+                    child: WebSafeImage(url: _imageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
                   )
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,

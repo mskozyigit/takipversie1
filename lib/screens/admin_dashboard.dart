@@ -9,6 +9,7 @@ import '../providers/job_provider.dart';
 import 'module_settings_screen.dart';
 import 'job_template_screen.dart';
 import '../widgets/calendar/join_code_card.dart';
+import '../widgets/web_safe_image.dart';
 
 class AdminDashboard extends ConsumerWidget {
   final AppUser adminUser;
@@ -409,13 +410,13 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
               decoration: BoxDecoration(
                 color: const Color(0xFF0D1B2A),
                 borderRadius: BorderRadius.circular(8),
-                image: widget.currentQrUrl != null
-                    ? DecorationImage(image: NetworkImage(widget.currentQrUrl!), fit: BoxFit.contain)
-                    : null,
               ),
-              child: widget.currentQrUrl == null
-                  ? const Icon(Icons.qr_code, color: Color(0xFF546E7A), size: 32)
-                  : null,
+              child: widget.currentQrUrl != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: WebSafeImage(url: widget.currentQrUrl!, fit: BoxFit.contain),
+                    )
+                  : const Icon(Icons.qr_code, color: Color(0xFF546E7A), size: 32),
             ),
             const SizedBox(width: 12),
             Expanded(

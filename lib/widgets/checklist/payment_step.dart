@@ -4,6 +4,7 @@ import '../../models/job.dart';
 import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
+import '../web_safe_image.dart';
 
 class PaymentStep extends ConsumerWidget {
   final Job job;
@@ -41,7 +42,10 @@ class PaymentStep extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              image: DecorationImage(image: NetworkImage(org!.paymentQrUrl!), fit: BoxFit.contain),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: WebSafeImage(url: org!.paymentQrUrl!, fit: BoxFit.contain),
             ),
           )
         else

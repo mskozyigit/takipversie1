@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/web_safe_image.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -117,22 +118,17 @@ class _BrandingLogo extends ConsumerWidget {
 
     if (branding.useBranding && branding.logoUrl != null && branding.logoUrl!.isNotEmpty) {
       return Center(
-        child: Container(
-          height: 80,
-          width: 200,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              branding.logoUrl!,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.engineering_rounded,
-                size: 80,
-                color: Color(0xFF4FC3F7),
-              ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: WebSafeImage(
+            url: branding.logoUrl!,
+            height: 80,
+            width: 200,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.engineering_rounded,
+              size: 80,
+              color: Color(0xFF4FC3F7),
             ),
           ),
         ),

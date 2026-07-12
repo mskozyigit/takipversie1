@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/web_safe_image.dart';
 
 class BrandingSettingsScreen extends ConsumerStatefulWidget {
   const BrandingSettingsScreen({super.key});
@@ -160,7 +161,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
                 ),
                 child: Center(
                   child: _logoController.text.isNotEmpty
-                      ? Image.network(_logoController.text, height: 40, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.white, size: 32))
+                      ? WebSafeImage(url: _logoController.text, height: 40, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.white, size: 32))
                       : const Text('Ratel Solutions', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),

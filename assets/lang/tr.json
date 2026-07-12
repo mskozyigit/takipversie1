@@ -76,7 +76,7 @@
   "job_checklist_before_photo_needed": "Lütfen iş öncesi fotoğrafını yükleyin.",
   "job_checklist_after_photo_needed": "Lütfen iş sonrası fotoğrafını yükleyin.",
   "job_checklist_payment_needed": "Lütfen önce ödemeyi kaydedin.",
-  "job_checklist_completed_msg": "Tüm adımlar ve ödeme tamamlandı. İşi kapatabilirsiniz.",
+  "job_checklist_completed_msg": "Tüm iş adımları tamamlandı. Şimdi ödeme adımına geçebilirsiniz.",
   "job_notes_title": "Saha & Ofis Notları",
   "job_notes_hint": "Not yazın...",
   "error_loading": "Hata: {error}",

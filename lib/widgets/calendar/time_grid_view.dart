@@ -149,15 +149,19 @@ class _DayColumn extends StatelessWidget {
         // Job cards
         ...jobs.map((job) {
           final hour = job.scheduledDate.hour.clamp(8, 17);
-          final top = (hour - 8) * 60.0;
-          // Distribute jobs within the hour
-          final indexInHour = jobs.where((j) => j.scheduledDate.hour == hour).toList().indexOf(job);
-          final topOffset = top + (indexInHour * 20.0);
+          final minute = job.scheduledDate.minute;
+          final top = ((hour - 8) * 60.0) + (minute / 60.0 * 60.0);
+          final durHours = job.durationHours.clamp(1, 10);
+          final height = durHours * 60.0;
+          // Clamp so it doesn't overflow past 18:00
+          final maxTop = (10 * 60.0) - 20.0; // 10 hours * 60px
+          final clampedTop = top.clamp(0.0, maxTop);
 
           return Positioned(
-            top: topOffset,
+            top: clampedTop,
             left: 2,
             right: 2,
+            height: height,
             child: GestureDetector(
               onTap: () => onJobTap(job),
               child: Container(
@@ -176,6 +180,11 @@ class _DayColumn extends StatelessWidget {
                       Text(job.description, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 8), maxLines: 2, overflow: TextOverflow.ellipsis),
                     if (job.customerName != null && job.customerName!.isNotEmpty)
                       Text(job.customerName!, style: const TextStyle(color: Color(0xFF546E7A), fontSize: 7), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    const Spacer(),
+                    Text(
+                      '${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')} • ${durHours}s',
+                      style: const TextStyle(color: Color(0xFF546E7A), fontSize: 7),
+                    ),
                   ],
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../web_safe_image.dart';
 
 class PhotoStep extends ConsumerWidget {
   final String? url;
@@ -27,13 +28,9 @@ class PhotoStep extends ConsumerWidget {
               maxScale: 5,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  imageUrl,
+                child: WebSafeImage(
+                  url: imageUrl,
                   fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progress) {
-                    if (progress == null) return child;
-                    return const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7)));
-                  },
                   errorBuilder: (ctx, err, stack) => const Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.broken_image, color: Colors.red, size: 48),
@@ -109,16 +106,9 @@ class PhotoStep extends ConsumerWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      url!,
+                    child: WebSafeImage(
+                      url: url!,
                       fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          color: const Color(0xFF1A2A3A),
-                          child: const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7), strokeWidth: 2)),
-                        );
-                      },
                       errorBuilder: (context, error, stack) => Container(
                         color: const Color(0xFF1A2A3A),
                         child: const Center(

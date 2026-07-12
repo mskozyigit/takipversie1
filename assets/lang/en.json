@@ -28,7 +28,7 @@
   "job_checklist_before_photo_needed": "Please upload the before photo.",
   "job_checklist_after_photo_needed": "Please upload the after photo.",
   "job_checklist_payment_needed": "Please record the payment first.",
-  "job_checklist_completed_msg": "All steps and payment are completed. You can close the job.",
+  "job_checklist_completed_msg": "All work steps are completed. You can now proceed to the payment step.",
   "job_notes_title": "Field & Office Notes",
   "job_notes_hint": "Write a note...",
   "error_loading": "Error: {error}",

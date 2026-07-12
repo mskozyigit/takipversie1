@@ -62,6 +62,7 @@
   "job_checklist_finish": "Beëindigen",
   "job_checklist_next": "Doorgaan",
   "job_checklist_back": "Terug",
+  "job_checklist_completed_msg": "Alle werkstappen zijn voltooid. U kunt nu doorgaan naar de betalingsstap.",
   "job_payment_qr_not_available": "QR-code nog niet geüpload door beheerder.",
   "job_payment_title": "Betaling Incasseren",
   "job_payment_qr": "Betalen via QR",
