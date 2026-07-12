@@ -83,7 +83,7 @@ class LoginScreen extends ConsumerWidget {
                         'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
                         width: 22,
                         height: 22,
-                        errorBuilder: (_, _, _) => const Icon(Icons.login),
+                        errorBuilder: (context, error, stack) => const Icon(Icons.login),
                       ),
                 label: Text(
                   isLoading ? l10n.translate('login_logging_in') : l10n.translate('login_google_button'),
