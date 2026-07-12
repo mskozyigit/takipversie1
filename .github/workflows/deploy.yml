@@ -42,13 +42,11 @@ jobs:
 
       - name: Validate Web Assets
         run: |
-          echo "Checking index.html..."
-          test -f web/index.html || (echo "ERROR: web/index.html missing" && exit 1)
-          echo "Checking manifest.json..."
-          test -f web/manifest.json || (echo "ERROR: web/manifest.json missing" && exit 1)
-          python3 -m json.tool web/manifest.json > /dev/null || (echo "ERROR: manifest.json is not valid JSON" && exit 1)
-          echo "Checking service worker..."
-          test -f web/firebase-messaging-sw.js || (echo "ERROR: firebase-messaging-sw.js missing" && exit 1)
+          echo "Checking web assets..."
+          test -f web/index.html || { echo "ERROR: web/index.html missing"; exit 1; }
+          test -f web/manifest.json || { echo "ERROR: web/manifest.json missing"; exit 1; }
+          python3 -m json.tool web/manifest.json > /dev/null || { echo "ERROR: manifest.json invalid JSON"; exit 1; }
+          test -f web/firebase-messaging-sw.js || { echo "ERROR: service worker missing"; exit 1; }
           echo "All web assets validated."
 
   build-and-deploy:
@@ -83,9 +81,9 @@ jobs:
         run: |
           echo "Build output size:"
           du -sh build/web/main.dart.js
-          echo "Checking build integrity..."
-          test -f build/web/index.html || (echo "ERROR: Build missing index.html" && exit 1)
-          test -f build/web/main.dart.js || (echo "ERROR: Build missing main.dart.js" && exit 1)
+          test -f build/web/index.html || { echo "ERROR: Build missing index.html"; exit 1; }
+          test -f build/web/main.dart.js || { echo "ERROR: Build missing main.dart.js"; exit 1; }
+          echo "Build integrity verified."
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
