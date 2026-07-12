@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,18 +31,23 @@ class MediaNotifier extends Notifier<void> {
 
     try {
       // Pick with low quality + reduced size for fast upload
+      debugPrint('[MEDIA] Opening image picker with source=$source');
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
         imageQuality: kIsWeb ? 40 : 55,
         maxWidth: 600,
       );
 
-      if (pickedFile == null) return null;
+      if (pickedFile == null) {
+        debugPrint('[MEDIA] User cancelled picker');
+        return null;
+      }
 
+      debugPrint('[MEDIA] Picked file: ${pickedFile.name}, reading bytes...');
       final bytes = await _compressImage(await pickedFile.readAsBytes());
       return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: bytes);
     } catch (e) {
-      // Re-throw so the caller can show the error
+      debugPrint('[MEDIA] uploadJobPhoto failed: $e');
       rethrow;
     }
   }
@@ -55,6 +60,7 @@ class MediaNotifier extends Notifier<void> {
     required Uint8List bytes,
     required bool isBefore,
   }) async {
+    debugPrint('[MEDIA] uploadJobPhotoFromBytes: orgId=$orgId, jobId=$jobId, size=${bytes.length}');
     if (orgId.isEmpty || orgId == 'temp') {
       throw ArgumentError('uploadJobPhotoFromBytes: orgId cannot be empty or "temp". Organization not loaded yet.');
     }
@@ -65,23 +71,28 @@ class MediaNotifier extends Notifier<void> {
   /// Compress image bytes client-side.
   /// Falls back to original bytes if decode fails (e.g. HEIC format from iOS camera).
   Future<Uint8List> _compressImage(Uint8List original) async {
-    if (kIsWeb) return original; // Web: picker already compressed
+    if (kIsWeb) {
+      debugPrint('[MEDIA] Web platform — skipping compression, size=${original.length} bytes');
+      return original;
+    }
     
     try {
       final image = img.decodeImage(original);
       if (image == null) {
-        // decodeImage returns null for unsupported formats like HEIC.
-        // Return original bytes as-is — the file will still upload but won't be compressed.
+        debugPrint('[MEDIA] decodeImage returned null (possible HEIC) — using original ${original.length} bytes');
         return original;
       }
 
+      debugPrint('[MEDIA] Image decoded: ${image.width}x${image.height}, compressing...');
       img.Image resized = image;
       if (image.width > 600) {
         resized = img.copyResize(image, width: 600);
       }
-      return Uint8List.fromList(img.encodeJpg(resized, quality: 65));
-    } catch (_) {
-      // If anything goes wrong during compression, upload original bytes
+      final compressed = Uint8List.fromList(img.encodeJpg(resized, quality: 65));
+      debugPrint('[MEDIA] Compressed: ${original.length} → ${compressed.length} bytes');
+      return compressed;
+    } catch (e) {
+      debugPrint('[MEDIA] Compression failed: $e — using original bytes');
       return original;
     }
   }
@@ -96,13 +107,17 @@ class MediaNotifier extends Notifier<void> {
     final String fileName = '${isBefore ? "before" : "after"}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final String path = '$orgId/jobs/$jobId/$fileName';
 
+    debugPrint('[MEDIA] Uploading to Storage: path=$path, size=${bytes.length} bytes');
     final refStorage = _storage.ref().child(path);
     try {
+      debugPrint('[MEDIA] putData starting...');
       await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      debugPrint('[MEDIA] putData completed, getting download URL...');
       final downloadUrl = await refStorage.getDownloadURL();
+      debugPrint('[MEDIA] Download URL obtained: $downloadUrl');
       return downloadUrl;
     } on FirebaseException catch (e) {
-      // Surface the actual Storage error code so the caller can show a meaningful message
+      debugPrint('[MEDIA] Storage ERROR [${e.code}]: ${e.message}');
       throw Exception('Storage yükleme hatası [${e.code}]: ${e.message}');
     }
   }
