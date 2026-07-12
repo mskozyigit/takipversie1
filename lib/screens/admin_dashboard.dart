@@ -12,13 +12,20 @@ import '../widgets/calendar/join_code_card.dart';
 import '../widgets/web_safe_image.dart';
 import '../theme/app_theme.dart';
 
-class AdminDashboard extends ConsumerWidget {
+class AdminDashboard extends ConsumerStatefulWidget {
   final AppUser adminUser;
 
   const AdminDashboard({super.key, required this.adminUser});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends ConsumerState<AdminDashboard> {
+  String? _processingUserId;
+
+  @override
+  Widget build(BuildContext context) {
     final pendingUsersAsync = ref.watch(pendingUsersProvider);
     final orgAsync = ref.watch(currentOrganizationProvider);
     final l10n = ref.read(translationProvider.notifier);
@@ -27,33 +34,33 @@ class AdminDashboard extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${l10n.translate('admin_panel_title')} — ${adminUser.name}'),
+        title: Text('${l10n.translate('admin_panel_title')} — ${widget.adminUser.name}'),
         backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary,
         actions: [
           // ADM-02: Language toggle
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
-            tooltip: 'Dil / Language / Taal',
+            tooltip: l10n.translate('language_tooltip'),
             onSelected: (lang) => ref.read(translationProvider.notifier).setLanguage(lang),
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'tr',
                 child: Row(children: [
-                  Text('🇹🇷  Türkçe', style: TextStyle(fontWeight: currentLang == 'tr' ? FontWeight.bold : FontWeight.normal)),
+                  Text(l10n.translate('lang_turkish'), style: TextStyle(fontWeight: currentLang == 'tr' ? FontWeight.bold : FontWeight.normal)),
                   if (currentLang == 'tr') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                 ]),
               ),
               PopupMenuItem(
                 value: 'en',
                 child: Row(children: [
-                  Text('🇬🇧  English', style: TextStyle(fontWeight: currentLang == 'en' ? FontWeight.bold : FontWeight.normal)),
+                  Text(l10n.translate('lang_english'), style: TextStyle(fontWeight: currentLang == 'en' ? FontWeight.bold : FontWeight.normal)),
                   if (currentLang == 'en') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                 ]),
               ),
               PopupMenuItem(
                 value: 'nl',
                 child: Row(children: [
-                  Text('🇳🇱  Nederlands', style: TextStyle(fontWeight: currentLang == 'nl' ? FontWeight.bold : FontWeight.normal)),
+                  Text(l10n.translate('lang_dutch'), style: TextStyle(fontWeight: currentLang == 'nl' ? FontWeight.bold : FontWeight.normal)),
                   if (currentLang == 'nl') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                 ]),
               ),
@@ -61,17 +68,34 @@ class AdminDashboard extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.settings_suggest_outlined),
-            tooltip: 'Modül Ayarları',
+            tooltip: l10n.translate('module_settings_tooltip'),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.description_outlined),
-            tooltip: 'Görev Şablonları',
+            tooltip: l10n.translate('template_tooltip'),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authProvider.notifier).signOut(),
+            tooltip: l10n.translate('logout'),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: Theme.of(ctx).colorScheme.surface,
+                  title: Text(l10n.translate('logout'), style: const TextStyle(color: Colors.white)),
+                  content: Text(l10n.translate('leave_org_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('logout'), style: const TextStyle(color: Colors.red))),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                ref.read(authProvider.notifier).signOut();
+              }
+            },
           ),
         ],
       ),
@@ -86,7 +110,10 @@ class AdminDashboard extends ConsumerWidget {
               _PaymentQrSection(orgId: org.id, currentQrUrl: org.paymentQrUrl),
             ]),
             loading: () => const LinearProgressIndicator(),
-            error: (_, __) => const SizedBox(),
+            error: (e, _) => Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red, fontSize: 13)),
+            ),
           ),
 
           Padding(
@@ -110,7 +137,8 @@ class AdminDashboard extends ConsumerWidget {
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                       ),
                     )
-                  : ListView.builder(
+                  : RepaintBoundary(
+                    child: ListView.builder(
                       itemCount: users.length,
                       itemBuilder: (context, index) {
                         final user = users[index];
@@ -124,14 +152,32 @@ class AdminDashboard extends ConsumerWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 TextButton(
-                                  onPressed: () => ref.read(authProvider.notifier).updateUserStatus(user.id, ApprovalStatus.rejected),
-                                  child: Text(l10n.translate('admin_reject'), style: const TextStyle(color: Colors.redAccent)),
+                                  onPressed: _processingUserId != null ? null : () async {
+                                    setState(() => _processingUserId = user.id);
+                                    try {
+                                      await ref.read(authProvider.notifier).updateUserStatus(user.id, ApprovalStatus.rejected);
+                                    } finally {
+                                      if (mounted) setState(() => _processingUserId = null);
+                                    }
+                                  },
+                                  child: _processingUserId == user.id
+                                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.secondary))
+                                      : Text(l10n.translate('admin_reject'), style: const TextStyle(color: Colors.redAccent)),
                                 ),
                                 const SizedBox(width: 8),
                                 ElevatedButton(
-                                  onPressed: () => ref.read(authProvider.notifier).updateUserStatus(user.id, ApprovalStatus.approved),
+                                  onPressed: _processingUserId != null ? null : () async {
+                                    setState(() => _processingUserId = user.id);
+                                    try {
+                                      await ref.read(authProvider.notifier).updateUserStatus(user.id, ApprovalStatus.approved);
+                                    } finally {
+                                      if (mounted) setState(() => _processingUserId = null);
+                                    }
+                                  },
                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                                  child: Text(l10n.translate('admin_approve')),
+                                  child: _processingUserId == user.id
+                                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                      : Text(l10n.translate('admin_approve')),
                                 ),
                               ],
                             ),
@@ -139,8 +185,9 @@ class AdminDashboard extends ConsumerWidget {
                         );
                       },
                     ),
+              ),
               loading: () => Center(child: CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary)),
-              error: (err, _) => Center(child: Text('Hata: $err', style: const TextStyle(color: Colors.red))),
+              error: (err, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$err'}), style: const TextStyle(color: Colors.red))),
             ),
           ),
         ],
@@ -216,6 +263,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    final l10n = ref.read(translationProvider.notifier);
     try {
       final distance = double.tryParse(_distanceController.text);
       final fee = double.tryParse(_feeController.text);
@@ -226,7 +274,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
         assignedWorkerId: _selectedWorker?.id ?? 'unassigned',
-        assignedWorkerName: _selectedWorker?.name ?? 'Atanmadı',
+        assignedWorkerName: _selectedWorker?.name ?? l10n.translate('unassigned'),
         address: _addressController.text.trim(),
         customerName: _customerNameController.text.trim(),
         customerPhone: _customerPhoneController.text.trim(),
@@ -239,7 +287,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
       );
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('generic_error', {'error': '$e'})), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -263,8 +311,10 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.translate('job_title') + ' Düzenle'), backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary),
-      body: SingleChildScrollView(
+      appBar: AppBar(title: Text(l10n.translate('job_edit_title')), backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
@@ -296,7 +346,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
-                  child: Row(children: [const Icon(Icons.calendar_today, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('${l10n.translate('job_date')}: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}', style: const TextStyle(color: Colors.white))]),
+                  child: Row(children: [const Icon(Icons.calendar_today, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('${l10n.translate('job_date')}: ${l10n.translate('date_format_short', {'day': '${_selectedDate.day}', 'month': '${_selectedDate.month}', 'year': '${_selectedDate.year}'})}', style: const TextStyle(color: Colors.white))]),
                 ),
               ),
               const SizedBox(height: 12),
@@ -316,7 +366,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
-                  child: Row(children: [const Icon(Icons.access_time, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('Saat: ${_selectedTime.format(context)}', style: const TextStyle(color: Colors.white))]),
+                  child: Row(children: [const Icon(Icons.access_time, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('${l10n.translate('time_label')} ${_selectedTime.format(context)}', style: const TextStyle(color: Colors.white))]),
                 ),
               ),
               const SizedBox(height: 12),
@@ -327,11 +377,11 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                 decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
                 child: Row(children: [
                   const Icon(Icons.timelapse, color: Color(0xFF4FC3F7)), const SizedBox(width: 12),
-                  const Text('Süre:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 14)), const SizedBox(width: 8),
+                  Text(l10n.translate('duration_label'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)), const SizedBox(width: 8),
                   DropdownButton<int>(
                     value: _durationHours, dropdownColor: Theme.of(context).colorScheme.surface,
                     style: const TextStyle(color: Colors.white, fontSize: 16), underline: const SizedBox(),
-                    items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(value: h, child: Text('$h saat', style: const TextStyle(color: Colors.white)))).toList(),
+                    items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(value: h, child: Text(l10n.translate('template_desc_duration_hours', {'hours': '$h'}), style: const TextStyle(color: Colors.white)))).toList(),
                     onChanged: (v) => setState(() => _durationHours = v ?? 2),
                   ),
                 ]),
@@ -356,11 +406,11 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<AppUser?>(
                       value: _selectedWorker,
-                      hint: const Text('Sonradan atanabilir', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      hint: Text(l10n.translate('worker_select_hint'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
                       dropdownColor: Theme.of(context).colorScheme.surface, isExpanded: true,
                       style: const TextStyle(color: Colors.white),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('Personel seçilmedi', style: TextStyle(color: Colors.grey, fontSize: 13))),
+                        DropdownMenuItem(value: null, child: Text(l10n.translate('worker_not_selected'), style: const TextStyle(color: Colors.grey, fontSize: 13))),
                         ...workers.map((w) => DropdownMenuItem(value: w, child: Text(w.name))),
                       ],
                       onChanged: (val) => setState(() => _selectedWorker = val),
@@ -368,7 +418,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                   ),
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (e, _) => Text('Hata: $e'),
+                error: (e, _) => Text(l10n.translate('generic_error', {'error': '$e'})),
               ),
               const SizedBox(height: 16),
 
@@ -378,7 +428,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
 
               // Ücret (opsiyonel)
               if (_showFeeField) ...[
-                _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number, isRequired: false),
+                _buildField(l10n.translate('job_fee_label'), _feeController, Icons.payments, keyboardType: TextInputType.number, isRequired: false),
                 const SizedBox(height: 12),
               ],
               if (!_showFeeField)
@@ -386,7 +436,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: ActionChip(
                     avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)),
-                    label: const Text('Ücret Ekle', style: TextStyle(color: Color(0xFF4FC3F7))),
+                    label: Text(l10n.translate('add_fee_button'), style: const TextStyle(color: Color(0xFF4FC3F7))),
                     onPressed: () => setState(() => _showFeeField = true),
                     backgroundColor: Theme.of(context).colorScheme.surface,
                     side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
@@ -396,13 +446,13 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
               // 12. Açıklama Blokları
               ..._extraDescControllers.asMap().entries.map((entry) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment, isRequired: false),
+                child: _buildField(l10n.translate('extra_description_label', {'number': '${entry.key + 1}'}), entry.value, Icons.add_comment, isRequired: false),
               )),
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: ActionChip(
                   avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)),
-                  label: const Text('Açıklama Bloğu Ekle', style: TextStyle(color: Color(0xFF4FC3F7))),
+                  label: Text(l10n.translate('add_description_block'), style: const TextStyle(color: Color(0xFF4FC3F7))),
                   onPressed: _addDescriptionBlock,
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
@@ -413,11 +463,12 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Güncelle', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(l10n.translate('button_update'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -428,6 +479,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      textInputAction: maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
@@ -455,18 +507,19 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
   bool _isUploading = false;
 
   Future<void> _uploadQr() async {
+    final l10n = ref.read(translationProvider.notifier);
     setState(() => _isUploading = true);
     try {
       final url = await ref.read(mediaProvider.notifier).uploadPaymentQr(widget.orgId);
       if (url != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('QR Kod yüklendi'), backgroundColor: Colors.green),
+          SnackBar(content: Text(l10n.translate('qr_uploaded_short')), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(l10n.translate('generic_error', {'error': '$e'})), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -476,6 +529,7 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = ref.read(translationProvider.notifier);
     return Card(
       color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -502,10 +556,10 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Ödeme QR Kodu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(l10n.translate('payment_qr_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
-                    widget.currentQrUrl != null ? 'QR kod yüklendi ✓' : 'Henüz QR kod yüklenmedi',
+                    l10n.translate(widget.currentQrUrl != null ? 'qr_loaded' : 'qr_not_loaded'),
                     style: TextStyle(color: widget.currentQrUrl != null ? Colors.green : const Color(0xFF90A4AE), fontSize: 12),
                   ),
                 ],
@@ -516,7 +570,7 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
                 : IconButton(
                     icon: Icon(widget.currentQrUrl != null ? Icons.refresh : Icons.upload, color: const Color(0xFF4FC3F7)),
                     onPressed: _uploadQr,
-                    tooltip: widget.currentQrUrl != null ? 'QR Kodu Değiştir' : 'QR Kod Yükle',
+                    tooltip: l10n.translate('qr_code_add_tooltip'),
                   ),
           ],
         ),

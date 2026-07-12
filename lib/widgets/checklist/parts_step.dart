@@ -40,30 +40,30 @@ class PartsStep extends ConsumerWidget {
                       controller: nameController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'Parça Adı',
+                        hintText: l10n.translate('part_name_hint'),
                         hintStyle: const TextStyle(color: Color(0xFF90A4AE)),
                         filled: true,
-                        fillColor: const Color(0xFF0D1B2A),
-                        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none),
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: qtyController,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Adet',
-                        hintStyle: TextStyle(color: Color(0xFF90A4AE)),
+                      decoration: InputDecoration(
+                        hintText: l10n.translate('part_qty_hint'),
+                        hintStyle: const TextStyle(color: Color(0xFF90A4AE)),
                         filled: true,
-                        fillColor: Color(0xFF0D1B2A),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none),
                       ),
                       keyboardType: TextInputType.number,
                     ),
                   ],
                 ),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.translate('button_cancel'))),
                   TextButton(
                     onPressed: () {
                       ref.read(jobOperationsProvider.notifier).addJobPart(job.id, {
@@ -72,7 +72,7 @@ class PartsStep extends ConsumerWidget {
                       });
                       Navigator.pop(ctx);
                     },
-                    child: const Text('Ekle'),
+                    child: Text(l10n.translate('button_add')),
                   ),
                 ],
               ),

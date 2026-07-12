@@ -36,7 +36,6 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider).value;
     final isAdmin = authState is ApprovedAdmin;
-    final orgAsync = ref.watch(currentOrganizationProvider);
     final branding = ref.watch(brandingProvider);
     
     // Admin ise tüm işleri, Worker ise sadece kendine atananları izle (Aylık bazlı)
@@ -53,17 +52,17 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
           if (isAdmin) ...[
             IconButton(
               icon: const Icon(Icons.analytics),
-              tooltip: 'Analitik',
+              tooltip: l10n.translate('analytics_tooltip'),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminAnalyticsScreen())),
             ),
             IconButton(
               icon: const Icon(Icons.settings),
-              tooltip: 'Modüller',
+              tooltip: l10n.translate('module_settings_tooltip'),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
             ),
             IconButton(
               icon: const Icon(Icons.description_outlined),
-              tooltip: 'Şablonlar',
+              tooltip: l10n.translate('templates_tooltip'),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
             ),
             IconButton(
@@ -77,7 +76,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
           ],
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
-            tooltip: 'Dil / Language / Taal',
+            tooltip: l10n.translate('language_tooltip'),
             onSelected: (value) async {
               if (value == 'logout') {
                 ref.read(authProvider.notifier).signOut();
@@ -89,7 +88,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     title: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.white)),
                     content: Text(l10n.translate('leave_org_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
                       TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.red))),
                     ],
                   ),
@@ -107,21 +106,21 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 PopupMenuItem(
                   value: 'tr',
                   child: Row(children: [
-                    Text('🇹🇷  Türkçe', style: TextStyle(fontWeight: currentLang == 'tr' ? FontWeight.bold : FontWeight.normal)),
+                    Text(l10n.translate('lang_turkish'), style: TextStyle(fontWeight: currentLang == 'tr' ? FontWeight.bold : FontWeight.normal)),
                     if (currentLang == 'tr') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                   ]),
                 ),
                 PopupMenuItem(
                   value: 'en',
                   child: Row(children: [
-                    Text('🇬🇧  English', style: TextStyle(fontWeight: currentLang == 'en' ? FontWeight.bold : FontWeight.normal)),
+                    Text(l10n.translate('lang_english'), style: TextStyle(fontWeight: currentLang == 'en' ? FontWeight.bold : FontWeight.normal)),
                     if (currentLang == 'en') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                   ]),
                 ),
                 PopupMenuItem(
                   value: 'nl',
                   child: Row(children: [
-                    Text('🇳🇱  Nederlands', style: TextStyle(fontWeight: currentLang == 'nl' ? FontWeight.bold : FontWeight.normal)),
+                    Text(l10n.translate('lang_dutch'), style: TextStyle(fontWeight: currentLang == 'nl' ? FontWeight.bold : FontWeight.normal)),
                     if (currentLang == 'nl') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                   ]),
                 ),
@@ -133,7 +132,9 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
           ),
         ],
       ),
-      body: jobsAsync.when(
+      body: SafeArea(
+        bottom: true,
+        child: jobsAsync.when(
         data: (jobs) {
           // CAL-03: Apply worker filter
           final filteredJobs = _selectedWorkerId == null 
@@ -149,9 +150,23 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   onChanged: (val) => setState(() => _selectedWorkerId = val),
                 ),
 
+              // Tarih Navigasyonu
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(
+                  children: [
+                    _ViewChip(label: l10n.translate('calendar_today'), selected: false, onTap: () => setState(() { _focusedDay = DateTime.now(); _selectedDay = _focusedDay; })),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.chevron_left, size: 22), visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 36, minHeight: 36), onPressed: () => setState(() => _focusedDay = _focusedDay.subtract(Duration(days: _viewMode == 3 ? 3 : _viewMode == 1 ? 7 : 1))), style: IconButton.styleFrom(foregroundColor: context.appExt.textSecondary)),
+                    Text(_formatDateRange(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14, fontWeight: FontWeight.w600)),
+                    IconButton(icon: const Icon(Icons.chevron_right, size: 22), visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 36, minHeight: 36), onPressed: () => setState(() => _focusedDay = _focusedDay.add(Duration(days: _viewMode == 3 ? 3 : _viewMode == 1 ? 7 : 1))), style: IconButton.styleFrom(foregroundColor: context.appExt.textSecondary)),
+                  ],
+                ),
+              ),
+
               // Görünüm Seçici
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
                     _ViewChip(label: l10n.translate('view_1day'), selected: _viewMode == 0, onTap: () => setState(() => _viewMode = 0)),
@@ -159,13 +174,16 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     _ViewChip(label: l10n.translate('view_3day'), selected: _viewMode == 3, onTap: () => setState(() => _viewMode = 3)),
                     const SizedBox(width: 8),
                     _ViewChip(label: l10n.translate('view_week'), selected: _viewMode == 1, onTap: () => setState(() => _viewMode = 1)),
+                    const SizedBox(width: 8),
+                    _ViewChip(label: l10n.translate('view_month'), selected: _viewMode == 2, onTap: () => setState(() => _viewMode = 2)),
                   ],
                 ),
               ),
 
               // Zaman Bazlı Grid Takvim
               Expanded(
-                child: TimeGridView(
+                child: RepaintBoundary(
+                  child: TimeGridView(
                   jobs: isAdmin && _selectedWorkerId != null
                       ? filteredJobs
                       : jobs,
@@ -175,28 +193,44 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   statusColor: _getStatusColor,
                 ),
               ),
+              ),
             ],
           );
         },
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
-        error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
+        error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
+      ),
       ),
       floatingActionButton: isAdmin
-          ? FloatingActionButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
-              backgroundColor: const Color(0xFF1565C0),
-              child: const Icon(Icons.add, color: Colors.white),
+          ? Semantics(
+              label: l10n.translate('job_create_title'),
+              button: true,
+              child: FloatingActionButton(
+                tooltip: l10n.translate('job_create_title'),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
             )
           : null,
     );
   }
 
+  String _formatDateRange() {
+    final fmt = (DateTime d) => '${d.day}/${d.month}';
+    final end = _viewMode == 3
+        ? _focusedDay.add(const Duration(days: 2))
+        : _viewMode == 1
+            ? _focusedDay.add(const Duration(days: 6))
+            : _focusedDay;
+    if (_viewMode == 0 || _viewMode == 2) return fmt(_focusedDay);
+    return '${fmt(_focusedDay)} - ${fmt(end)}';
+  }
+
   Color _getStatusColor(JobStatus status) {
-    // Tek kaynak: tema üzerinden
     if (context.appExt case final ext) {
       return ext.statusColor(status);
     }
-    // Fallback (tema yüklenmemişse)
     switch (status) {
       case JobStatus.notStarted: return const Color(0xFF9E9E9E);
       case JobStatus.inProgress: return const Color(0xFFFF9800);
@@ -204,11 +238,13 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       case JobStatus.closed: return const Color(0xFF4CAF50);
     }
   }
+
   Widget _ViewChip({required String label, required bool selected, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        constraints: const BoxConstraints(minHeight: 44),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF4FC3F7) : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
@@ -243,7 +279,7 @@ class _WorkerFilterDropdown extends ConsumerWidget {
       child: workersAsync.when(
         data: (workers) => DropdownButton<String?>(
           value: selectedWorkerId,
-          hint: const Text('Personel Filtresi', style: TextStyle(color: Colors.white70)),
+          hint: Text(l10n.translate('worker_filter_hint'), style: const TextStyle(color: Colors.white70)),
           dropdownColor: Theme.of(context).colorScheme.surface,
           isExpanded: true,
           style: const TextStyle(color: Colors.white),
@@ -254,7 +290,10 @@ class _WorkerFilterDropdown extends ConsumerWidget {
           onChanged: onChanged,
         ),
         loading: () => const LinearProgressIndicator(),
-        error: (_, __) => const SizedBox(),
+        error: (e, _) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red, fontSize: 12)),
+        ),
       ),
     );
   }

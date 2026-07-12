@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ data extraction rules — restricts what data is included in backups -->
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Disable cloud backup entirely — user data stays in Firestore -->
+        <exclude domain="root" />
+    </cloud-backup>
+    <device-transfer>
+        <!-- Disable device-to-device transfer of app data -->
+        <exclude domain="root" />
+    </device-transfer>
+</data-extraction-rules>

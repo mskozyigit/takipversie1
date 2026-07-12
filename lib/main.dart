@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,8 +34,10 @@ void main() async {
       );
     }
   } catch (e, stack) {
-    debugPrint('Initialization error: $e');
-    debugPrint(stack.toString());
+    if (kDebugMode) {
+      debugPrint('Initialization error: $e');
+      debugPrint(stack.toString());
+    }
   }
 
   // 3. Riverpod ProviderScope ile sarmalama
@@ -47,6 +49,27 @@ class FieldServiceApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Override Flutter's default red-error-screen with a user-friendly fallback.
+    // Critical for web-mobile: prevents blank/red screen on unhandled exceptions.
+    ErrorWidget.builder = (details) => Material(
+      child: Container(
+        color: const Color(0xFF0D1B2A),
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 16),
+              const Text('Something went wrong', style: TextStyle(color: Colors.white70, fontSize: 16)),
+              const SizedBox(height: 8),
+              const Text('Please refresh the page to continue.', style: TextStyle(color: Colors.white38, fontSize: 13)),
+            ],
+          ),
+        ),
+      ),
+    );
+
     return MaterialApp(
       title: 'Ratel Solutions FSM',
       debugShowCheckedModeBanner: false,
@@ -100,7 +123,7 @@ class AuthGate extends ConsumerWidget {
       error: (err, _) => Scaffold(
         body: Center(
           child: Text(
-            'Uygulama başlatılamadı: $err',
+            l10n.translate('app_init_error', {'error': '$err'}),
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ),
@@ -134,7 +157,7 @@ class AuthGate extends ConsumerWidget {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () => ref.read(authProvider.notifier).signOut(),
-                      child: Text(l10n.translate('back_to_login')),
+                      child: Text(l10n.translate('back_to_login'), style: const TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),

@@ -17,10 +17,11 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
   Widget build(BuildContext context) {
     final templatesAsync = ref.watch(jobTemplatesProvider);
     final branding = ref.watch(brandingProvider);
+    final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Görev Şablonları'),
+        title: Text(l10n.translate('template_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       floatingActionButton: FloatingActionButton(
@@ -30,25 +31,26 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
       ),
       body: templatesAsync.when(
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
-        error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
+        error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
         data: (templates) {
           if (templates.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.description_outlined, size: 64, color: Color(0xFF546E7A)),
-                  SizedBox(height: 16),
-                  Text('Henüz şablon yok.\n+ butonu ile yeni şablon oluşturun.',
+                  const Icon(Icons.description_outlined, size: 64, color: Color(0xFF546E7A)),
+                  const SizedBox(height: 16),
+                  Text(l10n.translate('template_empty'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
+                    style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
                   ),
                 ],
               ),
             );
           }
 
-          return ListView.builder(
+          return RepaintBoundary(
+            child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: templates.length,
             itemBuilder: (_, i) {
@@ -71,6 +73,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                 ),
               );
             },
+          ),
           );
         },
       ),
@@ -78,39 +81,42 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
   }
 
   String _describeTemplate(JobTemplate t) {
+    final l10n = ref.read(translationProvider.notifier);
     final parts = <String>[];
-    if (t.includeTitle) parts.add('Başlık${t.defaultTitle.isNotEmpty ? " (${t.defaultTitle})" : ""}');
-    if (t.includeDescription) parts.add('Açıklama');
-    if (t.includeDescriptionBlocks) parts.add('Ek Açıklama Blokları');
-    if (t.includeCustomerName) parts.add('Müşteri${t.defaultCustomerName.isNotEmpty ? " (${t.defaultCustomerName})" : ""}');
-    if (t.includeCustomerPhone) parts.add('Telefon');
-    if (t.includeAddress) parts.add('Adres');
-    if (t.includeFee) parts.add(t.defaultFee != null ? 'Ücret (${t.defaultFee!.toStringAsFixed(0)}₺)' : 'Ücret');
-    if (t.includeDistance) parts.add(t.defaultDistance != null ? 'Mesafe (${t.defaultDistance!.toStringAsFixed(1)} km)' : 'Mesafe');
-    if (t.includeDuration) parts.add('${t.defaultDurationHours} saat');
+    if (t.includeTitle) parts.add('${l10n.translate('template_desc_title')}${t.defaultTitle.isNotEmpty ? " (${t.defaultTitle})" : ""}');
+    if (t.includeDescription) parts.add(l10n.translate('template_desc_description'));
+    if (t.includeDescriptionBlocks) parts.add(l10n.translate('template_desc_extra_blocks'));
+    if (t.includeCustomerName) parts.add('${l10n.translate('template_desc_customer')}${t.defaultCustomerName.isNotEmpty ? " (${t.defaultCustomerName})" : ""}');
+    if (t.includeCustomerPhone) parts.add(l10n.translate('template_desc_phone'));
+    if (t.includeAddress) parts.add(l10n.translate('template_desc_address'));
+    if (t.includeFee) parts.add(t.defaultFee != null ? '${l10n.translate('template_desc_fee')} (${t.defaultFee!.toStringAsFixed(0)}₺)' : l10n.translate('template_desc_fee'));
+    if (t.includeDistance) parts.add(t.defaultDistance != null ? '${l10n.translate('template_desc_distance')} (${t.defaultDistance!.toStringAsFixed(1)} km)' : l10n.translate('template_desc_distance'));
+    if (t.includeDuration) parts.add(l10n.translate('template_desc_duration_hours', {'hours': '${t.defaultDurationHours}'}));
     return parts.join(' • ');
   }
 
   void _confirmDelete(JobTemplate template) async {
+    final l10n = ref.read(translationProvider.notifier);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: const Text('Şablonu Sil', style: TextStyle(color: Colors.white)),
-        content: Text('"${template.name}" şablonunu silmek istediğinize emin misiniz?',
+        title: Text(l10n.translate('template_delete_title'), style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.translate('template_delete_confirm', {'name': template.name}),
           style: const TextStyle(color: Color(0xFF90A4AE))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sil', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('button_delete'), style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
-    if (confirm == true) {
+    if (confirm == true && mounted) {
       await ref.read(templateOperationsProvider.notifier).deleteTemplate(template.id);
     }
   }
 
   void _showCreateDialog(BuildContext context) {
+    final l10n = ref.read(translationProvider.notifier);
     final nameCtrl = TextEditingController();
     final titleCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -137,38 +143,38 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: Theme.of(ctx).colorScheme.surface,
-          title: const Text('Yeni Şablon', style: TextStyle(color: Colors.white)),
+          title: Text(l10n.translate('template_create_title'), style: const TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDarkField('Şablon Adı *', nameCtrl),
+                _buildDarkField(l10n.translate('template_name_required'), nameCtrl),
                 const SizedBox(height: 16),
-                const Text('Dahil Edilecek Alanlar:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                Text(l10n.translate('template_fields_to_include'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
                 const SizedBox(height: 8),
-                _toggle('İş Başlığı', inclTitle, (v) => setDialogState(() => inclTitle = v)),
-                if (inclTitle) _buildDarkField('Varsayılan Başlık', titleCtrl),
-                _toggle('Açıklama', inclDesc, (v) => setDialogState(() => inclDesc = v)),
-                if (inclDesc) _buildDarkField('Varsayılan Açıklama', descCtrl),
-                _toggle('Ek Açıklama Blokları', inclDescBlocks, (v) => setDialogState(() => inclDescBlocks = v)),
-                if (inclDescBlocks) _buildDarkField('Varsayılan Ek Açıklama', descBlockCtrl),
-                _toggle('Müşteri Adı', inclCustName, (v) => setDialogState(() => inclCustName = v)),
-                if (inclCustName) _buildDarkField('Varsayılan Müşteri', custNameCtrl),
-                _toggle('Telefon', inclCustPhone, (v) => setDialogState(() => inclCustPhone = v)),
-                if (inclCustPhone) _buildDarkField('Varsayılan Telefon', custPhoneCtrl),
-                _toggle('Adres', inclAddr, (v) => setDialogState(() => inclAddr = v)),
-                if (inclAddr) _buildDarkField('Varsayılan Adres', addrCtrl),
-                _toggle('Ücret', inclFee, (v) => setDialogState(() => inclFee = v)),
-                if (inclFee) _buildDarkField('Varsayılan Ücret', feeCtrl, keyboardType: TextInputType.number),
-                _toggle('Mesafe', inclDist, (v) => setDialogState(() => inclDist = v)),
-                if (inclDist) _buildDarkField('Varsayılan Mesafe (km)', distCtrl, keyboardType: TextInputType.number),
-                _toggle('Süre', inclDuration, (v) => setDialogState(() => inclDuration = v)),
+                _toggle(l10n.translate('template_field_title'), inclTitle, (v) => setDialogState(() => inclTitle = v)),
+                if (inclTitle) _buildDarkField(l10n.translate('template_default_title'), titleCtrl),
+                _toggle(l10n.translate('template_field_description'), inclDesc, (v) => setDialogState(() => inclDesc = v)),
+                if (inclDesc) _buildDarkField(l10n.translate('template_default_description'), descCtrl),
+                _toggle(l10n.translate('template_field_extra_blocks'), inclDescBlocks, (v) => setDialogState(() => inclDescBlocks = v)),
+                if (inclDescBlocks) _buildDarkField(l10n.translate('template_default_extra'), descBlockCtrl),
+                _toggle(l10n.translate('template_field_customer_name'), inclCustName, (v) => setDialogState(() => inclCustName = v)),
+                if (inclCustName) _buildDarkField(l10n.translate('template_default_customer'), custNameCtrl),
+                _toggle(l10n.translate('template_field_phone'), inclCustPhone, (v) => setDialogState(() => inclCustPhone = v)),
+                if (inclCustPhone) _buildDarkField(l10n.translate('template_default_phone'), custPhoneCtrl),
+                _toggle(l10n.translate('template_field_address'), inclAddr, (v) => setDialogState(() => inclAddr = v)),
+                if (inclAddr) _buildDarkField(l10n.translate('template_default_address'), addrCtrl),
+                _toggle(l10n.translate('template_field_fee'), inclFee, (v) => setDialogState(() => inclFee = v)),
+                if (inclFee) _buildDarkField(l10n.translate('template_default_fee'), feeCtrl, keyboardType: TextInputType.number),
+                _toggle(l10n.translate('template_field_distance'), inclDist, (v) => setDialogState(() => inclDist = v)),
+                if (inclDist) _buildDarkField(l10n.translate('template_default_distance'), distCtrl, keyboardType: TextInputType.number),
+                _toggle(l10n.translate('template_field_duration'), inclDuration, (v) => setDialogState(() => inclDuration = v)),
                 if (inclDuration)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        const Text('Varsayılan Süre:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                        Text(l10n.translate('template_default_duration'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
                         const SizedBox(width: 8),
                         DropdownButton<int>(
                           value: defaultDur,
@@ -177,7 +183,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                           underline: const SizedBox(),
                           items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(
                             value: h,
-                            child: Text('$h saat', style: const TextStyle(color: Colors.white)),
+                            child: Text(l10n.translate('template_desc_duration_hours', {'hours': '$h'}), style: const TextStyle(color: Colors.white)),
                           )).toList(),
                           onChanged: (v) => setDialogState(() => defaultDur = v ?? 2),
                         ),
@@ -188,7 +194,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.translate('button_cancel'))),
             ElevatedButton(
               onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
@@ -216,12 +222,13 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                 if (ctx.mounted) Navigator.pop(ctx);
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0)),
-              child: const Text('Oluştur'),
+              child: Text(l10n.translate('button_create')),
             ),
           ],
         ),
       ),
     );
+    // Controllers are disposed automatically when dialog closes
   }
 
   Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) {
@@ -246,8 +253,8 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
           labelText: label,
           labelStyle: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13),
           filled: true,
-          fillColor: const Color(0xFF0D1B2A),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+          fillColor: Theme.of(context).colorScheme.surface,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
       ),

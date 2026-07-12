@@ -83,7 +83,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
             children: [
               // Karşılama mesajı
               Text(
-                '${l10n.translate('org_setup_welcome')}, ${widget.firebaseUser.displayName?.split(' ').first ?? 'Kullanıcı'}!',
+                '${l10n.translate('org_setup_welcome')}, ${widget.firebaseUser.displayName?.split(' ').first ?? l10n.translate('default_user_name')}!',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -244,10 +244,9 @@ class _CreateOrgForm extends ConsumerWidget {
               v == null || v.trim().isEmpty ? l10n.translate('org_setup_name_label') : null,
         ),
         const SizedBox(height: 16),
-        const _InfoBox(
+        _InfoBox(
           icon: Icons.info_outline,
-          text:
-              'Siz organizasyonu oluşturan Admin olacaksınız. Katılım kodu otomatik olarak oluşturulacak ve Dashboard\'da görüntülenebilecek.',
+          text: l10n.translate('org_create_admin_note'),
         ),
       ],
     );
@@ -279,15 +278,14 @@ class _JoinOrgForm extends ConsumerWidget {
           textCapitalization: TextCapitalization.characters,
           validator: (v) {
             if (v == null || v.trim().isEmpty) return l10n.translate('org_setup_join_label');
-            if (v.trim().length != 6) return 'Kod 6 karakter olmalıdır';
+            if (v.trim().length != 6) return l10n.translate('org_join_code_length');
             return null;
           },
         ),
         const SizedBox(height: 16),
-        const _InfoBox(
+        _InfoBox(
           icon: Icons.schedule,
-          text:
-              'Kodunu girdikten sonra hesabınız Admin onayına gönderilecek. Onay süreci tamamlanana kadar sisteme giriş yapamazsınız.',
+          text: l10n.translate('org_join_pending_note'),
         ),
       ],
     );

@@ -10,11 +10,13 @@ import '../web_safe_image.dart';
 class PaymentStep extends ConsumerWidget {
   final Job job;
   final Organization? org;
+  final VoidCallback? onPaymentRecorded;
 
   const PaymentStep({
     super.key,
     required this.job,
     this.org,
+    this.onPaymentRecorded,
   });
 
   @override
@@ -36,11 +38,11 @@ class PaymentStep extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (org?.paymentQrUrl != null)
+        if (org?.paymentQrUrl != null) ...[
           Container(
             height: 200,
             width: 200,
-            margin: const EdgeInsets.only(bottom: 16),
+            margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -48,7 +50,15 @@ class PaymentStep extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               child: WebSafeImage(url: org!.paymentQrUrl!, fit: BoxFit.contain),
             ),
-          )
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              l10n.translate('payment_qr_instruction'),
+              style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12, fontStyle: FontStyle.italic),
+            ),
+          ),
+        ]
         else
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
@@ -61,13 +71,47 @@ class PaymentStep extends ConsumerWidget {
           children: [
             if (org?.paymentQrUrl != null)
               ElevatedButton(
-                onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr'),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: Theme.of(ctx).colorScheme.surface,
+                      title: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Colors.white)),
+                      content: Text(l10n.translate('payment_qr_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('job_payment_received'), style: const TextStyle(color: Colors.green))),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr');
+                    onPaymentRecorded?.call();
+                  }
+                },
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7)),
                 child: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
               ),
             if (org?.paymentQrUrl != null) const SizedBox(width: 12),
             OutlinedButton(
-              onPressed: () => ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash'),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Theme.of(ctx).colorScheme.surface,
+                    title: Text(l10n.translate('job_payment_cash'), style: const TextStyle(color: Colors.white)),
+                      content: Text(l10n.translate('payment_cash_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('payment_method_cash'), style: const TextStyle(color: Colors.green))),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash');
+                  onPaymentRecorded?.call();
+                }
+              },
               child: Text(l10n.translate('job_payment_cash')),
             ),
           ],

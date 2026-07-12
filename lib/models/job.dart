@@ -88,7 +88,7 @@ class Job {
       usedParts: (data['usedParts'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList(),
       paymentMethod: data['paymentMethod'] as String?,
       isPaid: data['isPaid'] as bool? ?? false,
-      estimatedTravelTime: data['travelMinutes'] != null ? Duration(minutes: data['travelMinutes'] as int) : null,
+      estimatedTravelTime: (data['estimatedTravelTime'] ?? data['travelMinutes']) != null ? Duration(minutes: (data['estimatedTravelTime'] ?? data['travelMinutes']) as int) : null,
       isSafetyConfirmed: data['isSafetyConfirmed'] as bool? ?? false,
       safetyChecklist: data['safetyChecklist'] != null ? Map<String, bool>.from(data['safetyChecklist']) : null,
       fee: (data['fee'] as num?)?.toDouble(),

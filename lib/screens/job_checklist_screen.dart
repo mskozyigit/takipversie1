@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/job.dart';
 import '../models/organization.dart';
@@ -28,6 +29,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   String? _afterPhotoUrl;
   final _noteController = TextEditingController();
   bool _isUploading = false;
+  bool _isPaid = false;
 
   @override
   void initState() {
@@ -35,11 +37,11 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     if (widget.job.status == JobStatus.inProgress) {
       _currentStep = 1;
     } else if (widget.job.status == JobStatus.workCompleted || widget.job.status == JobStatus.closed) {
-      // Bitmiş işler: düzenleme için direkt fotoğraf adımından başla, sıfırdan başlama
       _currentStep = 1;
     }
     _beforePhotoUrl = widget.job.beforePhotoUrl;
     _afterPhotoUrl = widget.job.afterPhotoUrl;
+    _isPaid = widget.job.isPaid;
   }
 
   @override
@@ -56,24 +58,24 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: const Text('Fotoğraf Ekle', style: TextStyle(color: Colors.white)),
-        content: const Text('Nereden fotoğraf eklemek istersiniz?', style: TextStyle(color: Color(0xFF90A4AE))),
+        title: Text(l10n.translate('photo_add_title'), style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.translate('photo_add_source'), style: const TextStyle(color: Color(0xFF90A4AE))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
-            child: const Row(
+                child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
-                SizedBox(width: 8),
-                Text('Galeri', style: TextStyle(color: Color(0xFF4FC3F7))),
+                const Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
+                const SizedBox(width: 8),
+                Text(l10n.translate('photo_gallery'), style: const TextStyle(color: Color(0xFF4FC3F7))),
               ],
             ),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(ctx, ImageSource.camera),
             icon: const Icon(Icons.camera_alt, size: 20),
-            label: const Text('Kamera'),
+            label: Text(l10n.translate('photo_camera')),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1565C0),
               foregroundColor: Colors.white,
@@ -104,9 +106,18 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(isBefore ? 'İş öncesi fotoğraf yüklendi ✓' : 'İş sonrası fotoğraf yüklendi ✓'), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
+            SnackBar(content: Text(l10n.translate(isBefore ? 'photo_before_uploaded' : 'photo_after_uploaded')), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
           );
         }
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        final msg = e.code == 'unavailable'
+            ? l10n.translate('checklist_photo_offline')
+            : l10n.translate('job_checklist_photo_error', {'error': e.message ?? 'Unknown error'});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -145,7 +156,12 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       }
       setState(() => _currentStep = 2);
     } else if (_currentStep == 2) {
-      // Note
+      // Note — save as comment (auto-save even if navigating back later)
+      final note = _noteController.text.trim();
+      if (note.isNotEmpty) {
+        await ref.read(jobOperationsProvider.notifier).addComment(widget.job.id, note);
+        _noteController.clear(); // Prevent duplicate save on revisiting
+      }
       setState(() => _currentStep = 3);
     } else if (_currentStep == 3) {
       // After Photo
@@ -164,7 +180,8 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       await ref.read(jobOperationsProvider.notifier).updateJobStatus(widget.job.id, JobStatus.workCompleted);
       setState(() => _currentStep = paymentStep);
     } else if (_currentStep == paymentStep) {
-      if (isMandatory && !widget.job.isPaid) {
+      // Re-check isPaid from local state (set by PaymentStep via callback)
+      if (isMandatory && !_isPaid) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_payment_needed')), backgroundColor: Colors.orange));
         return;
       }
@@ -183,7 +200,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   Future<void> _launchMaps(String address) async {
     final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
     if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -198,11 +215,15 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         title: Text('${widget.job.missionNumber} - ${widget.job.title}'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF0D47A1),
       ),
-      body: SingleChildScrollView(
-        child: Column(
+      body: SafeArea(
+        bottom: true,
+        child: Scrollbar(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            child: Column(
           children: [
             Stepper(
-              physics: const NeverScrollableScrollPhysics(),
+              physics: const AlwaysScrollableScrollPhysics(),
               type: StepperType.vertical,
               currentStep: _currentStep,
         onStepContinue: _isUploading ? null : _nextStep,
@@ -242,7 +263,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
                     : Text(
                         isLast 
                           ? l10n.translate('job_checklist_finish') 
-                          : (isFirst ? (isCompleted ? 'Düzenle' : l10n.translate('job_checklist_start')) : l10n.translate('job_checklist_next')),
+                          : (isFirst ? (isCompleted ? l10n.translate('button_edit') : l10n.translate('job_checklist_start')) : l10n.translate('job_checklist_next')),
                         style: const TextStyle(color: Colors.white),
                       ),
                 ),
@@ -254,7 +275,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       ),
     ],
   ),
-),
+            ),
+          ),
+        ),
 );
 }
 
@@ -326,7 +349,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       // Payment
       Step(
         title: Text(l10n.translate('job_payment_title'), style: const TextStyle(color: Colors.white)),
-        content: PaymentStep(job: widget.job, org: org),
+        content: PaymentStep(job: widget.job, org: org, onPaymentRecorded: () => setState(() => _isPaid = true)),
         isActive: _currentStep >= (isSafetyOn ? 6 : 5),
         state: _currentStep > (isSafetyOn ? 6 : 5) ? StepState.complete : StepState.indexed,
       ),

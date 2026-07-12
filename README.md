@@ -1,19 +1,46 @@
-# takipversie1
+# Ratel Solutions FSM
 
-A new Flutter project.
+Field Service Management web application. Flutter + Firebase + Riverpod.
 
-## Getting Started
+**Live:** [https://mskozyigit.github.io/takipversie1/](https://mskozyigit.github.io/takipversie1/)
 
-This project is a starting point for a Flutter application.
+## Quick Start
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter run -d chrome
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Build & Deploy
 
-<!-- Triggering rebuild for deployment check -->
+```bash
+# Web build (mobile-optimized)
+flutter build web --release --base-href "/takipversie1/" --web-renderer auto
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Android APK
+flutter build apk --release
+```
+
+CI deploys to **GitHub Pages** on push to `main` (`.github/workflows/deploy.yml`).
+
+## Architecture
+
+| Layer | Location | Pattern |
+|-------|----------|---------|
+| Models | `lib/models/` | Immutable classes, `fromFirestore(DocumentSnapshot)` |
+| State | `lib/providers/` | Riverpod: `AsyncNotifier`, `StreamProvider.family` |
+| Screens | `lib/screens/` | `ConsumerWidget` / `ConsumerStatefulWidget` |
+| Widgets | `lib/widgets/` | Reusable checklist, calendar, image components |
+| Theme | `lib/theme/app_theme.dart` | `ThemeExtension<AppThemeExt>` |
+| Locale | `assets/lang/` | `tr.json`, `en.json`, `nl.json` |
+
+## Platforms
+
+| Platform | Status |
+|----------|--------|
+| **Web (PWA)** | ✅ Primary — Android Chrome/Samsung/Firefox |
+| Android | ✅ APK |
+| iOS | ✅ |
+| Windows / Linux / macOS | ✅ Desktop |

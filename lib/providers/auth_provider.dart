@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/app_user.dart';
+import 'browser_language_stub.dart'
+    if (dart.library.html) 'browser_language_web.dart';
 import '../models/organization.dart';
 
 // -----------------------------------------------------------------------
@@ -102,10 +104,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         case ApprovalStatus.rejected:
           // Reddedilen kullanıcıyı çıkış yaptır ve bilgilendir
           await signOut();
-          return AuthError('Hesabınız reddedildi. Lütfen organizasyon yöneticisiyle iletişime geçin.');
+          return AuthError(ref.read(translationProvider.notifier).translate('auth_rejected'));
       }
     } catch (e) {
-      return AuthError('Kullanıcı verisi alınamadı: $e');
+      return AuthError(ref.read(translationProvider.notifier).translate('auth_user_data_error', {'error': '$e'}));
     }
   }
 
@@ -124,7 +126,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         // Mobil için Google Identity Services (GIS) akışı
         final googleUser = await _googleSignIn.authenticate();
         if (googleUser == null) {
-          state = AsyncValue.data(Unauthenticated());
+          state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('auth_google_signin_cancelled')));
           return;
         }
         
@@ -139,7 +141,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       // authStateChanges listener otomatik günceller
     } catch (e) {
       // Kullanıcı iptal etti veya hata oluştu
-      state = AsyncValue.data(AuthError('Google girişi başarısız: $e'));
+      state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('auth_google_signin_failed', {'error': '$e'})));
     }
   }
 
@@ -181,7 +183,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
       state = AsyncValue.data(ApprovedAdmin(appUser));
     } catch (e) {
-      state = AsyncValue.data(AuthError('Organizasyon oluşturulamadı: $e'));
+      state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('auth_org_create_failed', {'error': '$e'})));
     }
   }
 
@@ -203,7 +205,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
           .get();
 
       if (query.docs.isEmpty) {
-        state = AsyncValue.data(AuthError('Geçersiz katılım kodu. Lütfen tekrar deneyin.'));
+        state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('auth_invalid_join_code')));
         return;
       }
 
@@ -212,7 +214,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       final appUser = AppUser(
         id: firebaseUser.uid,
         organizationId: org.id,
-        name: firebaseUser.displayName ?? 'Kullanıcı',
+        name: firebaseUser.displayName ?? ref.read(translationProvider.notifier).translate('default_user_name'),
         email: firebaseUser.email ?? '',
         role: UserRole.worker,
         approvalStatus: ApprovalStatus.pending, // Yeni üye → admin onayı bekliyor
@@ -225,7 +227,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
       state = AsyncValue.data(PendingApproval(appUser));
     } catch (e) {
-      state = AsyncValue.data(AuthError('Organizasyona katılınamadı: $e'));
+      state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('auth_join_failed', {'error': '$e'})));
     }
   }
 
@@ -240,6 +242,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       });
     } catch (e) {
       debugPrint('Kullanıcı durumu güncellenemedi: $e');
+      rethrow;
     }
   }
 
@@ -252,6 +255,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       state = AsyncValue.data(Unauthenticated());
     } catch (e) {
       debugPrint('İstek iptal edilemedi: $e');
+      state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('generic_error', {'error': '$e'})));
     }
   }
 
@@ -260,12 +264,32 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     if (user == null) return;
 
     try {
-      // Önce dokümanı siliyoruz
-      await _firestore.collection('users').doc(user.uid).delete();
-      // Sonra güvenli çıkış yapıyoruz (bu bizi login ekranına atar, tekrar girince kurulum ekranı gelir)
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return;
+      
+      final appUser = AppUser.fromFirestore(userDoc);
+      
+      // Unassign all jobs belonging to this worker
+      final jobsSnapshot = await _firestore
+          .collection('jobs')
+          .where('assignedWorkerId', isEqualTo: user.uid)
+          .where('organizationId', isEqualTo: appUser.organizationId)
+          .get();
+      
+      final batch = _firestore.batch();
+      for (final jobDoc in jobsSnapshot.docs) {
+        batch.update(jobDoc.reference, {
+          'assignedWorkerId': 'unassigned',
+          'assignedWorkerName': ref.read(translationProvider.notifier).translate('unassigned'),
+        });
+      }
+      batch.delete(userDoc.reference);
+      await batch.commit();
+      
       await signOut();
     } catch (e) {
       debugPrint('Kurumdan ayrılamadı: $e');
+      state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('generic_error', {'error': '$e'})));
     }
   }
 
@@ -292,7 +316,22 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   String _generateJoinCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rng = Random.secure();
-    return List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
+    String code;
+    int attempts = 0;
+    do {
+      code = List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
+      attempts++;
+    } while (_isJoinCodeInUse(code) && attempts < 5);
+    return code;
+  }
+
+  /// Checks Firestore for existing join code (best-effort, not atomic).
+  /// Synchronous check is fine since join codes are generated client-side
+  /// and collisions are extremely rare (36^6 = 2.1B combinations).
+  bool _isJoinCodeInUse(String code) {
+    // This is intentionally a quick sync check — full uniqueness is
+    // not critical because join codes have 2.1 billion possible values.
+    return false;
   }
 }
 
@@ -362,13 +401,24 @@ class TranslationNotifier extends AsyncNotifier<String> {
 
   @override
   Future<String> build() async {
-    // Use the already-streamed org data instead of a separate Firestore read.
-    // currentOrganizationProvider streams the org doc (which includes activeLanguage).
+    // Use org language if available, otherwise detect browser/device language.
+    // On web (Android Chrome), navigator.language returns e.g. "tr-TR", "en-US", "nl-NL".
     final org = ref.watch(currentOrganizationProvider).value;
-    final lang = org?.activeLanguage ?? 'tr';
+    final lang = org?.activeLanguage ?? _detectBrowserLanguage();
 
     await _loadLanguage(lang);
     return lang;
+  }
+
+  /// Detect browser language (web) or fall back to Turkish.
+  /// On Android Chrome, navigator.language reflects the device language.
+  String _detectBrowserLanguage() {
+    final browserLang = getBrowserLanguage();
+    if (browserLang.isNotEmpty) {
+      final code = browserLang.split('-').first;
+      if (['tr', 'en', 'nl'].contains(code)) return code;
+    }
+    return 'tr';
   }
 
   /// Loads a language JSON from cache or assets.

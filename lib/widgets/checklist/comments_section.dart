@@ -48,7 +48,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
             height: 120,
             child: commentsAsync.when(
               data: (comments) => comments.isEmpty
-                  ? Center(child: Text('Henüz not yok', style: TextStyle(color: context.appExt.textTertiary, fontStyle: FontStyle.italic)))
+                  ? Center(child: Text(l10n.translate('no_notes_yet'), style: TextStyle(color: context.appExt.textTertiary, fontStyle: FontStyle.italic)))
                   : ListView.builder(
                       itemCount: comments.length,
                       itemBuilder: (_, i) {
@@ -83,7 +83,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                     controller: _controller,
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Not yazın...',
+                      hintText: l10n.translate('notes_hint'),
                       hintStyle: TextStyle(color: context.appExt.textTertiary, fontSize: 14),
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       border: InputBorder.none,

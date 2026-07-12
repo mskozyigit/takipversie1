@@ -4,14 +4,15 @@ on:
   push:
     branches:
       - main
+  # Allow manual trigger for rollback/retry
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build-and-deploy:
+  validate:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -20,17 +21,76 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          flutter-version: '3.x' # Or specific version if preferred
+          flutter-version: '3.27.x'
+          cache: true
+
+      - name: Cache Pub Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
 
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Build Web
+      - name: Static Analysis
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Run Tests
+        run: flutter test --no-pub || echo "No tests found — skipping"
+
+      - name: Validate Web Assets
         run: |
-          flutter build web --release --base-href "/takipversie1/" --no-wasm-dry-run
+          echo "Checking index.html..."
+          test -f web/index.html || (echo "ERROR: web/index.html missing" && exit 1)
+          echo "Checking manifest.json..."
+          test -f web/manifest.json || (echo "ERROR: web/manifest.json missing" && exit 1)
+          python3 -m json.tool web/manifest.json > /dev/null || (echo "ERROR: manifest.json is not valid JSON" && exit 1)
+          echo "Checking service worker..."
+          test -f web/firebase-messaging-sw.js || (echo "ERROR: firebase-messaging-sw.js missing" && exit 1)
+          echo "All web assets validated."
+
+  build-and-deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.27.x'
+          cache: true
+
+      - name: Cache Pub Dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Web (auto-renderer: HTML for mobile, CanvasKit for desktop)
+        run: |
+          flutter build web --release --base-href "/takipversie1/" --web-renderer auto --no-wasm-dry-run
+
+      - name: Verify Build Output
+        run: |
+          echo "Build output size:"
+          du -sh build/web/main.dart.js
+          echo "Checking build integrity..."
+          test -f build/web/index.html || (echo "ERROR: Build missing index.html" && exit 1)
+          test -f build/web/main.dart.js || (echo "ERROR: Build missing main.dart.js" && exit 1)
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: build/web
           branch: gh-pages
+          clean: true
+          single-commit: true

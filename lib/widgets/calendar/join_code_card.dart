@@ -51,7 +51,7 @@ class JoinCodeCard extends ConsumerWidget {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: org.joinCode));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Kod kopyalandı!'), backgroundColor: Colors.green),
+                  SnackBar(content: Text(l10n.translate('code_copied')), backgroundColor: Colors.green),
                 );
               },
             ),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/job.dart';
+import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 
 /// Time-based grid calendar view (Day / 3-Day / Week)
-class TimeGridView extends StatelessWidget {
+class TimeGridView extends ConsumerWidget {
   final List<Job> jobs;
   final DateTime focusedDay;
   final int viewMode; // 0=Day, 3=3-Day, 1=Week
@@ -29,7 +31,8 @@ class TimeGridView extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     final days = List.generate(columnCount, (i) {
       final d = focusedDay.add(Duration(days: i));
       return d;
@@ -42,7 +45,15 @@ class TimeGridView extends StatelessWidget {
 
     // Local function: day headers (needs `context` from enclosing build scope)
     Widget buildDayHeaders() {
-      final dayNames = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
+      final dayNames = [
+        l10n.translate('day_mon'),
+        l10n.translate('day_tue'),
+        l10n.translate('day_wed'),
+        l10n.translate('day_thu'),
+        l10n.translate('day_fri'),
+        l10n.translate('day_sat'),
+        l10n.translate('day_sun'),
+      ];
 
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 8),

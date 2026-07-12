@@ -41,15 +41,25 @@ service cloud.firestore {
     // 2. ORGANIZATION RULES (/organizations/{orgId})
     // ====================================================
     match /organizations/{orgId} {
+      // Any authenticated user can read organizations (needed for join-by-code flow).
+      // Join codes are semi-public by design (shared with team members).
       allow read: if isAuthenticated();
-      // Allow creation if the user is authenticated. 
-      // Authorization is implicitly handled by the User record creation in the same batch.
+      
+      // Create: authenticated users only, language must be valid
       allow create: if isAuthenticated() && 
-                    request.resource.data.activeLanguage in ['tr', 'en', 'nl'];
+                    request.resource.data.keys().hasOnly(['name', 'joinCode', 'createdDate', 'activeLanguage', 'enabledModules', 'paymentQrUrl', 'useBranding', 'logoUrl', 'primaryColorHex']) &&
+                    request.resource.data.activeLanguage in ['tr', 'en', 'nl'] &&
+                    request.resource.data.name is string &&
+                    request.resource.data.name.size() <= 100;
+      
+      // Update: org admin only, language validated, name max 100 chars
       allow update: if isAuthenticated() && 
                     isOrgAdmin(getUserRecord(), orgId) && 
-                    request.resource.data.activeLanguage in ['tr', 'en', 'nl'];
-      allow delete: if false; // Deletion disabled for data safety
+                    request.resource.data.activeLanguage in ['tr', 'en', 'nl'] &&
+                    (!('name' in request.resource.data) || request.resource.data.name.size() <= 100);
+      
+      // Deletion disabled for data safety
+      allow delete: if false;
     }
 
     // ====================================================
@@ -67,6 +77,10 @@ service cloud.firestore {
       //   the user is allowed to register themselves as an 'approved' 'admin' to prevent deadlock.
       allow create: if isAuthenticated() &&
                     request.auth.uid == userId &&
+                    request.resource.data.name is string &&
+                    request.resource.data.name.size() <= 100 &&
+                    request.resource.data.email is string &&
+                    request.resource.data.email.size() <= 200 &&
                     (
                       (request.resource.data.approvalStatus == 'pending' && request.resource.data.role in ['admin', 'worker']) ||
                       (
@@ -110,7 +124,13 @@ service cloud.firestore {
 
       allow create: if isAuthenticated() &&
                     isOrgAdmin(getUserRecord(), request.resource.data.organizationId) &&
-                    hasValidJobStatus(request.resource.data);
+                    hasValidJobStatus(request.resource.data) &&
+                    request.resource.data.title is string &&
+                    request.resource.data.title.size() <= 200 &&
+                    request.resource.data.description is string &&
+                    request.resource.data.description.size() <= 2000 &&
+                    request.resource.data.address is string &&
+                    request.resource.data.address.size() <= 500;
 
       allow update: if isAuthenticated() && (
         (isOrgAdmin(getUserRecord(), resource.data.organizationId) && hasValidJobStatus(request.resource.data)) ||
@@ -179,6 +199,8 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                     isApproved(getUserRecord()) &&
                     request.resource.data.authorId == request.auth.uid &&
+                    request.resource.data.text is string &&
+                    request.resource.data.text.size() <= 2000 &&
                     isTenant(request.resource.data.organizationId, getUserRecord());
       allow update: if false;
       allow delete: if false;

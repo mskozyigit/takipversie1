@@ -53,6 +53,12 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Bu uygulama iş öncesi/sonrası fotoğraf çekmek için kamerayı kullanır.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Bu uygulama iş fotoğraflarını seçmek için galeriye erişir.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Bu uygulama mikrofonu kullanmaz.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

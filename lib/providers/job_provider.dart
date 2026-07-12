@@ -139,6 +139,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState is! ApprovedAdmin) return;
 
+    final l10n = ref.read(translationProvider.notifier);
     final orgId = authState.appUser.organizationId;
     final jobRef = _firestore.collection('jobs').doc();
     
@@ -161,7 +162,6 @@ class JobNotifier extends Notifier<void> {
       
       if (collision.docs.isNotEmpty) {
         final nextNum = (await _firestore.collection('organizations').doc(orgId).get()).data()?['lastMissionNumber'] ?? 1000;
-        final l10n = ref.read(translationProvider.notifier);
         throw Exception(l10n.translate('job_mission_collision', {'next': '#${nextNum + 1}'}));
       }
       finalMissionNumber = missionNumber.trim();
@@ -204,8 +204,8 @@ class JobNotifier extends Notifier<void> {
     if (assignedWorkerId != 'unassigned') {
       await _sendJobNotification(
         workerId: assignedWorkerId,
-        title: 'Yeni Görev: $title',
-        body: '$finalMissionNumber atandı - ${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year}',
+        title: l10n.translate('notification_new_job_title', {'title': title}),
+        body: l10n.translate('notification_new_job_body', {'mission': finalMissionNumber, 'date': '${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year}'}),
         jobId: jobRef.id,
         orgId: orgId,
       );
@@ -275,6 +275,23 @@ class JobNotifier extends Notifier<void> {
 
     await _firestore.collection('jobs').doc(jobId).update(data);
     await _logAction(jobId, 'Job Updated');
+
+    // Notify newly assigned worker if different from before
+    if (assignedWorkerId != 'unassigned') {
+      final oldJob = await _firestore.collection('jobs').doc(jobId).get();
+      final previousWorkerId = oldJob.data()?['assignedWorkerId'] as String?;
+      if (previousWorkerId != assignedWorkerId) {
+        final l10n = ref.read(translationProvider.notifier);
+        final orgId = authState.appUser!.organizationId;
+        await _sendJobNotification(
+          workerId: assignedWorkerId,
+          title: l10n.translate('notification_new_job_title', {'title': title}),
+          body: l10n.translate('notification_new_job_body', {'mission': oldJob.data()?['missionNumber'] ?? '', 'date': '${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year}'}),
+          jobId: jobId,
+          orgId: orgId,
+        );
+      }
+    }
   }
 
   Future<void> deleteJob(String jobId) async {

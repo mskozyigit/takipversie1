@@ -12,16 +12,18 @@ class AuditLogScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auditLogsAsync = ref.watch(auditLogProvider(jobId));
     final branding = ref.watch(brandingProvider);
+    final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('İş Geçmişi (Audit Log)'),
+        title: Text(l10n.translate('audit_log_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: auditLogsAsync.when(
         data: (logs) => logs.isEmpty
-            ? const Center(child: Text('Geçmiş kaydı bulunamadı.', style: TextStyle(color: Color(0xFF90A4AE))))
-            : ListView.builder(
+            ? Center(child: Text(l10n.translate('audit_log_empty'), style: const TextStyle(color: Color(0xFF90A4AE))))
+            : RepaintBoundary(
+              child: ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: logs.length,
                 itemBuilder: (context, i) {
@@ -61,8 +63,9 @@ class AuditLogScreen extends ConsumerWidget {
                   );
                 },
               ),
+            ),
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
-        error: (e, _) => Center(child: Text('Hata: $e')),
+        error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}))),
       ),
     );
   }

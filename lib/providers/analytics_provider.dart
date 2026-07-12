@@ -111,11 +111,11 @@ final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
 
   final weekStart = todayStart.subtract(Duration(days: now.weekday - 1));
   final completedThisWeek = jobs.where((j) =>
-    j.status == JobStatus.closed && j.createdDate.isAfter(weekStart)).length;
+    (j.status == JobStatus.closed || j.status == JobStatus.workCompleted) && j.createdDate.isAfter(weekStart)).length;
 
   final monthStart = DateTime(now.year, now.month, 1);
   final completedThisMonth = jobs.where((j) =>
-    j.status == JobStatus.closed && j.createdDate.isAfter(monthStart)).length;
+    (j.status == JobStatus.closed || j.status == JobStatus.workCompleted) && j.createdDate.isAfter(monthStart)).length;
 
   // Average travel time
   final jobsWithTravel = jobs.where((j) => j.estimatedTravelTime != null).toList();

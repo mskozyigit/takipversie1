@@ -38,7 +38,7 @@ class PhotoStep extends ConsumerWidget {
                 children: [
                   CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary, strokeWidth: 2),
                   const SizedBox(height: 8),
-                  Text('Fotoğraf yükleniyor...', style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
+                  Text(l10n.translate('photo_uploading'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
                 ],
               ),
             ),
@@ -65,13 +65,13 @@ class PhotoStep extends ConsumerWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stack) => Container(
                         color: Theme.of(context).colorScheme.surface,
-                        child: const Center(
+                        child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.broken_image, color: Colors.red, size: 32),
-                              SizedBox(height: 4),
-                              Text('Fotoğraf yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                              const Icon(Icons.broken_image, color: Colors.red, size: 32),
+                              const SizedBox(height: 4),
+                              Text(l10n.translate('photo_upload_failed'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
                             ],
                           ),
                         ),
@@ -94,11 +94,11 @@ class PhotoStep extends ConsumerWidget {
             ),
           ),
         Tooltip(
-          message: url != null && url!.isNotEmpty ? 'Fotoğrafı değiştir' : 'Galeri veya kameradan fotoğraf ekle',
+          message: l10n.translate(url != null && url!.isNotEmpty ? 'photo_change_tooltip' : 'photo_add_tooltip'),
           child: OutlinedButton.icon(
             onPressed: isUploading ? null : onTap,
             icon: const Icon(Icons.add_a_photo, size: 18),
-            label: Text(url != null && url!.isNotEmpty ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle', style: const TextStyle(fontSize: 13)),
+            label: Text(l10n.translate(url != null && url!.isNotEmpty ? 'photo_change_button' : 'photo_add_button'), style: const TextStyle(fontSize: 13)),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF4FC3F7),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

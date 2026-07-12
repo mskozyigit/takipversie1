@@ -37,25 +37,54 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
   }
 
   Future<void> _save() async {
+    final l10n = ref.read(translationProvider.notifier);
     final org = ref.read(currentOrganizationProvider).value;
     if (org == null) return;
 
     setState(() => _isSaving = true);
     try {
+      final rawLogo = _logoController.text.trim();
+      final rawColor = _colorController.text.trim();
+      
+      // Validate logo URL: must be HTTPS if provided
+      final logoUrl = rawLogo.isEmpty ? null : rawLogo;
+      if (logoUrl != null && !logoUrl.startsWith('https://')) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.translate('branding_url_https_required')), backgroundColor: Colors.orange),
+          );
+        }
+        setState(() => _isSaving = false);
+        return;
+      }
+      
+      // Validate hex color format (#RRGGBB or #AARRGGBB)
+      final colorHex = rawColor.isEmpty ? '#1565C0' : rawColor;
+      final hexRegex = RegExp(r'^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$');
+      if (!hexRegex.hasMatch(colorHex)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.translate('branding_color_invalid')), backgroundColor: Colors.orange),
+          );
+        }
+        setState(() => _isSaving = false);
+        return;
+      }
+      
       await FirebaseFirestore.instance.collection('organizations').doc(org.id).update({
         'useBranding': _useBranding,
-        'logoUrl': _logoController.text.trim().isEmpty ? null : _logoController.text.trim(),
-        'primaryColorHex': _colorController.text.trim().isEmpty ? '#1565C0' : _colorController.text.trim(),
+        'logoUrl': logoUrl,
+        'primaryColorHex': colorHex,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marka ayarları kaydedildi'), backgroundColor: Colors.green),
+          SnackBar(content: Text(l10n.translate('branding_saved')), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(l10n.translate('generic_error', {'error': 'Firestore operation failed'})), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -70,7 +99,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Marka Özelleştirme'),
+        title: Text(l10n.translate('branding_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: SingleChildScrollView(
@@ -83,8 +112,8 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
               color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: SwitchListTile(
-                title: const Text('Özel Markalama', style: TextStyle(color: Colors.white)),
-                subtitle: Text('Logo ve renk özelleştirmesini aktifleştir', style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
+                title: Text(l10n.translate('branding_enable'), style: const TextStyle(color: Colors.white)),
+                subtitle: Text(l10n.translate('branding_enable_desc'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
                 value: _useBranding,
                 onChanged: (v) => setState(() => _useBranding = v),
                 activeColor: const Color(0xFF4FC3F7),
@@ -94,7 +123,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
 
             if (_useBranding) ...[
               // Logo URL
-              Text('Logo URL', style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text(l10n.translate('branding_logo_url'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
               const SizedBox(height: 8),
               TextField(
                 controller: _logoController,
@@ -111,7 +140,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
               const SizedBox(height: 16),
 
               // Color
-              Text('Ana Renk', style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
+              Text(l10n.translate('branding_primary_color'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -151,7 +180,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
               const SizedBox(height: 24),
 
               // Preview
-              Text('Önizleme', style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text(l10n.translate('branding_preview'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
               const SizedBox(height: 8),
               Container(
                 height: 80,
@@ -177,7 +206,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
               ),
               child: _isSaving
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Kaydet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  : Text(l10n.translate('button_save'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
             ),
           ],
         ),

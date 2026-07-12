@@ -16,7 +16,7 @@ class ModuleSettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Modül Yönetimi'),
+        title: Text(l10n.translate('admin_modules_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: Column(
@@ -55,7 +55,7 @@ class ModuleSettingsScreen extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BrandingSettingsScreen())),
                 icon: const Icon(Icons.brush, color: Color(0xFF4FC3F7)),
-                label: const Text('Marka Özelleştirme', style: TextStyle(color: Color(0xFF4FC3F7))),
+                label: Text(l10n.translate('branding_button'), style: const TextStyle(color: Color(0xFF4FC3F7))),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Color(0xFF4FC3F7)),
                   padding: const EdgeInsets.symmetric(vertical: 14),

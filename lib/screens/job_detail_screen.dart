@@ -23,15 +23,16 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
   Job get job => widget.job;
 
   Future<void> _confirmDelete() async {
+    final l10n = ref.read(translationProvider.notifier);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: const Text('Görevi Sil', style: TextStyle(color: Colors.white)),
-        content: Text('"${job.title}" görevini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.', style: const TextStyle(color: Color(0xFF90A4AE))),
+        title: Text(l10n.translate('delete_job_title'), style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.translate('delete_job_confirm', {'title': job.title}), style: const TextStyle(color: Color(0xFF90A4AE))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sil', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('button_delete'), style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -40,7 +41,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
         await ref.read(jobOperationsProvider.notifier).deleteJob(job.id);
         if (mounted) Navigator.pop(context);
       } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e'), backgroundColor: Colors.red));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('generic_error', {'error': '$e'})), backgroundColor: Colors.red));
       }
     }
   }
@@ -48,14 +49,17 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
   Future<void> _launchMaps(String address) async {
     final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}');
     if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
 
   Future<void> _makeCall(String phone) async {
-    final url = Uri.parse('tel:$phone');
+    // Sanitize: strip non-numeric and limit length to prevent injection
+    final sanitized = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    if (sanitized.isEmpty) return;
+    final url = Uri.parse('tel:$sanitized');
     if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+      await launchUrl(url, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -74,30 +78,32 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
           if (isAdmin) ...[
             IconButton(
               icon: const Icon(Icons.history_toggle_off),
-              tooltip: 'İş Geçmişi',
+              tooltip: l10n.translate('job_history_tooltip'),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AuditLogScreen(jobId: job.id))),
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-              tooltip: 'Görevi Sil',
+              tooltip: l10n.translate('delete_job_tooltip'),
               onPressed: _confirmDelete,
             ),
           ],
         ],
       ),
-      body: SingleChildScrollView(
+      body: Scrollbar(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Status Badge
-            _InfoRow(label: 'Durum', value: l10n.translate('job_status_${job.status.name}'), icon: Icons.info_outline, color: _getStatusColor(job.status)),
+            _InfoRow(label: l10n.translate('status_label'), value: l10n.translate('job_status_${job.status.name}'), icon: Icons.info_outline, color: _getStatusColor(job.status)),
             const SizedBox(height: 12),
 
             // Date & Time
             _InfoRow(
               label: l10n.translate('job_date'),
-              value: '${job.scheduledDate.day}/${job.scheduledDate.month}/${job.scheduledDate.year}  ${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')}',
+              value: '${l10n.translate('date_format_short', {'day': '${job.scheduledDate.day}', 'month': '${job.scheduledDate.month}', 'year': '${job.scheduledDate.year}'})}  ${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')}',
               icon: Icons.access_time,
               color: Theme.of(context).colorScheme.secondary,
             ),
@@ -125,14 +131,14 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                     child: _DescriptionImagePreview(imageUrl: imageUrl),
                   );
                 }
-                return _DetailCard(title: 'Bilgi', value: block, icon: Icons.info_outline);
+                return _DetailCard(title: l10n.translate('info_label'), value: block, icon: Icons.info_outline);
               }),
             ],
 
             // Attached Images (admin tarafından eklenen resimler)
             if (job.attachedImages.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('Ek Resimler', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('attached_images'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               ...job.attachedImages.map((url) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -143,12 +149,12 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             // Before/After Photos (çalışan checklist fotoğrafları)
             if (job.beforePhotoUrl != null || job.afterPhotoUrl != null) ...[
               const SizedBox(height: 8),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('Fotoğraflar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('photos_label'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               Row(children: [
-                if (job.beforePhotoUrl != null) Expanded(child: _PhotoPreview(url: job.beforePhotoUrl!, label: 'Öncesi')),
+                if (job.beforePhotoUrl != null) Expanded(child: _PhotoPreview(url: job.beforePhotoUrl!, label: l10n.translate('before_photo_label'))),
                 if (job.beforePhotoUrl != null && job.afterPhotoUrl != null) const SizedBox(width: 12),
-                if (job.afterPhotoUrl != null) Expanded(child: _PhotoPreview(url: job.afterPhotoUrl!, label: 'Sonrası')),
+                if (job.afterPhotoUrl != null) Expanded(child: _PhotoPreview(url: job.afterPhotoUrl!, label: l10n.translate('after_photo_label'))),
               ]),
             ],
 
@@ -188,7 +194,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job))),
                         icon: const Icon(Icons.replay, size: 18),
-                        label: const Text('İşi Düzenle / Yeniden Aç'),
+                        label: Text(l10n.translate('job_edit_reopen')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -208,6 +214,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -310,13 +317,14 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-class _PhotoPreview extends StatelessWidget {
+class _PhotoPreview extends ConsumerWidget {
   final String url;
   final String label;
   const _PhotoPreview({required this.url, required this.label});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return Column(
       children: [
         InkWell(
@@ -340,7 +348,7 @@ class _PhotoPreview extends StatelessWidget {
                         children: [
                           const Icon(Icons.broken_image, color: Colors.red, size: 32),
                           const SizedBox(height: 4),
-                          Text('Yüklenemedi', style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
+                          Text(l10n.translate('image_load_error'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
                         ],
                       ),
                     ),
@@ -368,12 +376,13 @@ class _PhotoPreview extends StatelessWidget {
   }
 }
 
-class _DescriptionImagePreview extends StatelessWidget {
+class _DescriptionImagePreview extends ConsumerWidget {
   final String imageUrl;
   const _DescriptionImagePreview({required this.imageUrl});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     return InkWell(
       onTap: () => FullScreenImageViewer.show(context, imageUrl),
       borderRadius: BorderRadius.circular(8),
@@ -389,13 +398,13 @@ class _DescriptionImagePreview extends StatelessWidget {
               errorBuilder: (context, error, stack) => Container(
                 height: 120,
                 color: Theme.of(context).colorScheme.surface,
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.broken_image, color: Colors.red, size: 32),
-                      SizedBox(height: 4),
-                      Text('Yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                      const Icon(Icons.broken_image, color: Colors.red, size: 32),
+                      const SizedBox(height: 4),
+                      Text(l10n.translate('image_load_error'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
                     ],
                   ),
                 ),

@@ -17,62 +17,62 @@ class AdminAnalyticsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Analitik Dashboard'),
+        title: Text(l10n.translate('analytics_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: analyticsAsync.when(
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
-        error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
+        error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
         data: (data) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // --- Summary Cards ---
-              Text('Genel Bakış', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(l10n.translate('analytics_overview'), style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _StatCard(label: 'Toplam İş', value: '${data.totalJobs}', icon: Icons.work, color: context.cs.secondary),
-                  _StatCard(label: 'Başlamadı', value: '${data.notStarted}', icon: Icons.radio_button_unchecked, color: ext.statusNotStarted),
-                  _StatCard(label: 'Devam Eden', value: '${data.inProgress}', icon: Icons.play_circle, color: ext.statusInProgress),
-                  _StatCard(label: 'Tamamlanan', value: '${data.workCompleted}', icon: Icons.check_circle, color: ext.statusWorkCompleted),
-                  _StatCard(label: 'Kapanan', value: '${data.closed}', icon: Icons.lock, color: ext.statusClosed),
+                  _StatCard(label: l10n.translate('analytics_total_jobs'), value: '${data.totalJobs}', icon: Icons.work, color: context.cs.secondary),
+                  _StatCard(label: l10n.translate('analytics_not_started'), value: '${data.notStarted}', icon: Icons.radio_button_unchecked, color: ext.statusNotStarted),
+                  _StatCard(label: l10n.translate('analytics_in_progress'), value: '${data.inProgress}', icon: Icons.play_circle, color: ext.statusInProgress),
+                  _StatCard(label: l10n.translate('analytics_completed'), value: '${data.workCompleted}', icon: Icons.check_circle, color: ext.statusWorkCompleted),
+                  _StatCard(label: l10n.translate('analytics_closed'), value: '${data.closed}', icon: Icons.lock, color: ext.statusClosed),
                 ],
               ),
               const SizedBox(height: 24),
 
               // --- Completion Stats ---
-              Text('Tamamlanma', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(l10n.translate('analytics_completion'), style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _StatCard(label: 'Bugün', value: '${data.completedToday}', icon: Icons.today, color: const Color(0xFF4FC3F7))),
+                  Expanded(child: _StatCard(label: l10n.translate('analytics_today'), value: '${data.completedToday}', icon: Icons.today, color: const Color(0xFF4FC3F7))),
                   const SizedBox(width: 12),
-                  Expanded(child: _StatCard(label: 'Bu Hafta', value: '${data.completedThisWeek}', icon: Icons.view_week, color: const Color(0xFF4FC3F7))),
+                  Expanded(child: _StatCard(label: l10n.translate('analytics_this_week'), value: '${data.completedThisWeek}', icon: Icons.view_week, color: const Color(0xFF4FC3F7))),
                   const SizedBox(width: 12),
-                  Expanded(child: _StatCard(label: 'Bu Ay', value: '${data.completedThisMonth}', icon: Icons.calendar_month, color: const Color(0xFF4FC3F7))),
+                  Expanded(child: _StatCard(label: l10n.translate('analytics_this_month'), value: '${data.completedThisMonth}', icon: Icons.calendar_month, color: const Color(0xFF4FC3F7))),
                 ],
               ),
               const SizedBox(height: 24),
 
               // --- Financial ---
-              Text('Finansal', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(l10n.translate('analytics_financial'), style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(child: _StatCard(
-                    label: 'Toplam Gelir',
+                    label: l10n.translate('analytics_total_revenue'),
                     value: '₺${data.totalFees.toStringAsFixed(0)}',
                     icon: Icons.payments,
                     color: Colors.green,
                   )),
                   const SizedBox(width: 12),
                   Expanded(child: _StatCard(
-                    label: 'Ort. Seyahat',
-                    value: '${data.avgTravelMinutes.toStringAsFixed(0)} dk',
+                    label: l10n.translate('analytics_avg_travel'),
+                    value: '${data.avgTravelMinutes.toStringAsFixed(0)} ${l10n.translate('analytics_minutes_suffix')}',
                     icon: Icons.route,
                     color: const Color(0xFF4FC3F7),
                   )),
@@ -81,10 +81,10 @@ class AdminAnalyticsScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // --- Per Worker ---
-              Text('Çalışan Bazında', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(l10n.translate('analytics_per_worker'), style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (data.perWorker.isEmpty)
-                const Text('Henüz veri yok', style: TextStyle(color: Color(0xFF90A4AE)))
+                Text(l10n.translate('analytics_no_data'), style: const TextStyle(color: Color(0xFF90A4AE)))
               else
                 ...data.perWorker.map((w) => _WorkerCard(stats: w)),
             ],
@@ -126,12 +126,13 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _WorkerCard extends StatelessWidget {
+class _WorkerCard extends ConsumerWidget {
   final WorkerStats stats;
   const _WorkerCard({required this.stats});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
     final ext = Theme.of(context).extension<AppThemeExt>() ?? AppThemeExt.defaultDark;
     final rate = stats.totalJobs > 0
         ? (stats.completedJobs / stats.totalJobs * 100).toStringAsFixed(0)
@@ -157,11 +158,11 @@ class _WorkerCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                _MiniStat(label: 'Tamamlanan', value: '${stats.completedJobs}'),
+                _MiniStat(label: l10n.translate('analytics_worker_completed'), value: '${stats.completedJobs}'),
                 const SizedBox(width: 16),
-                _MiniStat(label: 'Toplam', value: '${stats.totalJobs}'),
+                _MiniStat(label: l10n.translate('analytics_worker_total'), value: '${stats.totalJobs}'),
                 const SizedBox(width: 16),
-                _MiniStat(label: 'Gelir', value: '₺${stats.totalFee.toStringAsFixed(0)}'),
+                _MiniStat(label: l10n.translate('analytics_worker_revenue'), value: '₺${stats.totalFee.toStringAsFixed(0)}'),
               ],
             ),
             const SizedBox(height: 4),

@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://mskozyigit.github.io", "http://localhost:5000", "http://localhost:3000"],
+    "origin": ["https://mskozyigit.github.io"],
     "method": ["GET", "HEAD"],
     "maxAgeSeconds": 3600,
     "responseHeader": ["Content-Type", "Access-Control-Allow-Origin"]
