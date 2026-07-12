@@ -333,8 +333,7 @@ class _PhotoPreview extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: WebSafeImage(
                   url: url,
-                  fit: BoxFit.contain,
-                  errorBuilder: (ctx, err, stack) => const Center(
+                  fit: BoxFit.contain,                  cacheWidth: null,                  errorBuilder: (ctx, err, stack) => const Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.broken_image, color: Colors.red, size: 48),
                       SizedBox(height: 8),
@@ -438,6 +437,7 @@ class _DescriptionImagePreview extends StatelessWidget {
                 child: WebSafeImage(
                   url: imageUrl,
                   fit: BoxFit.contain,
+                  cacheWidth: null,
                   errorBuilder: (ctx, err, stack) => const Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.broken_image, color: Colors.red, size: 48),

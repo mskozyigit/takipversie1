@@ -31,6 +31,7 @@ class PhotoStep extends ConsumerWidget {
                 child: WebSafeImage(
                   url: imageUrl,
                   fit: BoxFit.contain,
+                  cacheWidth: null,
                   errorBuilder: (ctx, err, stack) => const Center(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.broken_image, color: Colors.red, size: 48),
