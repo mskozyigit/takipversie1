@@ -139,13 +139,16 @@ class PhotoStep extends ConsumerWidget {
               ),
             ),
           ),
-        OutlinedButton.icon(
-          onPressed: isUploading ? null : onTap,
-          icon: const Icon(Icons.add_a_photo, size: 18),
-          label: Text(url != null && url!.isNotEmpty ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle', style: const TextStyle(fontSize: 13)),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF4FC3F7),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        Tooltip(
+          message: url != null && url!.isNotEmpty ? 'Fotoğrafı değiştir' : 'Galeri veya kameradan fotoğraf ekle',
+          child: OutlinedButton.icon(
+            onPressed: isUploading ? null : onTap,
+            icon: const Icon(Icons.add_a_photo, size: 18),
+            label: Text(url != null && url!.isNotEmpty ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle', style: const TextStyle(fontSize: 13)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF4FC3F7),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
           ),
         ),
       ],
