@@ -15,9 +15,11 @@ class MediaNotifier extends Notifier<void> {
   void build() {}
 
   /// Pick, Compress and Upload image (for worker camera checklist)
+  /// [source] defaults to camera, but can be gallery on mobile for reliability
   Future<String?> uploadJobPhoto({
     required String jobId,
     required bool isBefore,
+    ImageSource source = ImageSource.camera,
   }) async {
     final authState = ref.read(authProvider).value;
     if (authState == null) return null;
@@ -27,17 +29,22 @@ class MediaNotifier extends Notifier<void> {
     else if (authState is ApprovedWorker) orgId = authState.appUser.organizationId;
     else return null;
 
-    // Pick with low quality + reduced size for fast upload
-    final XFile? pickedFile = await _picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: kIsWeb ? 40 : 55,
-      maxWidth: 600,
-    );
+    try {
+      // Pick with low quality + reduced size for fast upload
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: kIsWeb ? 40 : 55,
+        maxWidth: 600,
+      );
 
-    if (pickedFile == null) return null;
+      if (pickedFile == null) return null;
 
-    final bytes = await _compressImage(await pickedFile.readAsBytes());
-    return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: bytes);
+      final bytes = await _compressImage(await pickedFile.readAsBytes());
+      return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: bytes);
+    } catch (e) {
+      // Re-throw so the caller can show the error
+      rethrow;
+    }
   }
 
   /// Upload already-picked image bytes (for admin gallery upload — no double pick)

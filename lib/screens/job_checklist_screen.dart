@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/job.dart';
 import '../models/organization.dart';
 import '../providers/job_provider.dart';
@@ -48,11 +49,47 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
 
   Future<void> _takePhoto(bool isBefore) async {
     final l10n = ref.read(translationProvider.notifier);
+    
+    // Show source picker dialog first (avoids camera activity lifecycle issues on mobile)
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A2A3A),
+        title: const Text('Fotoğraf Ekle', style: TextStyle(color: Colors.white)),
+        content: const Text('Nereden fotoğraf eklemek istersiniz?', style: TextStyle(color: Color(0xFF90A4AE))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
+                SizedBox(width: 8),
+                Text('Galeri', style: TextStyle(color: Color(0xFF4FC3F7))),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+            icon: const Icon(Icons.camera_alt, size: 20),
+            label: const Text('Kamera'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (source == null || !mounted) return;
+    
     setState(() => _isUploading = true);
     try {
       final url = await ref.read(mediaProvider.notifier).uploadJobPhoto(
         jobId: widget.job.id,
         isBefore: isBefore,
+        source: source,
       );
       if (url != null) {
         await ref.read(jobOperationsProvider.notifier).updateJobPhotos(

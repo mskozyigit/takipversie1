@@ -128,7 +128,18 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               }),
             ],
 
-            // Photos (if any)
+            // Attached Images (admin tarafından eklenen resimler)
+            if (job.attachedImages.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Ek Resimler', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+              const SizedBox(height: 8),
+              ...job.attachedImages.map((url) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _DescriptionImagePreview(imageUrl: url),
+              )),
+            ],
+
+            // Before/After Photos (çalışan checklist fotoğrafları)
             if (job.beforePhotoUrl != null || job.afterPhotoUrl != null) ...[
               const SizedBox(height: 8),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Fotoğraflar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),

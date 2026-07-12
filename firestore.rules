@@ -285,6 +285,13 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
     }
 
+    match /jobTemplates/{templateId} {
+      allow read: if isAuthenticated() && isTenant(resource.data.organizationId, getUserRecord());
+      allow create: if isAuthenticated() && isOrgAdmin(getUserRecord(), request.resource.data.organizationId);
+      allow update: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+      allow delete: if isAuthenticated() && isOrgAdmin(getUserRecord(), resource.data.organizationId);
+    }
+
     match /certifications/{certId} {
       allow read: if isAuthenticated() && (
         resource.data.workerId == request.auth.uid ||

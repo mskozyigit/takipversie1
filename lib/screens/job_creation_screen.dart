@@ -945,12 +945,49 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
   bool _isUploading = false;
 
   Future<void> _pickAndUpload() async {
+    // Show source picker for mobile reliability
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A2A3A),
+        title: const Text('Fotoğraf Ekle', style: TextStyle(color: Colors.white)),
+        content: const Text('Nereden fotoğraf eklemek istersiniz?', style: TextStyle(color: Color(0xFF90A4AE))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
+                SizedBox(width: 8),
+                Text('Galeri', style: TextStyle(color: Color(0xFF4FC3F7))),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+            icon: const Icon(Icons.camera_alt, size: 20),
+            label: const Text('Kamera'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (source == null || !mounted) return;
+    
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 65, maxWidth: 800);
-    if (picked == null) return;
-
     setState(() => _isUploading = true);
     try {
+      final picked = await picker.pickImage(source: source, imageQuality: 65, maxWidth: 800);
+      if (picked == null) {
+        if (mounted) setState(() => _isUploading = false);
+        return;
+      }
+
       final bytes = await picked.readAsBytes();
       final orgId = ref.read(currentOrganizationProvider).value?.id ?? 'temp';
       final url = await ref.read(mediaProvider.notifier).uploadJobPhotoFromBytes(
@@ -963,7 +1000,13 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
         setState(() => _imageUrl = url);
         widget.onImagePicked(url);
       }
-    } catch (_) {} finally {
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fotoğraf yüklenemedi: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
       if (mounted) setState(() => _isUploading = false);
     }
   }
@@ -989,9 +1032,9 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
-                      Icon(Icons.camera_alt, color: Color(0xFF4FC3F7), size: 28),
+                      Icon(Icons.add_a_photo, color: Color(0xFF4FC3F7), size: 28),
                       SizedBox(width: 12),
-                      Text('Fotoğraf Çek', style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500)),
+                      Text('Fotoğraf Ekle', style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500)),
                     ],
                   ),
       ),
