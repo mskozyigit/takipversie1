@@ -21,7 +21,6 @@ class CalendarHomeScreen extends ConsumerStatefulWidget {
 class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  CalendarFormat _calendarFormat = CalendarFormat.week;
   int _viewMode = 1; // 0: 1-Day, 1: Week, 2: Month, 3: 3-Day Agenda
   String? _selectedWorkerId; // CAL-03
 
@@ -106,8 +105,6 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
             ? jobs 
             : jobs.where((j) => j.assignedWorkerId == _selectedWorkerId).toList();
 
-          final selectedJobs = filteredJobs.where((job) => isSameDay(job.scheduledDate, _selectedDay)).toList();
-
           return Column(
             children: [
               // CAL-03: Admin Filter
@@ -148,23 +145,22 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
 
               // Zaman Bazlı Grid Takvim
               Expanded(
-                child: jobsAsync.when(
-                  data: (allJobs) {
-                    final filtered = isAdmin && _selectedWorkerId != null
-                        ? allJobs.where((j) => j.assignedWorkerId == _selectedWorkerId).toList()
-                        : allJobs;
-                    return TimeGridView(
-                      jobs: filtered,
-                      focusedDay: _focusedDay,
-                      viewMode: _viewMode,
-                      onJobTap: (job) => Navigator.push(context, MaterialPageRoute(builder: (_) => JobDetailScreen(job: job))),
-                      statusColor: _getStatusColor,
-                    );
-                  },
-                  loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7))),
-                  error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
+                child: TimeGridView(
+                  jobs: isAdmin && _selectedWorkerId != null
+                      ? filteredJobs
+                      : jobs,
+                  focusedDay: _focusedDay,
+                  viewMode: _viewMode,
+                  onJobTap: (job) => Navigator.push(context, MaterialPageRoute(builder: (_) => JobDetailScreen(job: job))),
+                  statusColor: _getStatusColor,
                 ),
               ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7))),
+        error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
+      ),
       floatingActionButton: isAdmin
           ? FloatingActionButton(
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
