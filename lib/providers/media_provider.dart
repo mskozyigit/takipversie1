@@ -48,28 +48,42 @@ class MediaNotifier extends Notifier<void> {
   }
 
   /// Upload already-picked image bytes (for admin gallery upload — no double pick)
+  /// [orgId] must be a valid organization ID — throws [ArgumentError] if empty/invalid.
   Future<String?> uploadJobPhotoFromBytes({
     required String orgId,
     required String jobId,
     required Uint8List bytes,
     required bool isBefore,
   }) async {
+    if (orgId.isEmpty || orgId == 'temp') {
+      throw ArgumentError('uploadJobPhotoFromBytes: orgId cannot be empty or "temp". Organization not loaded yet.');
+    }
     final compressed = await _compressImage(bytes);
     return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: compressed);
   }
 
-  /// Compress image bytes client-side
+  /// Compress image bytes client-side.
+  /// Falls back to original bytes if decode fails (e.g. HEIC format from iOS camera).
   Future<Uint8List> _compressImage(Uint8List original) async {
     if (kIsWeb) return original; // Web: picker already compressed
     
-    final image = img.decodeImage(original);
-    if (image == null) return original;
-    
-    img.Image resized = image;
-    if (image.width > 600) {
-      resized = img.copyResize(image, width: 600);
+    try {
+      final image = img.decodeImage(original);
+      if (image == null) {
+        // decodeImage returns null for unsupported formats like HEIC.
+        // Return original bytes as-is — the file will still upload but won't be compressed.
+        return original;
+      }
+
+      img.Image resized = image;
+      if (image.width > 600) {
+        resized = img.copyResize(image, width: 600);
+      }
+      return Uint8List.fromList(img.encodeJpg(resized, quality: 65));
+    } catch (_) {
+      // If anything goes wrong during compression, upload original bytes
+      return original;
     }
-    return Uint8List.fromList(img.encodeJpg(resized, quality: 65));
   }
 
   /// Common upload logic
@@ -81,10 +95,15 @@ class MediaNotifier extends Notifier<void> {
   }) async {
     final String fileName = '${isBefore ? "before" : "after"}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final String path = '$orgId/jobs/$jobId/$fileName';
-    
+
     final refStorage = _storage.ref().child(path);
-    await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-    return await refStorage.getDownloadURL();
+    try {
+      final task = await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      return await task.ref.getDownloadURL();
+    } on FirebaseException catch (e) {
+      // Surface the actual Storage error code so the caller can show a meaningful message
+      throw Exception('Storage yükleme hatası [${e.code}]: ${e.message}');
+    }
   }
 
   /// Upload payment QR code for the organization

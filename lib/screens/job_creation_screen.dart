@@ -989,9 +989,18 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
       }
 
       final bytes = await picked.readAsBytes();
-      final orgId = ref.read(currentOrganizationProvider).value?.id ?? 'temp';
+      final org = ref.read(currentOrganizationProvider).value;
+      if (org == null || org.id.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Organizasyon bilgisi henüz yüklenmedi. Lütfen tekrar deneyin.'), backgroundColor: Colors.orange),
+          );
+        }
+        if (mounted) setState(() => _isUploading = false);
+        return;
+      }
       final url = await ref.read(mediaProvider.notifier).uploadJobPhotoFromBytes(
-        orgId: orgId,
+        orgId: org.id,
         jobId: 'creation_${DateTime.now().millisecondsSinceEpoch}',
         bytes: bytes,
         isBefore: true,
