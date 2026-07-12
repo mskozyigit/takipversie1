@@ -98,8 +98,9 @@ class MediaNotifier extends Notifier<void> {
 
     final refStorage = _storage.ref().child(path);
     try {
-      final task = await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-      return await task.ref.getDownloadURL();
+      await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      final downloadUrl = await refStorage.getDownloadURL();
+      return downloadUrl;
     } on FirebaseException catch (e) {
       // Surface the actual Storage error code so the caller can show a meaningful message
       throw Exception('Storage yükleme hatası [${e.code}]: ${e.message}');
