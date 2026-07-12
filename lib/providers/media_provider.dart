@@ -14,7 +14,7 @@ class MediaNotifier extends Notifier<void> {
   @override
   void build() {}
 
-  /// Pick, Compress and Upload image
+  /// Pick, Compress and Upload image (for worker camera checklist)
   Future<String?> uploadJobPhoto({
     required String jobId,
     required bool isBefore,
@@ -27,39 +27,56 @@ class MediaNotifier extends Notifier<void> {
     else if (authState is ApprovedWorker) orgId = authState.appUser.organizationId;
     else return null;
 
-    // Pick with low quality for fast upload
+    // Pick with low quality + reduced size for fast upload
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.camera,
-      imageQuality: kIsWeb ? 50 : 60,
-      maxWidth: 800,
+      imageQuality: kIsWeb ? 40 : 55,
+      maxWidth: 600,
     );
 
     if (pickedFile == null) return null;
 
-    Uint8List uploadBytes;
-    if (kIsWeb) {
-      // Web: skip Dart-based compression (very slow), use picker's built-in
-      uploadBytes = await pickedFile.readAsBytes();
-    } else {
-      // Mobile: fast client-side resize
-      final original = await pickedFile.readAsBytes();
-      final image = img.decodeImage(original);
-      if (image == null) {
-        uploadBytes = original;
-      } else {
-        img.Image resized = image;
-        if (image.width > 800) {
-          resized = img.copyResize(image, width: 800);
-        }
-        uploadBytes = Uint8List.fromList(img.encodeJpg(resized, quality: 75));
-      }
-    }
+    final bytes = await _compressImage(await pickedFile.readAsBytes());
+    return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: bytes);
+  }
 
+  /// Upload already-picked image bytes (for admin gallery upload — no double pick)
+  Future<String?> uploadJobPhotoFromBytes({
+    required String orgId,
+    required String jobId,
+    required Uint8List bytes,
+    required bool isBefore,
+  }) async {
+    final compressed = await _compressImage(bytes);
+    return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: compressed);
+  }
+
+  /// Compress image bytes client-side
+  Future<Uint8List> _compressImage(Uint8List original) async {
+    if (kIsWeb) return original; // Web: picker already compressed
+    
+    final image = img.decodeImage(original);
+    if (image == null) return original;
+    
+    img.Image resized = image;
+    if (image.width > 600) {
+      resized = img.copyResize(image, width: 600);
+    }
+    return Uint8List.fromList(img.encodeJpg(resized, quality: 65));
+  }
+
+  /// Common upload logic
+  Future<String?> _uploadBytes({
+    required String orgId,
+    required String jobId,
+    required bool isBefore,
+    required Uint8List bytes,
+  }) async {
     final String fileName = '${isBefore ? "before" : "after"}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final String path = '$orgId/jobs/$jobId/$fileName';
     
     final refStorage = _storage.ref().child(path);
-    await refStorage.putData(uploadBytes, SettableMetadata(contentType: 'image/jpeg'));
+    await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
     return await refStorage.getDownloadURL();
   }
 

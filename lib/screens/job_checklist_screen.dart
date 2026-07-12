@@ -33,6 +33,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     super.initState();
     if (widget.job.status == JobStatus.inProgress) {
       _currentStep = 1;
+    } else if (widget.job.status == JobStatus.workCompleted || widget.job.status == JobStatus.closed) {
+      // Bitmiş işler: düzenleme için direkt fotoğraf adımından başla, sıfırdan başlama
+      _currentStep = 1;
     }
     _beforePhotoUrl = widget.job.beforePhotoUrl;
     _afterPhotoUrl = widget.job.afterPhotoUrl;
@@ -92,7 +95,10 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     final lastStep = paymentStep;
 
     if (_currentStep == 0) {
-      await ref.read(jobOperationsProvider.notifier).updateJobStatus(widget.job.id, JobStatus.inProgress);
+      // Sadece hiç başlamamış işler için status'ü inProgress yap
+      if (widget.job.status == JobStatus.notStarted) {
+        await ref.read(jobOperationsProvider.notifier).updateJobStatus(widget.job.id, JobStatus.inProgress);
+      }
       setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
       // Before Photo
@@ -130,7 +136,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   }
 
   void _prevStep() {
-    if (_currentStep > 0) {
+    // Bitmiş işlerde "Başlat" adımına geri dönme
+    final minStep = (widget.job.status == JobStatus.workCompleted || widget.job.status == JobStatus.closed) ? 1 : 0;
+    if (_currentStep > minStep) {
       setState(() => _currentStep--);
     }
   }
@@ -170,7 +178,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         controlsBuilder: (context, details) {
           final isSafetyOn = (ref.read(moduleRegistryProvider)['SAFE-01'] ?? false);
           final lastStep = isSafetyOn ? 6 : 5;
-          final isFirst = _currentStep == 0;
+          final isCompleted = widget.job.status == JobStatus.workCompleted || widget.job.status == JobStatus.closed;
+          final minStep = isCompleted ? 1 : 0;
+          final isFirst = _currentStep == minStep;
           final isLast = _currentStep == lastStep;
           final finishStep = isSafetyOn ? 5 : 4;
 
@@ -195,7 +205,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
                     : Text(
                         isLast 
                           ? l10n.translate('job_checklist_finish') 
-                          : (isFirst ? l10n.translate('job_checklist_start') : l10n.translate('job_checklist_next')),
+                          : (isFirst ? (isCompleted ? 'Düzenle' : l10n.translate('job_checklist_start')) : l10n.translate('job_checklist_next')),
                         style: const TextStyle(color: Colors.white),
                       ),
                 ),
@@ -234,7 +244,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       // 1: Before Photo
       Step(
         title: Text(l10n.translate('job_before_photo'), style: const TextStyle(color: Colors.white)),
-        content: PhotoStep(url: _beforePhotoUrl, onTap: () => _takePhoto(true)),
+        content: PhotoStep(url: _beforePhotoUrl, onTap: () => _takePhoto(true), isUploading: _isUploading && _currentStep == 1),
         isActive: _currentStep >= 1,
         state: _currentStep > 1 ? StepState.complete : StepState.indexed,
       ),
@@ -259,7 +269,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       // 3: After Photo
       Step(
         title: Text(l10n.translate('job_after_photo'), style: const TextStyle(color: Colors.white)),
-        content: PhotoStep(url: _afterPhotoUrl, onTap: () => _takePhoto(false)),
+        content: PhotoStep(url: _afterPhotoUrl, onTap: () => _takePhoto(false), isUploading: _isUploading && _currentStep == 3),
         isActive: _currentStep >= 3,
         state: _currentStep > 3 ? StepState.complete : StepState.indexed,
       ),

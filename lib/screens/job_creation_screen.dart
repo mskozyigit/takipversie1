@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
@@ -24,6 +26,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _distanceController = TextEditingController();
   final _feeController = TextEditingController();
   final List<TextEditingController> _extraDescControllers = [];
+  final _customerNameFocus = FocusNode();
   
   DateTime _selectedDate = DateTime.now();
   AppUser? _selectedWorker;
@@ -31,9 +34,22 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   bool _isLoading = false;
   bool _showFeeField = false;
   String? _paymentQrUrl;
+  bool _customerDialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Müşteri adı alanından çıkınca, yeni isimse otomatik dialog aç
+    _customerNameFocus.addListener(() {
+      if (!_customerNameFocus.hasFocus && !_customerDialogShown) {
+        _checkAndAutoOpenCustomerDialog();
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _customerNameFocus.dispose();
     _titleController.dispose();
     _descController.dispose();
     _addressController.dispose();
@@ -51,6 +67,123 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     setState(() {
       _extraDescControllers.add(TextEditingController());
     });
+  }
+
+  /// Müşteri adı yazılıp başka alana geçildiğinde, CRM'de yoksa otomatik dialog açar
+  void _checkAndAutoOpenCustomerDialog() {
+    final typedName = _customerNameController.text.trim();
+    if (typedName.isEmpty) return;
+    
+    final customersAsync = ref.read(customersProvider);
+    customersAsync.whenData((customers) {
+      final exists = customers.any((c) => c.name.toLowerCase() == typedName.toLowerCase());
+      if (!exists && mounted && !_customerDialogShown) {
+        _customerDialogShown = true;
+        // Dialog'un kapanmasını bekle, sonra form alanlarını doldur
+        _showAutoAddCustomerDialog(typedName);
+      }
+    });
+  }
+
+  /// Otomatik açılan müşteri ekleme dialogu — kaydedince form alanlarını doldurur
+  void _showAutoAddCustomerDialog(String prefillName) {
+    final phoneCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A2A3A),
+        title: const Row(
+          children: [
+            Icon(Icons.person_add, color: Color(0xFF4FC3F7), size: 24),
+            SizedBox(width: 8),
+            Expanded(child: Text('Yeni Müşteri Kaydet', style: TextStyle(color: Colors.white, fontSize: 18))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D1B2A),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person, color: Color(0xFF4FC3F7), size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(prefillName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: phoneCtrl, 
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(color: Colors.white), 
+              decoration: const InputDecoration(
+                labelText: 'Telefon', 
+                labelStyle: TextStyle(color: Color(0xFF90A4AE)),
+                prefixIcon: Icon(Icons.phone, color: Color(0xFF4FC3F7)),
+                filled: true,
+                fillColor: Color(0xFF0D1B2A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: addressCtrl, 
+              maxLines: 2,
+              style: const TextStyle(color: Colors.white), 
+              decoration: const InputDecoration(
+                labelText: 'Adres', 
+                labelStyle: TextStyle(color: Color(0xFF90A4AE)),
+                prefixIcon: Icon(Icons.location_on, color: Color(0xFF4FC3F7)),
+                filled: true,
+                fillColor: Color(0xFF0D1B2A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _customerDialogShown = false;
+              Navigator.pop(ctx);
+            }, 
+            child: const Text('Atla', style: TextStyle(color: Color(0xFF90A4AE))),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              if (prefillName.isEmpty) return;
+              await ref.read(jobOperationsProvider.notifier).createCustomer(
+                name: prefillName,
+                address: addressCtrl.text.trim(),
+                phone: phoneCtrl.text.trim(),
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+              // Form alanlarını doldur
+              setState(() {
+                _customerNameController.text = prefillName;
+                _customerPhoneController.text = phoneCtrl.text.trim();
+                _addressController.text = addressCtrl.text.trim();
+                _customerDialogShown = false;
+              });
+            },
+            icon: const Icon(Icons.save, size: 18),
+            label: const Text('Kaydet ve Devam Et'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddCustomerDialog(BuildContext context, WidgetRef ref, {String? prefillName}) {
@@ -99,22 +232,35 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
 
   void _uploadQrForJob(BuildContext context) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 600);
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 600);
     if (picked == null) return;
 
+    setState(() => _isLoading = true);
     try {
-      final url = await ref.read(mediaProvider.notifier).uploadPaymentQr(
-        ref.read(currentOrganizationProvider).value?.id ?? 'temp',
-      );
-      if (url != null) {
-        setState(() => _paymentQrUrl = url);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('QR Kod yüklendi ✓'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
-          );
-        }
+      final bytes = await picked.readAsBytes();
+      final orgId = ref.read(currentOrganizationProvider).value?.id ?? 'temp';
+      final refStorage = FirebaseStorage.instance.ref().child('$orgId/settings/payment_qr.jpg');
+      await refStorage.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+      final url = await refStorage.getDownloadURL();
+      
+      // Update organization doc
+      await FirebaseFirestore.instance.collection('organizations').doc(orgId).update({'paymentQrUrl': url});
+      
+      setState(() => _paymentQrUrl = url);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QR Kod yüklendi ✓'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+        );
       }
-    } catch (_) {}
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('QR Kod yüklenemedi'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -177,45 +323,51 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Müşteri Adı (en üstte) + ekle butonu
+              // 1. Müşteri Adı (en üstte) — odaktan çıkınca yeni isimse otomatik dialog açar
+              _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person, 
+                onChanged: (_) {
+                  // İsim değişince dialog tekrar gösterilebilir
+                  if (_customerDialogShown) {
+                    _customerDialogShown = false;
+                  }
+                  setState(() {});
+                },
+                focusNode: _customerNameFocus,
+                onFieldSubmitted: (_) {
+                  // Enter'a basınca da dialog'u tetikle
+                  _customerNameFocus.unfocus();
+                },
+              ),
+              const SizedBox(height: 8),
+              // Yeni müşteriyi hemen kaydet butonu (her zaman görünür)
               customersAsync.when(
                 data: (customers) {
                   final typedName = _customerNameController.text.trim();
                   final exists = typedName.isNotEmpty && customers.any((c) => c.name.toLowerCase() == typedName.toLowerCase());
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
-                      ),
-                      if (typedName.isNotEmpty && !exists) ...[
-                        const SizedBox(width: 4),
-                        IconButton(
-                          icon: const Icon(Icons.save, color: Colors.green),
-                          tooltip: 'Müşteriyi Kaydet',
-                          onPressed: () => _showAddCustomerDialog(context, ref, prefillName: typedName),
-                          style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
+                  if (typedName.isEmpty) return const SizedBox();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: exists ? null : () => _showAddCustomerDialog(context, ref, prefillName: typedName),
+                            icon: Icon(exists ? Icons.check_circle : Icons.save, size: 18),
+                            label: Text(exists ? 'Müşteri kayıtlı ✓' : 'Müşteriyi Kaydet'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: exists ? Colors.green.withOpacity(0.2) : const Color(0xFF1565C0),
+                              foregroundColor: exists ? Colors.green : Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
                         ),
                       ],
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)),
-                        tooltip: 'Yeni Müşteri Ekle',
-                        onPressed: () => _showAddCustomerDialog(context, ref),
-                        style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
-                      ),
-                    ],
+                    ),
                   );
                 },
-                loading: () => Row(children: [
-                  Expanded(child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person)),
-                  const SizedBox(width: 8),
-                  IconButton(icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)), onPressed: () => _showAddCustomerDialog(context, ref), style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A))),
-                ]),
-                error: (_, __) => Row(children: [
-                  Expanded(child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person)),
-                  const SizedBox(width: 8),
-                  IconButton(icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)), onPressed: () => _showAddCustomerDialog(context, ref), style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A))),
-                ]),
+                loading: () => const SizedBox(),
+                error: (_, __) => const SizedBox(),
               ),
               const SizedBox(height: 12),
 
@@ -265,19 +417,31 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
               const SizedBox(height: 12),
 
-              // Açıklama Blokları (hemen açıklamanın altında)
+              // Açıklama Blokları (hemen açıklamanın altında, sıralı)
               ..._extraDescControllers.asMap().entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment),
                 );
               }),
-              const SizedBox(height: 12),
+              // Açıklama bloğu ekleme butonu (hemen blokların altında)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: ActionChip(
+                    avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)),
+                    label: const Text('Açıklama Bloğu Ekle', style: TextStyle(color: Color(0xFF4FC3F7))),
+                    onPressed: _addDescriptionBlock,
+                    backgroundColor: const Color(0xFF1A2A3A),
+                    side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
+                  ),
+                ),
+              ),
 
               // 5. Resim Ekleme
               _ImageUploadField(
                 onImagePicked: (url) {
-                  // Add to description blocks as image reference
                   if (url != null) {
                     _extraDescControllers.add(TextEditingController(text: '[RESIM]$url'));
                   }
@@ -303,22 +467,20 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                 const SizedBox(height: 16),
               ],
 
-              Wrap(
-                spacing: 8,
-                children: [
-                  ActionChip(
-                    avatar: const Icon(Icons.add, size: 16),
-                    label: const Text('Açıklama Bloğu'),
-                    onPressed: _addDescriptionBlock,
-                  ),
-                  if (!_showFeeField)
-                    ActionChip(
-                      avatar: const Icon(Icons.add, size: 16),
-                      label: const Text('Ücret Ekle'),
+              if (!_showFeeField)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ActionChip(
+                      avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)),
+                      label: const Text('Ücret Ekle', style: TextStyle(color: Color(0xFF4FC3F7))),
                       onPressed: () => setState(() => _showFeeField = true),
+                      backgroundColor: const Color(0xFF1A2A3A),
+                      side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
                     ),
-                ],
-              ),
+                  ),
+                ),
 
               const SizedBox(height: 24),
               
@@ -406,11 +568,14 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType}) {
+  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType, void Function(String)? onChanged, FocusNode? focusNode, void Function(String)? onFieldSubmitted}) {
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      focusNode: focusNode,
+      onChanged: onChanged,
+      onFieldSubmitted: onFieldSubmitted,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
@@ -439,13 +604,17 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
 
   Future<void> _pickAndUpload() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 65, maxWidth: 800);
     if (picked == null) return;
 
     setState(() => _isUploading = true);
     try {
-      final url = await ref.read(mediaProvider.notifier).uploadJobPhoto(
+      final bytes = await picked.readAsBytes();
+      final orgId = ref.read(currentOrganizationProvider).value?.id ?? 'temp';
+      final url = await ref.read(mediaProvider.notifier).uploadJobPhotoFromBytes(
+        orgId: orgId,
         jobId: 'creation_${DateTime.now().millisecondsSinceEpoch}',
+        bytes: bytes,
         isBefore: true,
       );
       if (url != null) {
@@ -478,9 +647,9 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
-                      Icon(Icons.add_photo_alternate, color: Color(0xFF4FC3F7), size: 28),
+                      Icon(Icons.camera_alt, color: Color(0xFF4FC3F7), size: 28),
                       SizedBox(width: 12),
-                      Text('Resim Ekle', style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500)),
+                      Text('Fotoğraf Çek', style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500)),
                     ],
                   ),
       ),

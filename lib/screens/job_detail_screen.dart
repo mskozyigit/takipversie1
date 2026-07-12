@@ -127,10 +127,6 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               _DetailCard(title: l10n.translate('job_customer_phone'), value: job.customerPhone ?? '-', icon: Icons.phone_outlined, onTap: job.customerPhone != null ? () => _makeCall(job.customerPhone!) : null, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
               _DetailCard(title: l10n.translate('job_address'), value: job.address, icon: Icons.location_on_outlined, onTap: () => _launchMaps(job.address), isLink: true, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
             ],
-                value: block,
-                icon: Icons.info_outline,
-              )),
-            ],
 
             const SizedBox(height: 32),
 
@@ -150,8 +146,28 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
-            if ((!isAdmin && (job.status == JobStatus.closed || job.status == JobStatus.workCompleted)) || 
-                (isAdmin && job.status == JobStatus.closed))
+            // Completed/Closed jobs: allow reopen or edit
+            if (!isAdmin && (job.status == JobStatus.closed || job.status == JobStatus.workCompleted))
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job))),
+                        icon: const Icon(Icons.replay, size: 18),
+                        label: const Text('İşi Düzenle / Yeniden Aç'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (isAdmin && job.status == JobStatus.closed)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text('✅ ${l10n.translate('job_status_${job.status.name}')}', 

@@ -172,7 +172,10 @@ class _DayColumn extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(job.title, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text(job.address, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 8), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (job.description.isNotEmpty)
+                      Text(job.description, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 8), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    if (job.customerName != null && job.customerName!.isNotEmpty)
+                      Text(job.customerName!, style: const TextStyle(color: Color(0xFF546E7A), fontSize: 7), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
