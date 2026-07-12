@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/module_provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 import 'branding_settings_screen.dart';
 
 class ModuleSettingsScreen extends ConsumerWidget {
@@ -14,7 +15,6 @@ class ModuleSettingsScreen extends ConsumerWidget {
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('Modül Yönetimi'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
@@ -30,7 +30,7 @@ class ModuleSettingsScreen extends ConsumerWidget {
                 final isEnabled = registry[module.id] ?? false;
 
                 return Card(
-                  color: const Color(0xFF1A2A3A),
+                  color: Theme.of(context).colorScheme.surface,
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: SwitchListTile(

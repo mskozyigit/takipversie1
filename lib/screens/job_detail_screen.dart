@@ -5,6 +5,8 @@ import '../models/job.dart';
 import '../providers/auth_provider.dart';
 import '../providers/job_provider.dart';
 import '../widgets/web_safe_image.dart';
+import '../widgets/full_screen_image_viewer.dart';
+import '../theme/app_theme.dart';
 import 'job_checklist_screen.dart';
 import 'admin_dashboard.dart';
 import 'audit_log_screen.dart';
@@ -24,7 +26,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2A3A),
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: const Text('Görevi Sil', style: TextStyle(color: Colors.white)),
         content: Text('"${job.title}" görevini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.', style: const TextStyle(color: Color(0xFF90A4AE))),
         actions: [
@@ -65,10 +67,9 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text('${job.missionNumber} - ${l10n.translate('job_details')}'),
-        backgroundColor: branding.useBranding ? branding.primaryColor : (isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1)),
+        backgroundColor: branding.useBranding ? branding.primaryColor : (isAdmin ? Theme.of(context).colorScheme.primary : const Color(0xFF0D47A1)),
         actions: [
           if (isAdmin) ...[
             IconButton(
@@ -98,7 +99,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               label: l10n.translate('job_date'),
               value: '${job.scheduledDate.day}/${job.scheduledDate.month}/${job.scheduledDate.year}  ${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')}',
               icon: Icons.access_time,
-              color: const Color(0xFF4FC3F7),
+              color: Theme.of(context).colorScheme.secondary,
             ),
             const SizedBox(height: 12),
 
@@ -131,7 +132,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             // Attached Images (admin tarafından eklenen resimler)
             if (job.attachedImages.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Ek Resimler', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('Ek Resimler', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               ...job.attachedImages.map((url) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -142,7 +143,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             // Before/After Photos (çalışan checklist fotoğrafları)
             if (job.beforePhotoUrl != null || job.afterPhotoUrl != null) ...[
               const SizedBox(height: 8),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Fotoğraflar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('Fotoğraflar', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               Row(children: [
                 if (job.beforePhotoUrl != null) Expanded(child: _PhotoPreview(url: job.beforePhotoUrl!, label: 'Öncesi')),
@@ -166,7 +167,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job))),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -174,7 +175,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   job.status == JobStatus.notStarted 
                     ? l10n.translate('job_start_checklist') 
                     : l10n.translate('job_continue_checklist'),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimary),
                 ),
               ),
             // Completed/Closed jobs: allow reopen or edit
@@ -203,7 +204,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text('✅ ${l10n.translate('job_status_${job.status.name}')}', 
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: context.appExt.statusClosed, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
           ],
         ),
@@ -212,12 +213,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
   }
 
   Color _getStatusColor(JobStatus status) {
-    switch (status) {
-      case JobStatus.notStarted: return Colors.grey;
-      case JobStatus.inProgress: return Colors.blue;
-      case JobStatus.workCompleted: return Colors.green;
-      case JobStatus.closed: return Colors.deepPurple;
-    }
+    return context.appExt.statusColor(status);
   }
 }
 
@@ -241,7 +237,7 @@ class _DetailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF1A2A3A),
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
@@ -251,18 +247,18 @@ class _DetailCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF4FC3F7), size: 24),
+              Icon(icon, color: Theme.of(context).colorScheme.secondary, size: 24),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12)),
+                    Text(title, style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
                     const SizedBox(height: 4),
                     Text(
                       value,
                       style: TextStyle(
-                        color: isLink ? const Color(0xFF4FC3F7) : Colors.white,
+                        color: isLink ? Theme.of(context).colorScheme.secondary : Theme.of(context).colorScheme.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         decoration: isLink ? TextDecoration.underline : null,
@@ -273,7 +269,7 @@ class _DetailCard extends StatelessWidget {
               ),
               if (onEdit != null)
                 IconButton(
-                  icon: const Icon(Icons.edit, color: Color(0xFF90A4AE), size: 20),
+                  icon: Icon(Icons.edit, color: context.appExt.textSecondary, size: 20),
                   onPressed: onEdit,
                 ),
             ],
@@ -319,58 +315,12 @@ class _PhotoPreview extends StatelessWidget {
   final String label;
   const _PhotoPreview({required this.url, required this.label});
 
-  void _showFullScreen(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(8),
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              maxScale: 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: WebSafeImage(
-                  url: url,
-                  fit: BoxFit.contain,                  cacheWidth: null,                  errorBuilder: (ctx, err, stack) => const Center(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.broken_image, color: Colors.red, size: 48),
-                      SizedBox(height: 8),
-                      Text('Fotoğraf yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE))),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0, right: 0,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.download, color: Colors.white, size: 28),
-                    tooltip: 'İndir',
-                    onPressed: () => launchUrl(Uri.parse(url)),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         InkWell(
-          onTap: () => _showFullScreen(context),
+          onTap: () => FullScreenImageViewer.show(context, url),
           borderRadius: BorderRadius.circular(8),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -383,14 +333,14 @@ class _PhotoPreview extends StatelessWidget {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stack) => Container(
                     height: 120,
-                    color: const Color(0xFF1A2A3A),
-                    child: const Center(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.broken_image, color: Colors.red, size: 32),
-                          SizedBox(height: 4),
-                          Text('Yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                          const Icon(Icons.broken_image, color: Colors.red, size: 32),
+                          const SizedBox(height: 4),
+                          Text('Yüklenemedi', style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
                         ],
                       ),
                     ),
@@ -422,58 +372,10 @@ class _DescriptionImagePreview extends StatelessWidget {
   final String imageUrl;
   const _DescriptionImagePreview({required this.imageUrl});
 
-  void _showFullScreen(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(8),
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              maxScale: 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: WebSafeImage(
-                  url: imageUrl,
-                  fit: BoxFit.contain,
-                  cacheWidth: null,
-                  errorBuilder: (ctx, err, stack) => const Center(
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.broken_image, color: Colors.red, size: 48),
-                      SizedBox(height: 8),
-                      Text('Fotoğraf yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE))),
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0, right: 0,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.download, color: Colors.white, size: 28),
-                    tooltip: 'İndir',
-                    onPressed: () => launchUrl(Uri.parse(imageUrl)),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => _showFullScreen(context),
+      onTap: () => FullScreenImageViewer.show(context, imageUrl),
       borderRadius: BorderRadius.circular(8),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -486,7 +388,7 @@ class _DescriptionImagePreview extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stack) => Container(
                 height: 120,
-                color: const Color(0xFF1A2A3A),
+                color: Theme.of(context).colorScheme.surface,
                 child: const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

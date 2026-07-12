@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
+import '../../theme/app_theme.dart';
 
 class JoinCodeCard extends ConsumerWidget {
   final Organization org;
@@ -22,9 +23,9 @@ class JoinCodeCard extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2A3A),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1565C0), width: 1),
+        border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1),
       ),
       child: Row(
         children: [
@@ -32,13 +33,13 @@ class JoinCodeCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(org.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text(org.name, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold)),
                 if (showCode)
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       '${l10n.translate('admin_join_code')}: ${org.joinCode}',
-                      style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Theme.of(context).colorScheme.secondary, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
@@ -46,11 +47,11 @@ class JoinCodeCard extends ConsumerWidget {
           ),
           if (showCode)
             IconButton(
-              icon: const Icon(Icons.copy, color: Color(0xFF4FC3F7), size: 20),
+              icon: Icon(Icons.copy, color: Theme.of(context).colorScheme.secondary, size: 20),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: org.joinCode));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Kod kopyalandı!')),
+                  const SnackBar(content: Text('Kod kopyalandı!'), backgroundColor: Colors.green),
                 );
               },
             ),

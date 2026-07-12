@@ -11,6 +11,7 @@ import '../widgets/checklist/safety_step.dart';
 import '../widgets/checklist/payment_step.dart';
 import '../widgets/checklist/parts_step.dart';
 import '../widgets/checklist/photo_step.dart';
+import '../theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class JobChecklistScreen extends ConsumerStatefulWidget {
@@ -54,7 +55,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     final source = await showDialog<ImageSource>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2A3A),
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: const Text('Fotoğraf Ekle', style: TextStyle(color: Colors.white)),
         content: const Text('Nereden fotoğraf eklemek istersiniz?', style: TextStyle(color: Color(0xFF90A4AE))),
         actions: [
@@ -139,7 +140,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     } else if (_currentStep == 1) {
       // Before Photo
       if (isMandatory && _beforePhotoUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_before_photo_needed'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_before_photo_needed')), backgroundColor: Colors.orange));
         return;
       }
       setState(() => _currentStep = 2);
@@ -149,13 +150,13 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     } else if (_currentStep == 3) {
       // After Photo
       if (isMandatory && _afterPhotoUrl == null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_after_photo_needed'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_after_photo_needed')), backgroundColor: Colors.orange));
         return;
       }
       setState(() => _currentStep = isSafetyOn ? 4 : finishStep);
     } else if (isSafetyOn && _currentStep == 4) {
       if (!widget.job.isSafetyConfirmed) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen güvenlik kontrolünü onaylayın.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('safe_checklist_confirm_required')), backgroundColor: Colors.orange));
         return;
       }
       setState(() => _currentStep = finishStep);
@@ -164,7 +165,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       setState(() => _currentStep = paymentStep);
     } else if (_currentStep == paymentStep) {
       if (isMandatory && !widget.job.isPaid) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_payment_needed'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_payment_needed')), backgroundColor: Colors.orange));
         return;
       }
       if (mounted) Navigator.pop(context);
@@ -193,7 +194,6 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text('${widget.job.missionNumber} - ${widget.job.title}'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF0D47A1),
@@ -294,8 +294,8 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
             hintText: l10n.translate('job_notes_hint'),
             hintStyle: const TextStyle(color: Color(0xFF90A4AE)),
             filled: true,
-            fillColor: const Color(0xFF1A2A3A),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            fillColor: Theme.of(context).colorScheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           ),
         ),
         isActive: _currentStep >= 2,

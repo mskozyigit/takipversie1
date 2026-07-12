@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/job_template.dart';
+import '../theme/app_theme.dart';
 
 class JobTemplateScreen extends ConsumerStatefulWidget {
   const JobTemplateScreen({super.key});
@@ -18,18 +19,17 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('Görev Şablonları'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4FC3F7),
+        backgroundColor: const Color(0xFF1565C0),
         onPressed: () => _showCreateDialog(context),
-        child: const Icon(Icons.add, color: Color(0xFF0D1B2A)),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
       body: templatesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7))),
+        loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
         data: (templates) {
           if (templates.isEmpty) {
@@ -54,7 +54,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
             itemBuilder: (_, i) {
               final t = templates[i];
               return Card(
-                color: const Color(0xFF1A2A3A),
+                color: Theme.of(context).colorScheme.surface,
                 margin: const EdgeInsets.only(bottom: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
@@ -95,7 +95,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2A3A),
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: const Text('Şablonu Sil', style: TextStyle(color: Colors.white)),
         content: Text('"${template.name}" şablonunu silmek istediğinize emin misiniz?',
           style: const TextStyle(color: Color(0xFF90A4AE))),
@@ -136,7 +136,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1A2A3A),
+          backgroundColor: Theme.of(ctx).colorScheme.surface,
           title: const Text('Yeni Şablon', style: TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: Column(

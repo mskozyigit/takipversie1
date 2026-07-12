@@ -134,6 +134,7 @@ class JobNotifier extends Notifier<void> {
     double? distanceKm,
     double? fee,
     int durationHours = 2,
+    String? missionNumber,
   }) async {
     final authState = ref.read(authProvider).value;
     if (authState is! ApprovedAdmin) return;
@@ -148,18 +149,36 @@ class JobNotifier extends Notifier<void> {
       estimatedTravel = Duration(minutes: minutes);
     }
 
-    // JOB-06: Atomic sequential mission number
-    final missionNumber = await _firestore.runTransaction((transaction) async {
-      final orgDoc = await transaction.get(_firestore.collection('organizations').doc(orgId));
-      final currentNum = (orgDoc.data()?['lastMissionNumber'] as int? ?? 1000) + 1;
-      transaction.update(orgDoc.reference, {'lastMissionNumber': currentNum});
-      return '#$currentNum';
-    });
+    // JOB-06: Mission number — custom or auto-generated
+    String finalMissionNumber;
+    if (missionNumber != null && missionNumber.trim().isNotEmpty) {
+      // Custom mission number: validate uniqueness
+      final collision = await _firestore
+          .collection('jobs')
+          .where('organizationId', isEqualTo: orgId)
+          .where('missionNumber', isEqualTo: missionNumber.trim())
+          .get();
+      
+      if (collision.docs.isNotEmpty) {
+        final nextNum = (await _firestore.collection('organizations').doc(orgId).get()).data()?['lastMissionNumber'] ?? 1000;
+        final l10n = ref.read(translationProvider.notifier);
+        throw Exception(l10n.translate('job_mission_collision', {'next': '#${nextNum + 1}'}));
+      }
+      finalMissionNumber = missionNumber.trim();
+    } else {
+      // Auto-generate sequential mission number
+      finalMissionNumber = await _firestore.runTransaction((transaction) async {
+        final orgDoc = await transaction.get(_firestore.collection('organizations').doc(orgId));
+        final currentNum = (orgDoc.data()?['lastMissionNumber'] as int? ?? 1000) + 1;
+        transaction.update(orgDoc.reference, {'lastMissionNumber': currentNum});
+        return '#$currentNum';
+      });
+    }
 
     final job = Job(
       id: jobRef.id,
       organizationId: orgId,
-      missionNumber: missionNumber,
+      missionNumber: finalMissionNumber,
       title: title,
       description: description,
       descriptionBlocks: descriptionBlocks,
@@ -179,16 +198,18 @@ class JobNotifier extends Notifier<void> {
     );
 
     await jobRef.set(job.toFirestore());
-    await _logAction(jobRef.id, 'Job Created', metadata: {'missionNumber': missionNumber});
+    await _logAction(jobRef.id, 'Job Created', metadata: {'missionNumber': finalMissionNumber});
 
-    // TEAM-02: Send push notification to assigned worker
-    await _sendJobNotification(
-      workerId: assignedWorkerId,
-      title: 'Yeni Görev: $title',
-      body: '$missionNumber atandı - ${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year}',
-      jobId: jobRef.id,
-      orgId: orgId,
-    );
+    // TEAM-02: Send push notification to assigned worker (skip if unassigned)
+    if (assignedWorkerId != 'unassigned') {
+      await _sendJobNotification(
+        workerId: assignedWorkerId,
+        title: 'Yeni Görev: $title',
+        body: '$finalMissionNumber atandı - ${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year}',
+        jobId: jobRef.id,
+        orgId: orgId,
+      );
+    }
   }
 
   Future<void> updateJob({
@@ -202,11 +223,23 @@ class JobNotifier extends Notifier<void> {
     String? customerPhone,
     required DateTime scheduledDate,
     String? missionNumber,
+    double? distanceKm,
+    double? fee,
+    int? durationHours,
+    List<String>? descriptionBlocks,
+    List<String>? attachedImages,
   }) async {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    final data = {
+    // LOG-01: Distance-based ETA calculation
+    Duration? estimatedTravel;
+    if (distanceKm != null) {
+      final minutes = (distanceKm / 50 * 60).round() + 15;
+      estimatedTravel = Duration(minutes: minutes);
+    }
+
+    final data = <String, dynamic>{
       'title': title,
       'description': description,
       'assignedWorkerId': assignedWorkerId,
@@ -217,21 +250,28 @@ class JobNotifier extends Notifier<void> {
       'scheduledDate': Timestamp.fromDate(scheduledDate),
     };
 
-    if (missionNumber != null) {
+    if (missionNumber != null && missionNumber.trim().isNotEmpty) {
       // Validate uniqueness if edited
       final collision = await _firestore
           .collection('jobs')
           .where('organizationId', isEqualTo: authState.appUser!.organizationId)
-          .where('missionNumber', isEqualTo: missionNumber)
+          .where('missionNumber', isEqualTo: missionNumber.trim())
           .get();
-      
+
       if (collision.docs.isNotEmpty && collision.docs.first.id != jobId) {
         final nextNum = (await _firestore.collection('organizations').doc(authState.appUser!.organizationId).get()).data()?['lastMissionNumber'] ?? 1000;
         final l10n = ref.read(translationProvider.notifier);
         throw Exception(l10n.translate('job_mission_collision', {'next': '#${nextNum + 1}'}));
       }
-      data['missionNumber'] = missionNumber;
+      data['missionNumber'] = missionNumber.trim();
     }
+
+    if (distanceKm != null) data['distanceKm'] = distanceKm;
+    if (fee != null) data['fee'] = fee;
+    if (durationHours != null) data['durationHours'] = durationHours;
+    if (descriptionBlocks != null) data['descriptionBlocks'] = descriptionBlocks;
+    if (attachedImages != null) data['attachedImages'] = attachedImages;
+    if (estimatedTravel != null) data['estimatedTravelTime'] = estimatedTravel.inMinutes;
 
     await _firestore.collection('jobs').doc(jobId).update(data);
     await _logAction(jobId, 'Job Updated');

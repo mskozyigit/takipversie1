@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 
 class PendingScreen extends ConsumerWidget {
   const PendingScreen({super.key});
@@ -10,7 +11,6 @@ class PendingScreen extends ConsumerWidget {
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -137,7 +137,7 @@ class _PulsingIconState extends State<_PulsingIcon>
         height: 100,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF1A2A3A),
+          color: Theme.of(context).colorScheme.surface,
           border: Border.all(
             color: const Color(0xFFFFA726).withValues(alpha: 0.6),
             width: 2,
@@ -173,7 +173,7 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2A3A),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF263545)),
       ),

@@ -99,5 +99,11 @@
   "job_payment_pending": "Payment Pending",
   "calendar_today": "Today",
   "worker_panel_title": "My Job List",
-  "logout": "Logout"
+  "logout": "Logout",
+  "safe_checklist_confirmed": "Safety steps confirmed.",
+  "filter_all_workers": "All Workers",
+  "validation_required": "This field is required",
+  "safe_checklist_confirm_required": "Please confirm the safety checklist.",
+  "template_load_from": "Load from Template",
+  "crm_save_new_customer": "Save New Customer"
 }

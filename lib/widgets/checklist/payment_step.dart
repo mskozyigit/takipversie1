@@ -4,6 +4,7 @@ import '../../models/job.dart';
 import '../../models/organization.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
+import '../../theme/app_theme.dart';
 import '../web_safe_image.dart';
 
 class PaymentStep extends ConsumerWidget {

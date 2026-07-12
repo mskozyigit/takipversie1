@@ -49,7 +49,10 @@ const List<Module> availableModules = [
   Module(id: 'ADM-03', name: 'Audit Log', description: 'Who changed what, when'),
 ];
 
+/// Module registry — cached with keepAlive. Recomputes only when org changes,
+/// but the cost is trivial (26 iterations) and keepAlive prevents dispose/recreate.
 final moduleRegistryProvider = Provider<Map<String, bool>>((ref) {
+  ref.keepAlive();
   final org = ref.watch(currentOrganizationProvider).value;
   if (org == null) return {};
 

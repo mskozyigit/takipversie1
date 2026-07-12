@@ -54,8 +54,17 @@ class AnalyticsData {
 }
 
 // -----------------------------------------------------------------------
-// Analytics Provider
+// Analytics Provider (optimized — 90-day window, 5-min cache)
 // -----------------------------------------------------------------------
+
+/// Simple TTL cache to avoid repeated Firestore reads within 5 minutes.
+class _CacheEntry {
+  final AnalyticsData data;
+  final DateTime timestamp;
+  const _CacheEntry(this.data, this.timestamp);
+}
+
+_CacheEntry? _cache;
 
 final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
   final authState = ref.watch(authProvider).value;
@@ -68,19 +77,28 @@ final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
     );
   }
 
+  // Return cached result if still valid (within 5 minutes)
+  if (_cache != null &&
+      DateTime.now().difference(_cache!.timestamp).inMinutes < 5) {
+    return _cache!.data;
+  }
+
   final orgId = authState.appUser.organizationId;
   final firestore = FirebaseFirestore.instance;
   final now = DateTime.now();
 
-  // Fetch all jobs for this organization (not just this month)
+  // Only fetch jobs from the last 90 days — reduces reads dramatically
+  final ninetyDaysAgo = now.subtract(const Duration(days: 90));
+
   final snapshot = await firestore
       .collection('jobs')
       .where('organizationId', isEqualTo: orgId)
+      .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(ninetyDaysAgo))
       .get();
 
   final jobs = snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList();
 
-  // Compute stats
+  // Compute stats (unchanged logic)
   final totalJobs = jobs.length;
   final notStarted = jobs.where((j) => j.status == JobStatus.notStarted).length;
   final inProgress = jobs.where((j) => j.status == JobStatus.inProgress).length;
@@ -123,7 +141,7 @@ final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
       j.status == JobStatus.closed || j.status == JobStatus.workCompleted).toList();
     final completedCount = done.length;
     final totalCount = wJobs.length;
-    final avgMin = done.isEmpty ? 0.0 : done.length * 30.0; // rough estimate
+    final avgMin = done.isEmpty ? 0.0 : done.length * 30.0;
     final fee = wJobs.where((j) => j.fee != null).fold<double>(
         0, (sum, j) => sum + (j.fee ?? 0));
     return WorkerStats(
@@ -136,7 +154,7 @@ final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
     );
   }).toList();
 
-  return AnalyticsData(
+  final result = AnalyticsData(
     totalJobs: totalJobs,
     notStarted: notStarted,
     inProgress: inProgress,
@@ -149,4 +167,8 @@ final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
     totalFees: totalFees,
     perWorker: perWorker,
   );
+
+  // Cache the result for 5 minutes
+  _cache = _CacheEntry(result, now);
+  return result;
 });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/analytics_provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 
 class AdminAnalyticsScreen extends ConsumerWidget {
   const AdminAnalyticsScreen({super.key});
@@ -12,14 +13,15 @@ class AdminAnalyticsScreen extends ConsumerWidget {
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
 
+    final ext = context.appExt;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('Analitik Dashboard'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: analyticsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7))),
+        loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
         data: (data) => SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -27,23 +29,23 @@ class AdminAnalyticsScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // --- Summary Cards ---
-              Text('Genel Bakış', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Genel Bakış', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _StatCard(label: 'Toplam İş', value: '${data.totalJobs}', icon: Icons.work, color: const Color(0xFF4FC3F7)),
-                  _StatCard(label: 'Başlamadı', value: '${data.notStarted}', icon: Icons.radio_button_unchecked, color: Colors.grey),
-                  _StatCard(label: 'Devam Eden', value: '${data.inProgress}', icon: Icons.play_circle, color: Colors.orange),
-                  _StatCard(label: 'Tamamlanan', value: '${data.workCompleted}', icon: Icons.check_circle, color: Colors.blue),
-                  _StatCard(label: 'Kapanan', value: '${data.closed}', icon: Icons.lock, color: Colors.green),
+                  _StatCard(label: 'Toplam İş', value: '${data.totalJobs}', icon: Icons.work, color: context.cs.secondary),
+                  _StatCard(label: 'Başlamadı', value: '${data.notStarted}', icon: Icons.radio_button_unchecked, color: ext.statusNotStarted),
+                  _StatCard(label: 'Devam Eden', value: '${data.inProgress}', icon: Icons.play_circle, color: ext.statusInProgress),
+                  _StatCard(label: 'Tamamlanan', value: '${data.workCompleted}', icon: Icons.check_circle, color: ext.statusWorkCompleted),
+                  _StatCard(label: 'Kapanan', value: '${data.closed}', icon: Icons.lock, color: ext.statusClosed),
                 ],
               ),
               const SizedBox(height: 24),
 
               // --- Completion Stats ---
-              Text('Tamamlanma', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Tamamlanma', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -57,7 +59,7 @@ class AdminAnalyticsScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // --- Financial ---
-              Text('Finansal', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Finansal', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -79,7 +81,7 @@ class AdminAnalyticsScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // --- Per Worker ---
-              Text('Çalışan Bazında', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('Çalışan Bazında', style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (data.perWorker.isEmpty)
                 const Text('Henüz veri yok', style: TextStyle(color: Color(0xFF90A4AE)))
@@ -103,8 +105,9 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExt>() ?? AppThemeExt.defaultDark;
     return Card(
-      color: const Color(0xFF1A2A3A),
+      color: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -115,7 +118,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12)),
+            Text(label, style: TextStyle(color: ext.textSecondary, fontSize: 12)),
           ],
         ),
       ),
@@ -129,12 +132,13 @@ class _WorkerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExt>() ?? AppThemeExt.defaultDark;
     final rate = stats.totalJobs > 0
         ? (stats.completedJobs / stats.totalJobs * 100).toStringAsFixed(0)
         : '0';
 
     return Card(
-      color: const Color(0xFF1A2A3A),
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -146,8 +150,8 @@ class _WorkerCard extends StatelessWidget {
               children: [
                 const Icon(Icons.person, color: Color(0xFF4FC3F7), size: 24),
                 const SizedBox(width: 8),
-                Expanded(child: Text(stats.workerName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold))),
-                Text('$rate%', style: const TextStyle(color: Colors.green, fontSize: 16, fontWeight: FontWeight.bold)),
+                Expanded(child: Text(stats.workerName, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.bold))),
+                Text('$rate%', style: TextStyle(color: ext.statusClosed, fontSize: 16, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 8),
@@ -166,8 +170,8 @@ class _WorkerCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: stats.totalJobs > 0 ? stats.completedJobs / stats.totalJobs : 0,
-                backgroundColor: const Color(0xFF0D1B2A),
-                color: const Color(0xFF4FC3F7),
+                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                color: Theme.of(context).colorScheme.secondary,
                 minHeight: 6,
               ),
             ),
@@ -185,11 +189,12 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ext = Theme.of(context).extension<AppThemeExt>() ?? AppThemeExt.defaultDark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+        Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: ext.textSecondary, fontSize: 11)),
       ],
     );
   }

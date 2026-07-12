@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/job.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
+import '../../theme/app_theme.dart';
 
 class SafetyStep extends ConsumerWidget {
   final Job job;
@@ -28,33 +29,33 @@ class SafetyStep extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CheckboxListTile(
-          title: Text(l10n.translate('safe_checklist_item_ppe'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+          title: Text(l10n.translate('safe_checklist_item_ppe'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14)),
           value: checklist['ppe'],
           onChanged: (val) => update('ppe', val ?? false),
           controlAffinity: ListTileControlAffinity.leading,
-          activeColor: const Color(0xFF4FC3F7),
+          activeColor: Theme.of(context).colorScheme.secondary,
         ),
         CheckboxListTile(
-          title: Text(l10n.translate('safe_checklist_item_hazard'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+          title: Text(l10n.translate('safe_checklist_item_hazard'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14)),
           value: checklist['hazard'],
           onChanged: (val) => update('hazard', val ?? false),
           controlAffinity: ListTileControlAffinity.leading,
-          activeColor: const Color(0xFF4FC3F7),
+          activeColor: Theme.of(context).colorScheme.secondary,
         ),
         CheckboxListTile(
-          title: Text(l10n.translate('safe_checklist_item_lockout'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+          title: Text(l10n.translate('safe_checklist_item_lockout'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14)),
           value: checklist['lockout'],
           onChanged: (val) => update('lockout', val ?? false),
           controlAffinity: ListTileControlAffinity.leading,
-          activeColor: const Color(0xFF4FC3F7),
+          activeColor: Theme.of(context).colorScheme.secondary,
         ),
         const SizedBox(height: 12),
         if (job.isSafetyConfirmed)
-          const Row(
+          Row(
             children: [
-              Icon(Icons.verified_user, color: Colors.green, size: 16),
-              SizedBox(width: 8),
-              Text('Güvenlik adımları onaylandı.', style: TextStyle(color: Colors.green, fontSize: 12)),
+              const Icon(Icons.verified_user, color: Colors.green, size: 16),
+              const SizedBox(width: 8),
+              Text(l10n.translate('safe_checklist_confirmed'), style: const TextStyle(color: Colors.green, fontSize: 12)),
             ],
           ),
       ],

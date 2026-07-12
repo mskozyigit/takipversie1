@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/web_safe_image.dart';
+import '../theme/app_theme.dart';
 
 class BrandingSettingsScreen extends ConsumerStatefulWidget {
   const BrandingSettingsScreen({super.key});
@@ -68,23 +69,22 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('Marka Özelleştirme'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Enable toggle
             Card(
-              color: const Color(0xFF1A2A3A),
+              color: Theme.of(context).colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: SwitchListTile(
                 title: const Text('Özel Markalama', style: TextStyle(color: Colors.white)),
-                subtitle: const Text('Logo ve renk özelleştirmesini aktifleştir', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 12)),
+                subtitle: Text('Logo ve renk özelleştirmesini aktifleştir', style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
                 value: _useBranding,
                 onChanged: (v) => setState(() => _useBranding = v),
                 activeColor: const Color(0xFF4FC3F7),
@@ -103,7 +103,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
                   hintText: 'https://example.com/logo.png',
                   hintStyle: const TextStyle(color: Colors.grey),
                   filled: true,
-                  fillColor: const Color(0xFF1A2A3A),
+                  fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   prefixIcon: const Icon(Icons.image, color: Color(0xFF4FC3F7)),
                 ),
@@ -111,7 +111,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
               const SizedBox(height: 16),
 
               // Color
-              Text('Ana Renk', style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text('Ana Renk', style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -132,7 +132,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
                         hintText: '#1565C0',
                         hintStyle: const TextStyle(color: Colors.grey),
                         filled: true,
-                        fillColor: const Color(0xFF1A2A3A),
+                        fillColor: Theme.of(context).colorScheme.surface,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       ),
                     ),
@@ -142,7 +142,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
                     onTap: () => _showColorPicker(context),
                     child: Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
                       child: const Icon(Icons.colorize, color: Color(0xFF4FC3F7)),
                     ),
                   ),
@@ -203,7 +203,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A2A3A),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(16),
         child: Wrap(

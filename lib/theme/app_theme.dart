@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import '../models/job.dart';
+
+// -----------------------------------------------------------------------
+// Özel tema extension'ı — uygulamaya özel renkler burada toplanır.
+// Tema değişikliği tek noktadan (main.dart → ThemeData) yapılır.
+// -----------------------------------------------------------------------
+
+class AppThemeExt extends ThemeExtension<AppThemeExt> {
+  /// Kart / yüzey arka plan rengi (Card, Container vb.)
+  final Color cardColor;
+
+  /// İkincil metin rengi (açıklamalar, yardımcı metinler)
+  final Color textSecondary;
+
+  /// Üçüncül / soluk metin rengi (tarih, etiket gibi)
+  final Color textTertiary;
+
+  // -- İş durum renkleri (TÜM ekranlarda tutarlı) --
+  final Color statusNotStarted;
+  final Color statusInProgress;
+  final Color statusWorkCompleted;
+  final Color statusClosed;
+
+  const AppThemeExt({
+    required this.cardColor,
+    required this.textSecondary,
+    required this.textTertiary,
+    required this.statusNotStarted,
+    required this.statusInProgress,
+    required this.statusWorkCompleted,
+    required this.statusClosed,
+  });
+
+  /// Varsayılan koyu tema renkleri
+  static const defaultDark = AppThemeExt(
+    cardColor: Color(0xFF1A2A3A),
+    textSecondary: Color(0xFF90A4AE),
+    textTertiary: Color(0xFF546E7A),
+    statusNotStarted: Color(0xFF9E9E9E), // Grey 500
+    statusInProgress: Color(0xFFFF9800), // Orange 500
+    statusWorkCompleted: Color(0xFF2196F3), // Blue 500
+    statusClosed: Color(0xFF4CAF50), // Green 500
+  );
+
+  /// Verilen JobStatus için doğru rengi döndürür (tek kaynak!).
+  Color statusColor(JobStatus status) {
+    switch (status) {
+      case JobStatus.notStarted:
+        return statusNotStarted;
+      case JobStatus.inProgress:
+        return statusInProgress;
+      case JobStatus.workCompleted:
+        return statusWorkCompleted;
+      case JobStatus.closed:
+        return statusClosed;
+    }
+  }
+
+  @override
+  AppThemeExt copyWith({
+    Color? cardColor,
+    Color? textSecondary,
+    Color? textTertiary,
+    Color? statusNotStarted,
+    Color? statusInProgress,
+    Color? statusWorkCompleted,
+    Color? statusClosed,
+  }) {
+    return AppThemeExt(
+      cardColor: cardColor ?? this.cardColor,
+      textSecondary: textSecondary ?? this.textSecondary,
+      textTertiary: textTertiary ?? this.textTertiary,
+      statusNotStarted: statusNotStarted ?? this.statusNotStarted,
+      statusInProgress: statusInProgress ?? this.statusInProgress,
+      statusWorkCompleted: statusWorkCompleted ?? this.statusWorkCompleted,
+      statusClosed: statusClosed ?? this.statusClosed,
+    );
+  }
+
+  @override
+  AppThemeExt lerp(ThemeExtension<AppThemeExt>? other, double t) {
+    if (other is! AppThemeExt) return this;
+    return AppThemeExt(
+      cardColor: Color.lerp(cardColor, other.cardColor, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+      textTertiary: Color.lerp(textTertiary, other.textTertiary, t)!,
+      statusNotStarted:
+          Color.lerp(statusNotStarted, other.statusNotStarted, t)!,
+      statusInProgress:
+          Color.lerp(statusInProgress, other.statusInProgress, t)!,
+      statusWorkCompleted:
+          Color.lerp(statusWorkCompleted, other.statusWorkCompleted, t)!,
+      statusClosed: Color.lerp(statusClosed, other.statusClosed, t)!,
+    );
+  }
+}
+
+// -----------------------------------------------------------------------
+// BuildContext extension — kısa erişim için
+// Kullanım: context.appExt.cardColor, context.appExt.statusColor(status)
+// -----------------------------------------------------------------------
+
+extension AppThemeContext on BuildContext {
+  /// Uygulama tema extension'ına kısa erişim
+  AppThemeExt get appExt =>
+      Theme.of(this).extension<AppThemeExt>() ?? AppThemeExt.defaultDark;
+
+  /// ColorScheme'e kısa erişim
+  ColorScheme get cs => Theme.of(this).colorScheme;
+}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/job.dart';
+import '../../theme/app_theme.dart';
 
 /// Time-based grid calendar view (Day / 3-Day / Week)
 class TimeGridView extends StatelessWidget {
@@ -36,6 +37,9 @@ class TimeGridView extends StatelessWidget {
 
     final hours = List.generate(11, (i) => i + 8); // 08:00 - 18:00
 
+    // Pre-group jobs by day — O(n) once instead of O(n × days) per build
+    final jobsByDay = _groupJobsByDay(days);
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -56,7 +60,7 @@ class TimeGridView extends StatelessWidget {
                         alignment: Alignment.topCenter,
                         child: Text(
                           '${h.toString().padLeft(2, '0')}:00',
-                          style: const TextStyle(color: Color(0xFF546E7A), fontSize: 10),
+                          style: TextStyle(color: context.appExt.textTertiary, fontSize: 10),
                         ),
                       ),
                     )).toList(),
@@ -66,7 +70,7 @@ class TimeGridView extends StatelessWidget {
                 ...days.map((day) => Expanded(child: _DayColumn(
                   day: day,
                   hours: hours,
-                  jobs: _jobsForDay(day),
+                  jobs: jobsByDay[_dayKey(day)] ?? const [],
                   onJobTap: onJobTap,
                   statusColor: statusColor,
                 ))),
@@ -77,6 +81,21 @@ class TimeGridView extends StatelessWidget {
       ),
     );
   }
+
+  /// Pre-group all jobs by day key — single O(n) pass.
+  Map<String, List<Job>> _groupJobsByDay(List<DateTime> days) {
+    final map = <String, List<Job>>{};
+    for (final day in days) {
+      map[_dayKey(day)] = [];
+    }
+    for (final job in jobs) {
+      final key = _dayKey(job.scheduledDate);
+      map[key]?.add(job);
+    }
+    return map;
+  }
+
+  String _dayKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
   Widget _buildDayHeaders(List<DateTime> days) {
     final dayNames = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
@@ -95,15 +114,15 @@ class TimeGridView extends StatelessWidget {
             return Expanded(
               child: Column(
                 children: [
-                  Text(dayNames[d.weekday - 1], style: TextStyle(color: isToday ? const Color(0xFF4FC3F7) : const Color(0xFF90A4AE), fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(dayNames[d.weekday - 1], style: TextStyle(color: isToday ? Theme.of(context).colorScheme.secondary : context.appExt.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Container(
                     width: 28, height: 28,
                     decoration: BoxDecoration(
-                      color: isToday ? const Color(0xFF1565C0) : Colors.transparent,
+                      color: isToday ? Theme.of(context).colorScheme.primary : Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Center(child: Text('${d.day}', style: TextStyle(color: isToday ? Colors.white : const Color(0xFF90A4AE), fontSize: 14, fontWeight: FontWeight.bold))),
+                    child: Center(child: Text('${d.day}', style: TextStyle(color: isToday ? Theme.of(context).colorScheme.onPrimary : context.appExt.textSecondary, fontSize: 14, fontWeight: FontWeight.bold))),
                   ),
                 ],
               ),
@@ -114,13 +133,6 @@ class TimeGridView extends StatelessWidget {
     );
   }
 
-  List<Job> _jobsForDay(DateTime day) {
-    return jobs.where((j) =>
-      j.scheduledDate.year == day.year &&
-      j.scheduledDate.month == day.month &&
-      j.scheduledDate.day == day.day
-    ).toList();
-  }
 }
 
 class _DayColumn extends StatelessWidget {
@@ -175,15 +187,15 @@ class _DayColumn extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(job.title, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(job.title, style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 10, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     if (job.description.isNotEmpty)
-                      Text(job.description, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 8), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(job.description, style: TextStyle(color: context.appExt.textSecondary, fontSize: 8), maxLines: 2, overflow: TextOverflow.ellipsis),
                     if (job.customerName != null && job.customerName!.isNotEmpty)
-                      Text(job.customerName!, style: const TextStyle(color: Color(0xFF546E7A), fontSize: 7), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(job.customerName!, style: TextStyle(color: context.appExt.textTertiary, fontSize: 7), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const Spacer(),
                     Text(
                       '${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')} • ${durHours}s',
-                      style: const TextStyle(color: Color(0xFF546E7A), fontSize: 7),
+                      style: TextStyle(color: context.appExt.textTertiary, fontSize: 7),
                     ),
                   ],
                 ),

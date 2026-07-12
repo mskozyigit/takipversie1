@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 
 class AuditLogScreen extends ConsumerWidget {
   final String jobId;
@@ -13,7 +14,6 @@ class AuditLogScreen extends ConsumerWidget {
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('İş Geçmişi (Audit Log)'),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
@@ -30,7 +30,7 @@ class AuditLogScreen extends ConsumerWidget {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A2A3A),
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.white.withOpacity(0.05)),
                     ),
@@ -61,7 +61,7 @@ class AuditLogScreen extends ConsumerWidget {
                   );
                 },
               ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text('Hata: $e')),
       ),
     );

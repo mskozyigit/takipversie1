@@ -352,55 +352,47 @@ final currentUserProvider = Provider<AppUser?>((ref) {
 });
 
 // -----------------------------------------------------------------------
-// Translation Notifier
+// Translation Notifier (optimized — no duplicate Firestore read, JSON cache)
 // -----------------------------------------------------------------------
 
 class TranslationNotifier extends AsyncNotifier<String> {
   Map<String, String> _map = {};
+  /// Cache all loaded language maps so setLanguage() doesn't re-read assets.
+  final Map<String, Map<String, String>> _jsonCache = {};
 
   @override
   Future<String> build() async {
-    // Auth state'i dinle
-    final authState = ref.watch(authProvider).value;
+    // Use the already-streamed org data instead of a separate Firestore read.
+    // currentOrganizationProvider streams the org doc (which includes activeLanguage).
+    final org = ref.watch(currentOrganizationProvider).value;
+    final lang = org?.activeLanguage ?? 'tr';
 
-    String lang = 'tr';
-    if (authState is ApprovedAdmin) {
-      lang = await _getOrgLanguage(authState.appUser.organizationId);
-    } else if (authState is ApprovedWorker) {
-      lang = await _getOrgLanguage(authState.appUser.organizationId);
-    } else if (authState is PendingApproval) {
-      lang = await _getOrgLanguage(authState.appUser.organizationId);
+    await _loadLanguage(lang);
+    return lang;
+  }
+
+  /// Loads a language JSON from cache or assets.
+  Future<void> _loadLanguage(String lang) async {
+    // Return from cache if already loaded
+    if (_jsonCache.containsKey(lang)) {
+      _map = _jsonCache[lang]!;
+      return;
     }
 
     try {
       final jsonStr = await rootBundle.loadString('assets/lang/$lang.json');
       final Map<String, dynamic> decoded = json.decode(jsonStr);
       _map = decoded.map((key, value) => MapEntry(key, value.toString()));
+      _jsonCache[lang] = _map; // cache for future switches
     } catch (e) {
       debugPrint('Translation load error: $e');
       _map = {};
     }
-
-    return lang;
-  }
-
-  Future<String> _getOrgLanguage(String orgId) async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('organizations')
-          .doc(orgId)
-          .get();
-      
-      if (doc.exists) {
-        return doc.data()?['activeLanguage'] ?? 'tr';
-      }
-    } catch (_) {}
-    return 'tr';
   }
 
   String translate(String key, [Map<String, String>? params]) {
     String text = _map[key] ?? key;
-    
+
     if (params != null) {
       params.forEach((k, v) {
         text = text.replaceAll('{$k}', v);
@@ -409,7 +401,7 @@ class TranslationNotifier extends AsyncNotifier<String> {
     return text;
   }
 
-  /// ADM-02: Admin-switched language — updates Firestore + reloads translations instantly
+  /// ADM-02: Admin-switched language — updates Firestore + switches in-memory instantly.
   Future<void> setLanguage(String lang) async {
     final authState = ref.read(authProvider).value;
     String? orgId;
@@ -418,21 +410,16 @@ class TranslationNotifier extends AsyncNotifier<String> {
     if (authState is PendingApproval) orgId = authState.appUser.organizationId;
 
     if (orgId != null) {
-      await FirebaseFirestore.instance
+      // Fire-and-forget: update Firestore in background, UI switches instantly
+      FirebaseFirestore.instance
           .collection('organizations')
           .doc(orgId)
           .update({'activeLanguage': lang});
     }
 
-    // Reload translations immediately
-    try {
-      final jsonStr = await rootBundle.loadString('assets/lang/$lang.json');
-      final Map<String, dynamic> decoded = json.decode(jsonStr);
-      _map = decoded.map((key, value) => MapEntry(key, value.toString()));
-      state = AsyncValue.data(lang);
-    } catch (e) {
-      debugPrint('Translation reload error: $e');
-    }
+    // Switch language from cache (or load once) — no re-read from assets
+    await _loadLanguage(lang);
+    state = AsyncValue.data(lang);
   }
 }
 

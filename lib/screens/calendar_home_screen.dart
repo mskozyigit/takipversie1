@@ -11,6 +11,7 @@ import 'module_settings_screen.dart';
 import 'job_template_screen.dart';
 import '../providers/module_provider.dart';
 import '../widgets/calendar/time_grid_view.dart';
+import '../theme/app_theme.dart';
 
 class CalendarHomeScreen extends ConsumerStatefulWidget {
   const CalendarHomeScreen({super.key});
@@ -42,11 +43,9 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     final jobsAsync = isAdmin 
       ? ref.watch(allJobsProvider(_focusedDay)) 
       : ref.watch(workerJobsProvider(_focusedDay));
-    final workersAsync = ref.watch(organizationWorkersProvider); // CAL-03
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text(isAdmin ? l10n.translate('admin_panel_title') : l10n.translate('worker_panel_title'), style: const TextStyle(fontSize: 16)),
         backgroundColor: branding.useBranding ? branding.primaryColor : (isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1)),
@@ -77,6 +76,8 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
             ),
           ],
           PopupMenuButton<String>(
+            icon: const Icon(Icons.language),
+            tooltip: 'Dil / Language / Taal',
             onSelected: (value) async {
               if (value == 'logout') {
                 ref.read(authProvider.notifier).signOut();
@@ -84,8 +85,9 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: Text(l10n.translate('leave_org')),
-                    content: Text(l10n.translate('leave_org_confirm')),
+                    backgroundColor: Theme.of(ctx).colorScheme.surface,
+                    title: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.white)),
+                    content: Text(l10n.translate('leave_org_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
                       TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.red))),
@@ -95,20 +97,39 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 if (confirm == true) {
                   ref.read(authProvider.notifier).leaveOrganization();
                 }
-              } else if (value.startsWith('lang_')) {
-                // ADM-02: Language switch from popup
-                ref.read(translationProvider.notifier).setLanguage(value.substring(5));
+              } else {
+                ref.read(translationProvider.notifier).setLanguage(value);
               }
             },
-            itemBuilder: (context) => [
-              PopupMenuItem(value: 'lang_tr', child: Text('🇹🇷  Türkçe')),
-              PopupMenuItem(value: 'lang_en', child: Text('🇬🇧  English')),
-              PopupMenuItem(value: 'lang_nl', child: Text('🇳🇱  Nederlands')),
-              const PopupMenuDivider(),
-              PopupMenuItem(value: 'leave', child: Text(l10n.translate('leave_org'))),
-              PopupMenuItem(value: 'logout', child: Text(l10n.translate('logout'))),
-            ],
-            icon: const Icon(Icons.more_vert),
+            itemBuilder: (_) {
+              final currentLang = ref.read(translationProvider).value ?? 'tr';
+              return [
+                PopupMenuItem(
+                  value: 'tr',
+                  child: Row(children: [
+                    Text('🇹🇷  Türkçe', style: TextStyle(fontWeight: currentLang == 'tr' ? FontWeight.bold : FontWeight.normal)),
+                    if (currentLang == 'tr') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'en',
+                  child: Row(children: [
+                    Text('🇬🇧  English', style: TextStyle(fontWeight: currentLang == 'en' ? FontWeight.bold : FontWeight.normal)),
+                    if (currentLang == 'en') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
+                  ]),
+                ),
+                PopupMenuItem(
+                  value: 'nl',
+                  child: Row(children: [
+                    Text('🇳🇱  Nederlands', style: TextStyle(fontWeight: currentLang == 'nl' ? FontWeight.bold : FontWeight.normal)),
+                    if (currentLang == 'nl') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
+                  ]),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(value: 'leave', child: Text(l10n.translate('leave_org'))),
+                PopupMenuItem(value: 'logout', child: Text(l10n.translate('logout'))),
+              ];
+            },
           ),
         ],
       ),
@@ -121,26 +142,11 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
 
           return Column(
             children: [
-              // CAL-03: Admin Filter
+              // CAL-03: Admin Filter (lazy-loaded — stream only starts when visible)
               if (isAdmin && (ref.watch(moduleRegistryProvider)['CAL-03'] ?? false))
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: workersAsync.when(
-                    data: (workers) => DropdownButton<String?>(
-                      value: _selectedWorkerId,
-                      hint: const Text('Personel Filtresi', style: TextStyle(color: Colors.white70)),
-                      dropdownColor: const Color(0xFF1A2A3A),
-                      isExpanded: true,
-                      style: const TextStyle(color: Colors.white),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('Tüm Personeller')),
-                        ...workers.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name))),
-                      ],
-                      onChanged: (val) => setState(() => _selectedWorkerId = val),
-                    ),
-                    loading: () => const LinearProgressIndicator(),
-                    error: (_, __) => const SizedBox(),
-                  ),
+                _WorkerFilterDropdown(
+                  selectedWorkerId: _selectedWorkerId,
+                  onChanged: (val) => setState(() => _selectedWorkerId = val),
                 ),
 
               // Görünüm Seçici
@@ -172,7 +178,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7))),
+        loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: Colors.red))),
       ),
       floatingActionButton: isAdmin
@@ -186,11 +192,16 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   }
 
   Color _getStatusColor(JobStatus status) {
+    // Tek kaynak: tema üzerinden
+    if (context.appExt case final ext) {
+      return ext.statusColor(status);
+    }
+    // Fallback (tema yüklenmemişse)
     switch (status) {
-      case JobStatus.notStarted: return Colors.grey;
-      case JobStatus.inProgress: return Colors.orange; // Yellow/Orange
-      case JobStatus.workCompleted: return Colors.blue;
-      case JobStatus.closed: return Colors.green;
+      case JobStatus.notStarted: return const Color(0xFF9E9E9E);
+      case JobStatus.inProgress: return const Color(0xFFFF9800);
+      case JobStatus.workCompleted: return const Color(0xFF2196F3);
+      case JobStatus.closed: return const Color(0xFF4CAF50);
     }
   }
   Widget _ViewChip({required String label, required bool selected, required VoidCallback onTap}) {
@@ -199,10 +210,52 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF4FC3F7) : const Color(0xFF1A2A3A),
-          borderRadius: BorderRadius.circular(16),
+          color: selected ? const Color(0xFF4FC3F7) : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label, style: TextStyle(color: selected ? const Color(0xFF0D1B2A) : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
       ),
     );
-  }}
+  }
+}
+
+// -----------------------------------------------------------------------
+// CAL-03: Worker filter dropdown (lazy-loaded — Firestore stream starts
+// only when this widget is built, i.e. when CAL-03 is active).
+// -----------------------------------------------------------------------
+
+class _WorkerFilterDropdown extends ConsumerWidget {
+  final String? selectedWorkerId;
+  final ValueChanged<String?> onChanged;
+
+  const _WorkerFilterDropdown({
+    required this.selectedWorkerId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = ref.read(translationProvider.notifier);
+    final workersAsync = ref.watch(organizationWorkersProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: workersAsync.when(
+        data: (workers) => DropdownButton<String?>(
+          value: selectedWorkerId,
+          hint: const Text('Personel Filtresi', style: TextStyle(color: Colors.white70)),
+          dropdownColor: Theme.of(context).colorScheme.surface,
+          isExpanded: true,
+          style: const TextStyle(color: Colors.white),
+          items: [
+            DropdownMenuItem(value: null, child: Text(l10n.translate('filter_all_workers'))),
+            ...workers.map((w) => DropdownMenuItem(value: w.id, child: Text(w.name))),
+          ],
+          onChanged: onChanged,
+        ),
+        loading: () => const LinearProgressIndicator(),
+        error: (_, __) => const SizedBox(),
+      ),
+    );
+  }
+}

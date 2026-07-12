@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/web_safe_image.dart';
+import '../theme/app_theme.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -22,7 +23,6 @@ class LoginScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -38,8 +38,8 @@ class LoginScreen extends ConsumerWidget {
               Text(
                 l10n.translate('login_title'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
@@ -49,8 +49,8 @@ class LoginScreen extends ConsumerWidget {
               Text(
                 l10n.translate('login_subtitle'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF90A4AE),
+                style: TextStyle(
+                  color: context.appExt.textSecondary,
                   fontSize: 14,
                 ),
               ),
@@ -71,10 +71,13 @@ class LoginScreen extends ConsumerWidget {
                   elevation: 3,
                 ),
                 icon: isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
                       )
                     : Image.network(
                         'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
@@ -97,8 +100,8 @@ class LoginScreen extends ConsumerWidget {
               Text(
                 l10n.translate('login_terms'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF546E7A),
+                style: TextStyle(
+                  color: context.appExt.textTertiary,
                   fontSize: 12,
                 ),
               ),
@@ -135,10 +138,10 @@ class _BrandingLogo extends ConsumerWidget {
       );
     }
 
-    return const Icon(
+    return Icon(
       Icons.engineering_rounded,
       size: 80,
-      color: Color(0xFF4FC3F7),
+      color: Theme.of(context).colorScheme.secondary,
     );
   }
 }

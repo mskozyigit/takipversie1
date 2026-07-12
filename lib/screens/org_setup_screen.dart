@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../theme/app_theme.dart';
 
 class OrgSetupScreen extends ConsumerStatefulWidget {
   final User firebaseUser;
@@ -60,7 +61,6 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -75,7 +75,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
@@ -100,7 +100,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
               // Mod seçici
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A2A3A),
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -342,7 +342,7 @@ class _StyledField extends StatelessWidget {
         hintStyle: const TextStyle(color: Color(0xFF546E7A)),
         prefixIcon: Icon(prefixIcon, color: const Color(0xFF4FC3F7)),
         filled: true,
-        fillColor: const Color(0xFF1A2A3A),
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

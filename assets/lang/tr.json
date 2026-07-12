@@ -99,5 +99,11 @@
   "payment_confirmed_by": "Onaylayan: {name}",
   "audit_action_cash_override": "Nakit ödeme onayı",
   "log_distance_label": "Mesafe (KM)",
-  "logout": "Çıkış Yap"
+  "logout": "Çıkış Yap",
+  "safe_checklist_confirmed": "Güvenlik adımları onaylandı.",
+  "filter_all_workers": "Tüm Personeller",
+  "validation_required": "Bu alan zorunludur",
+  "safe_checklist_confirm_required": "Lütfen güvenlik kontrolünü onaylayın.",
+  "template_load_from": "Şablondan Yükle",
+  "crm_save_new_customer": "Yeni Müşteri Kaydet"
 }

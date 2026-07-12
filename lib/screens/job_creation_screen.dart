@@ -10,6 +10,7 @@ import '../models/app_user.dart';
 import '../models/customer.dart';
 import '../models/job_template.dart';
 import '../widgets/web_safe_image.dart';
+import '../theme/app_theme.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key});
@@ -27,6 +28,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _customerPhoneController = TextEditingController();
   final _distanceController = TextEditingController();
   final _feeController = TextEditingController();
+  final _missionNumberController = TextEditingController();
   final List<TextEditingController> _extraDescControllers = [];
   final _customerNameFocus = FocusNode();
   
@@ -61,6 +63,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     _customerPhoneController.dispose();
     _distanceController.dispose();
     _feeController.dispose();
+    _missionNumberController.dispose();
     for (var c in _extraDescControllers) {
       c.dispose();
     }
@@ -91,6 +94,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
 
   /// Otomatik açılan müşteri ekleme dialogu — kaydedince form alanlarını doldurur
   void _showAutoAddCustomerDialog(String prefillName) {
+    final l10n = ref.read(translationProvider.notifier);
     final phoneCtrl = TextEditingController();
     final addressCtrl = TextEditingController();
 
@@ -98,12 +102,12 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2A3A),
-        title: const Row(
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        title: Row(
           children: [
-            Icon(Icons.person_add, color: Color(0xFF4FC3F7), size: 24),
-            SizedBox(width: 8),
-            Expanded(child: Text('Yeni Müşteri Kaydet', style: TextStyle(color: Colors.white, fontSize: 18))),
+            const Icon(Icons.person_add, color: Color(0xFF4FC3F7), size: 24),
+            const SizedBox(width: 8),
+            Expanded(child: Text(l10n.translate('crm_save_new_customer'), style: const TextStyle(color: Colors.white, fontSize: 18))),
           ],
         ),
         content: Column(
@@ -198,16 +202,46 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2A3A),
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: const Text('Yeni Müşteri Ekle', style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Ad', labelStyle: TextStyle(color: Color(0xFF90A4AE)))),
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Ad',
+                labelStyle: TextStyle(color: Color(0xFF90A4AE)),
+                filled: true,
+                fillColor: Color(0xFF0D1B2A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+              ),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: phoneCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Telefon', labelStyle: TextStyle(color: Color(0xFF90A4AE)))),
+            TextField(
+              controller: phoneCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Telefon',
+                labelStyle: TextStyle(color: Color(0xFF90A4AE)),
+                filled: true,
+                fillColor: Color(0xFF0D1B2A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+              ),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: addressCtrl, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Adres', labelStyle: TextStyle(color: Color(0xFF90A4AE)))),
+            TextField(
+              controller: addressCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                labelText: 'Adres',
+                labelStyle: TextStyle(color: Color(0xFF90A4AE)),
+                filled: true,
+                fillColor: Color(0xFF0D1B2A),
+                border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide.none),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -268,14 +302,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _selectedWorker == null) {
-      if (_selectedWorker == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lütfen bir personel seçin')),
-        );
-      }
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
@@ -300,8 +327,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
             description: _descController.text.trim(),
             descriptionBlocks: descBlocks,
             attachedImages: attachedImages,
-            assignedWorkerId: _selectedWorker!.id,
-            assignedWorkerName: _selectedWorker!.name,
+            assignedWorkerId: _selectedWorker?.id ?? 'unassigned',
+            assignedWorkerName: _selectedWorker?.name ?? 'Atanmadı',
             address: _addressController.text.trim(),
             customerName: _customerNameController.text.trim(),
             customerPhone: _customerPhoneController.text.trim(),
@@ -310,6 +337,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
             distanceKm: distance,
             fee: fee,
             durationHours: _durationHours,
+            missionNumber: _missionNumberController.text.trim().isEmpty ? null : _missionNumberController.text.trim(),
           );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -331,13 +359,12 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     final branding = ref.watch(brandingProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text(l10n.translate('job_create_title')),
-        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
+        backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
@@ -347,23 +374,25 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               _buildTemplateSelector(l10n),
               const SizedBox(height: 16),
 
-              // 1. Müşteri Adı (en üstte) — odaktan çıkınca yeni isimse otomatik dialog açar
+              // 1. 🏷 Görev No (opsiyonel — boş bırakılırsa otomatik atanır)
+              _buildField(l10n.translate('job_mission_number'), _missionNumberController, Icons.tag, isRequired: false),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 12, bottom: 12),
+                child: Text(
+                  '💡 Boş bırakılırsa otomatik görev numarası atanır.',
+                  style: TextStyle(color: context.appExt.textTertiary, fontSize: 11, fontStyle: FontStyle.italic),
+                ),
+              ),
+
+              // 2. 👤 Müşteri Adı
               _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person, 
-                onChanged: (_) {
-                  // İsim değişince dialog tekrar gösterilebilir
-                  if (_customerDialogShown) {
-                    _customerDialogShown = false;
-                  }
-                  setState(() {});
-                },
+                onChanged: (_) { if (_customerDialogShown) _customerDialogShown = false; setState(() {}); },
                 focusNode: _customerNameFocus,
-                onFieldSubmitted: (_) {
-                  // Enter'a basınca da dialog'u tetikle
-                  _customerNameFocus.unfocus();
-                },
+                onFieldSubmitted: (_) => _customerNameFocus.unfocus(),
               ),
               const SizedBox(height: 8),
-              // Yeni müşteriyi hemen kaydet butonu (her zaman görünür)
+              // Yeni müşteriyi hemen kaydet butonu
               customersAsync.when(
                 data: (customers) {
                   final typedName = _customerNameController.text.trim();
@@ -371,56 +400,26 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                   if (typedName.isEmpty) return const SizedBox();
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: exists ? null : () => _showAddCustomerDialog(context, ref, prefillName: typedName),
-                            icon: Icon(exists ? Icons.check_circle : Icons.save, size: 18),
-                            label: Text(exists ? 'Müşteri kayıtlı ✓' : 'Müşteriyi Kaydet'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: exists ? Colors.green.withOpacity(0.2) : const Color(0xFF1565C0),
-                              foregroundColor: exists ? Colors.green : Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: ElevatedButton.icon(
+                      onPressed: exists ? null : () => _showAddCustomerDialog(context, ref, prefillName: typedName),
+                      icon: Icon(exists ? Icons.check_circle : Icons.save, size: 18),
+                      label: Text(exists ? 'Müşteri kayıtlı ✓' : 'Müşteriyi Kaydet'),
+                      style: ElevatedButton.styleFrom(backgroundColor: exists ? Colors.green.withOpacity(0.2) : const Color(0xFF1565C0), foregroundColor: exists ? Colors.green : Colors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                     ),
                   );
                 },
                 loading: () => const SizedBox(),
                 error: (_, __) => const SizedBox(),
               ),
-              const SizedBox(height: 12),
-
-              // 2. CRM: Mevcut müşterilerden seç
+              // CRM: Mevcut müşterilerden seç
               customersAsync.when(
                 data: (customers) => customers.isEmpty ? const SizedBox() : Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<Customer?>(
-                      value: _selectedCustomer,
-                      hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                      dropdownColor: const Color(0xFF1A2A3A),
-                      isExpanded: true,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('Kayıtlı müşteri seç...', style: TextStyle(color: Colors.grey, fontSize: 13))),
-                        ...customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name, style: const TextStyle(color: Colors.white, fontSize: 13)))),
-                      ],
-                      onChanged: (val) {
-                        setState(() {
-                          _selectedCustomer = val;
-                          if (val != null) {
-                            _customerNameController.text = val.name;
-                            _customerPhoneController.text = val.phone;
-                            _addressController.text = val.address;
-                          }
-                        });
-                      },
+                    child: DropdownButton<Customer?>(value: _selectedCustomer, hint: Text(l10n.translate('crm_customer_search'), style: const TextStyle(color: Colors.grey, fontSize: 13)), dropdownColor: Theme.of(context).colorScheme.surface, isExpanded: true, style: const TextStyle(color: Colors.white, fontSize: 13),
+                      items: [const DropdownMenuItem(value: null, child: Text('Kayıtlı müşteri seç...', style: TextStyle(color: Colors.grey, fontSize: 13))), ...customers.map((c) => DropdownMenuItem(value: c, child: Text(c.name, style: const TextStyle(color: Colors.white, fontSize: 13))))],
+                      onChanged: (val) { setState(() { _selectedCustomer = val; if (val != null) { _customerNameController.text = val.name; _customerPhoneController.text = val.phone; _addressController.text = val.address; } }); },
                     ),
                   ),
                 ),
@@ -429,114 +428,117 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               ),
               const SizedBox(height: 12),
 
-              // 3. Telefon + Adres + Saat
+              // 3. 📞 Telefon
               _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
               const SizedBox(height: 12),
+
+              // 4. 📍 Adres
               _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
-              const SizedBox(height: 12),
-              // Saat Seçici (adres ile iş başlığı arasında)
+              const SizedBox(height: 16),
+
+              // 5. 📅 Tarih
               InkWell(
                 onTap: () async {
-                  final picked = await showTimePicker(
-                    context: context,
-                    initialTime: _selectedTime,
-                    builder: (context, child) {
-                      return Theme(
-                        data: ThemeData.dark(useMaterial3: true).copyWith(
-                          colorScheme: const ColorScheme.dark(
-                            primary: Color(0xFF4FC3F7),
-                            onPrimary: Color(0xFF0D1B2A),
-                            surface: Color(0xFF1A2A3A),
-                            onSurface: Colors.white,
-                          ),
-                          timePickerTheme: const TimePickerThemeData(
-                            backgroundColor: Color(0xFF1A2A3A),
-                            hourMinuteTextColor: Colors.white,
-                            hourMinuteColor: Color(0xFF0D1B2A),
-                            dialHandColor: Color(0xFF4FC3F7),
-                            dialBackgroundColor: Color(0xFF0D1B2A),
-                            dialTextColor: Colors.white,
-                            entryModeIconColor: Color(0xFF4FC3F7),
-                            dayPeriodTextColor: Colors.white,
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
+                  final picked = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
+                  if (picked != null) setState(() => _selectedDate = picked);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
+                  child: Row(children: [const Icon(Icons.calendar_today, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('${l10n.translate('job_date')}: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}', style: const TextStyle(color: Colors.white))]),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // 6. 🕐 Saat
+              InkWell(
+                onTap: () async {
+                  final picked = await showTimePicker(context: context, initialTime: _selectedTime,
+                    builder: (context, child) => Theme(data: ThemeData.dark(useMaterial3: true).copyWith(
+                      colorScheme: const ColorScheme.dark(primary: Color(0xFF4FC3F7), onPrimary: Color(0xFF0D1B2A), surface: Color(0xFF1A2A3A), onSurface: Colors.white),
+                      timePickerTheme: const TimePickerThemeData(backgroundColor: Color(0xFF1A2A3A), hourMinuteTextColor: Colors.white, hourMinuteColor: Color(0xFF0D1B2A), dialHandColor: Color(0xFF4FC3F7), dialBackgroundColor: Color(0xFF0D1B2A), dialTextColor: Colors.white, entryModeIconColor: Color(0xFF4FC3F7), dayPeriodTextColor: Colors.white),
+                    ), child: child!),
                   );
-                  if (picked != null) {
-                    setState(() => _selectedTime = picked);
-                  }
+                  if (picked != null) setState(() => _selectedTime = picked);
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A2A3A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.access_time, color: Color(0xFF4FC3F7)),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Saat: ${_selectedTime.format(context)}',
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ],
-                  ),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
+                  child: Row(children: [const Icon(Icons.access_time, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('Saat: ${_selectedTime.format(context)}', style: const TextStyle(color: Colors.white, fontSize: 16))]),
                 ),
               ),
               const SizedBox(height: 12),
 
-              // Süre seçici
+              // 7. ⏱ Süre
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A2A3A),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.timelapse, color: Color(0xFF4FC3F7)),
-                    const SizedBox(width: 12),
-                    const Text('Süre:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
-                    const SizedBox(width: 8),
-                    DropdownButton<int>(
-                      value: _durationHours,
-                      dropdownColor: const Color(0xFF1A2A3A),
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      underline: const SizedBox(),
-                      items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(
-                        value: h,
-                        child: Text('$h saat', style: const TextStyle(color: Colors.white)),
-                      )).toList(),
-                      onChanged: (v) => setState(() => _durationHours = v ?? 2),
-                    ),
-                  ],
-                ),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
+                child: Row(children: [
+                  const Icon(Icons.timelapse, color: Color(0xFF4FC3F7)), const SizedBox(width: 12),
+                  const Text('Süre:', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 14)), const SizedBox(width: 8),
+                  DropdownButton<int>(value: _durationHours, dropdownColor: Theme.of(context).colorScheme.surface, style: const TextStyle(color: Colors.white, fontSize: 16), underline: const SizedBox(),
+                    items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(value: h, child: Text('$h saat', style: const TextStyle(color: Colors.white)))).toList(),
+                    onChanged: (v) => setState(() => _durationHours = v ?? 2),
+                  ),
+                ]),
               ),
               const SizedBox(height: 24),
 
-              // 4. İş Başlığı + Açıklama
+              // 8. 📝 İş Başlığı
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 12),
+
+              // 9. 📄 Açıklama
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
               const SizedBox(height: 12),
 
-              // Açıklama Blokları (hemen açıklamanın altında, sıralı)
+              // 10. 👷 Personel (opsiyonel)
+              Text(l10n.translate('job_assignee'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              const SizedBox(height: 8),
+              workersAsync.when(
+                data: (workers) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<AppUser?>(value: _selectedWorker, hint: const Text('Sonradan atanabilir', style: TextStyle(color: Colors.grey, fontSize: 13)), dropdownColor: Theme.of(context).colorScheme.surface, isExpanded: true, style: const TextStyle(color: Colors.white),
+                      items: [const DropdownMenuItem(value: null, child: Text('Personel seçilmedi', style: TextStyle(color: Colors.grey, fontSize: 13))), ...workers.map((w) => DropdownMenuItem(value: w, child: Text(w.name)))],
+                      onChanged: (val) => setState(() => _selectedWorker = val),
+                    ),
+                  ),
+                ),
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Hata: $e', style: const TextStyle(color: Colors.red)),
+              ),
+              const SizedBox(height: 24),
+
+              // 11. 🗺 Mesafe (opsiyonel)
+              _buildField(l10n.translate('log_distance_label'), _distanceController, Icons.map, keyboardType: TextInputType.number, isRequired: false),
+              const SizedBox(height: 12),
+
+              // 💰 Ücret (opsiyonel)
+              if (_showFeeField) ...[
+                Row(children: [
+                  Expanded(child: _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number, isRequired: false)),
+                  const SizedBox(width: 8),
+                  IconButton(icon: const Icon(Icons.qr_code, color: Color(0xFF4FC3F7)), tooltip: 'QR Kod Ekle', onPressed: () => _uploadQrForJob(context), style: IconButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.surface)),
+                ]),
+                const SizedBox(height: 12),
+              ],
+              if (!_showFeeField)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ActionChip(avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)), label: const Text('Ücret Ekle', style: TextStyle(color: Color(0xFF4FC3F7))), onPressed: () => setState(() => _showFeeField = true), backgroundColor: Theme.of(context).colorScheme.surface, side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5)),
+                ),
+
+              // 12. 📎 Açıklama Blokları
               ..._extraDescControllers.asMap().entries.map((entry) {
                 final text = entry.value.text;
                 if (text.startsWith('[RESIM]')) {
-                  final imageUrl = text.substring(7);
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _ImagePreviewBlock(
-                      imageUrl: imageUrl,
-                      onRemove: () {
-                        setState(() {
-                          _extraDescControllers.removeAt(entry.key);
-                        });
-                      },
+                      imageUrl: text.substring(7),
+                      onRemove: () => setState(() => _extraDescControllers.removeAt(entry.key)),
                     ),
                   );
                 }
@@ -545,142 +547,19 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                   child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment),
                 );
               }),
-              // Açıklama bloğu ekleme butonu (hemen blokların altında)
               Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: ActionChip(
-                    avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)),
-                    label: const Text('Açıklama Bloğu Ekle', style: TextStyle(color: Color(0xFF4FC3F7))),
-                    onPressed: _addDescriptionBlock,
-                    backgroundColor: const Color(0xFF1A2A3A),
-                    side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
-                  ),
-                ),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ActionChip(avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)), label: const Text('Açıklama Bloğu Ekle', style: TextStyle(color: Color(0xFF4FC3F7))), onPressed: _addDescriptionBlock, backgroundColor: Theme.of(context).colorScheme.surface, side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5)),
               ),
 
-              // 5. Resim Ekleme
-              _ImageUploadField(
-                onImagePicked: (url) {
-                  if (url != null) {
-                    _extraDescControllers.add(TextEditingController(text: '[RESIM]$url'));
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildField(l10n.translate('log_distance_label'), _distanceController, Icons.map, keyboardType: TextInputType.number),
-              const SizedBox(height: 16),
+              // Resim Ekleme
+              _ImageUploadField(onImagePicked: (url) { if (url != null) _extraDescControllers.add(TextEditingController(text: '[RESIM]$url')); }),
 
-              if (_showFeeField) ...[
-                Row(
-                  children: [
-                    Expanded(child: _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number)),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.qr_code, color: Color(0xFF4FC3F7)),
-                      tooltip: 'QR Kod Ekle',
-                      onPressed: () => _uploadQrForJob(context),
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              if (!_showFeeField)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: ActionChip(
-                      avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)),
-                      label: const Text('Ücret Ekle', style: TextStyle(color: Color(0xFF4FC3F7))),
-                      onPressed: () => setState(() => _showFeeField = true),
-                      backgroundColor: const Color(0xFF1A2A3A),
-                      side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 24),
-              
-              // Personel Seçimi
-              Text(
-                l10n.translate('job_assignee'),
-                style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              workersAsync.when(
-                data: (workers) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A2A3A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<AppUser>(
-                      value: _selectedWorker,
-                      dropdownColor: const Color(0xFF1A2A3A),
-                      isExpanded: true,
-                      style: const TextStyle(color: Colors.white),
-                      items: workers.map((w) => DropdownMenuItem(
-                        value: w,
-                        child: Text(w.name),
-                      )).toList(),
-                      onChanged: (val) => setState(() => _selectedWorker = val),
-                    ),
-                  ),
-                ),
-                loading: () => const LinearProgressIndicator(),
-                error: (e, _) => Text('Hata: $e', style: const TextStyle(color: Colors.red)),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Tarih Seçimi
-              InkWell(
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                  );
-                  if (picked != null) setState(() => _selectedDate = picked);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A2A3A),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_today, color: Color(0xFF4FC3F7)),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${l10n.translate('job_date')}: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
               const SizedBox(height: 48),
-              
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(l10n.translate('job_submit'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(l10n.translate('job_submit'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -705,7 +584,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2A3A),
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.4), width: 1),
             ),
@@ -713,10 +592,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               children: [
                 const Icon(Icons.description_outlined, color: Color(0xFF4FC3F7), size: 22),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Şablondan Yükle',
-                    style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500),
+                    l10n.translate('template_load_from'),
+                    style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                 ),
                 Container(
@@ -743,7 +622,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   void _showTemplatePicker(List<JobTemplate> templates) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A2A3A),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -769,7 +648,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D1B2A),
+                    color: Theme.of(ctx).scaffoldBackgroundColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.2)),
                   ),
@@ -849,7 +728,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     return parts.join(', ');
   }
 
-  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType, void Function(String)? onChanged, FocusNode? focusNode, void Function(String)? onFieldSubmitted}) {
+  Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType, void Function(String)? onChanged, FocusNode? focusNode, void Function(String)? onFieldSubmitted, bool isRequired = true}) {
+    final l10n = ref.read(translationProvider.notifier);
     return TextFormField(
       controller: controller,
       maxLines: maxLines,
@@ -857,16 +737,16 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       focusNode: focusNode,
       onChanged: onChanged,
       onFieldSubmitted: onFieldSubmitted,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF90A4AE)),
-        prefixIcon: Icon(icon, color: const Color(0xFF4FC3F7)),
+        labelStyle: TextStyle(color: context.appExt.textSecondary),
+        prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.secondary),
         filled: true,
-        fillColor: const Color(0xFF1A2A3A),
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
-      validator: (v) => v == null || v.trim().isEmpty ? 'Bu alan zorunludur' : null,
+      validator: isRequired ? (v) => v == null || v.trim().isEmpty ? l10n.translate('validation_required') : null : null,
     );
   }
 }
@@ -895,14 +775,14 @@ class _ImagePreviewBlock extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (context, error, stack) => Container(
                 height: 120,
-                color: const Color(0xFF1A2A3A),
-                child: const Center(
+                color: Theme.of(context).colorScheme.surface,
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.broken_image, color: Colors.red, size: 32),
-                      SizedBox(height: 4),
-                      Text('Yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                      const Icon(Icons.broken_image, color: Colors.red, size: 32),
+                      const SizedBox(height: 4),
+                      Text('Yüklenemedi', style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -949,7 +829,7 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
     final source = await showDialog<ImageSource>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A2A3A),
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: const Text('Fotoğraf Ekle', style: TextStyle(color: Colors.white)),
         content: const Text('Nereden fotoğraf eklemek istersiniz?', style: TextStyle(color: Color(0xFF90A4AE))),
         actions: [
@@ -1027,12 +907,12 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A2A3A),
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.3), width: 1),
         ),
         child: _isUploading
-            ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Color(0xFF4FC3F7))))
+            ? Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary)))
             : _imageUrl != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),

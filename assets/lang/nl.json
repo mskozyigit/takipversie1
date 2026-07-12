@@ -91,5 +91,11 @@
   "payment_confirmed_by": "Bevestigd door: {name}",
   "audit_action_cash_override": "Contante betaling handmatig bevestigd",
   "log_distance_label": "Afstand (KM)",
-  "logout": "Uitloggen"
+  "logout": "Uitloggen",
+  "safe_checklist_confirmed": "Veiligheidsstappen bevestigd.",
+  "filter_all_workers": "Alle Medewerkers",
+  "validation_required": "Dit veld is verplicht",
+  "safe_checklist_confirm_required": "Bevestig alstublieft de veiligheidschecklist.",
+  "template_load_from": "Laden vanuit Sjabloon",
+  "crm_save_new_customer": "Nieuwe Klant Opslaan"
 }

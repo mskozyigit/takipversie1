@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 /// Optimized image widget for Firebase Storage images.
 /// - Decodes at thumbnail resolution (cacheWidth) to reduce memory & bandwidth
@@ -47,11 +48,11 @@ class WebSafeImage extends StatelessWidget {
               return Container(
                 height: height,
                 width: width,
-                color: const Color(0xFF1A2A3A),
+                color: Theme.of(context).colorScheme.surface,
                 child: Center(
                   child: CircularProgressIndicator(
                     value: progress,
-                    color: const Color(0xFF4FC3F7),
+                    color: Theme.of(context).colorScheme.secondary,
                     strokeWidth: 2,
                   ),
                 ),

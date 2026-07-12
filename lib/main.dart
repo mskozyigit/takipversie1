@@ -11,6 +11,7 @@ import 'screens/login_screen.dart';
 import 'screens/org_setup_screen.dart';
 import 'screens/pending_screen.dart';
 import 'screens/calendar_home_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,12 +51,29 @@ class FieldServiceApp extends StatelessWidget {
       title: 'Ratel Solutions FSM',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          brightness: Brightness.dark,
-        ),
         useMaterial3: true,
         fontFamily: 'Roboto',
+        // -- ColorScheme: tüm standart Material renkleri burada --
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF1565C0),
+          onPrimary: Colors.white,
+          secondary: Color(0xFF4FC3F7),
+          onSecondary: Color(0xFF0D1B2A),
+          surface: Color(0xFF1A2A3A),
+          onSurface: Colors.white,
+          error: Colors.redAccent,
+          onError: Colors.white,
+        ),
+        // -- Scaffold arka planı --
+        scaffoldBackgroundColor: const Color(0xFF0D1B2A),
+        // -- AppBar varsayılanları --
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1565C0),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        // -- Uygulamaya özel renkler (status, kart, metin) --
+        extensions: const [AppThemeExt.defaultDark],
       ),
       home: const AuthGate(),
     );
@@ -72,18 +90,18 @@ class AuthGate extends ConsumerWidget {
     final l10n = ref.read(translationProvider.notifier);
 
     return authAsync.when(
-      loading: () => const Scaffold(
-        backgroundColor: Color(0xFF0D1B2A),
+      loading: () => Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF4FC3F7)),
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.secondary,
+          ),
         ),
       ),
       error: (err, _) => Scaffold(
-        backgroundColor: const Color(0xFF0D1B2A),
         body: Center(
           child: Text(
             'Uygulama başlatılamadı: $err',
-            style: const TextStyle(color: Colors.red),
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ),
       ),
@@ -100,7 +118,6 @@ class AuthGate extends ConsumerWidget {
           ApprovedAdmin(appUser: final user) => const CalendarHomeScreen(),
           ApprovedWorker(appUser: final user) => const CalendarHomeScreen(),
           AuthError(message: final msg) => Scaffold(
-            backgroundColor: const Color(0xFF0D1B2A),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
