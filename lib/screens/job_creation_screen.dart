@@ -30,6 +30,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   Customer? _selectedCustomer;
   bool _isLoading = false;
   bool _showFeeField = false;
+  String? _paymentQrUrl;
 
   @override
   void dispose() {
@@ -94,6 +95,26 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         ],
       ),
     );
+  }
+
+  void _uploadQrForJob(BuildContext context) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 600);
+    if (picked == null) return;
+
+    try {
+      final url = await ref.read(mediaProvider.notifier).uploadPaymentQr(
+        ref.read(currentOrganizationProvider).value?.id ?? 'temp',
+      );
+      if (url != null) {
+        setState(() => _paymentQrUrl = url);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('QR Kod yüklendi ✓'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
+          );
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _submit() async {
@@ -242,7 +263,18 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               const SizedBox(height: 16),
 
               if (_showFeeField) ...[
-                _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number),
+                Row(
+                  children: [
+                    Expanded(child: _buildField('İş Ücreti', _feeController, Icons.payments, keyboardType: TextInputType.number)),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.qr_code, color: Color(0xFF4FC3F7)),
+                      tooltip: 'QR Kod Ekle',
+                      onPressed: () => _uploadQrForJob(context),
+                      style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
               ],
 
