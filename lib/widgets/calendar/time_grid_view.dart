@@ -40,11 +40,47 @@ class TimeGridView extends StatelessWidget {
     // Pre-group jobs by day — O(n) once instead of O(n × days) per build
     final jobsByDay = _groupJobsByDay(days);
 
+    // Local function: day headers (needs `context` from enclosing build scope)
+    Widget buildDayHeaders() {
+      final dayNames = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
+
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFF1A2A3A))),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 50),
+            ...days.map((d) {
+              final isToday = d.day == DateTime.now().day && d.month == DateTime.now().month && d.year == DateTime.now().year;
+              return Expanded(
+                child: Column(
+                  children: [
+                    Text(dayNames[d.weekday - 1], style: TextStyle(color: isToday ? Theme.of(context).colorScheme.secondary : context.appExt.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(
+                        color: isToday ? Theme.of(context).colorScheme.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Center(child: Text('${d.day}', style: TextStyle(color: isToday ? Theme.of(context).colorScheme.onPrimary : context.appExt.textSecondary, fontSize: 14, fontWeight: FontWeight.bold))),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       child: Column(
         children: [
           // Day headers
-          _buildDayHeaders(days),
+          buildDayHeaders(),
           // Time grid
           SizedBox(
             height: hours.length * 60.0,
@@ -96,42 +132,6 @@ class TimeGridView extends StatelessWidget {
   }
 
   String _dayKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
-
-  Widget _buildDayHeaders(List<DateTime> days) {
-    final dayNames = ['PZT', 'SAL', 'ÇAR', 'PER', 'CUM', 'CMT', 'PAZ'];
-    final monthNames = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF1A2A3A))),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 50),
-          ...days.map((d) {
-            final isToday = d.day == DateTime.now().day && d.month == DateTime.now().month && d.year == DateTime.now().year;
-            return Expanded(
-              child: Column(
-                children: [
-                  Text(dayNames[d.weekday - 1], style: TextStyle(color: isToday ? Theme.of(context).colorScheme.secondary : context.appExt.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 2),
-                  Container(
-                    width: 28, height: 28,
-                    decoration: BoxDecoration(
-                      color: isToday ? Theme.of(context).colorScheme.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Center(child: Text('${d.day}', style: TextStyle(color: isToday ? Theme.of(context).colorScheme.onPrimary : context.appExt.textSecondary, fontSize: 14, fontWeight: FontWeight.bold))),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
 
 }
 
