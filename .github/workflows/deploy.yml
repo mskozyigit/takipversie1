@@ -75,7 +75,7 @@ jobs:
 
       - name: Build Web
         run: |
-          flutter build web --release --base-href "/takipversie1/" --web-renderer auto --no-wasm-dry-run
+          flutter build web --release --base-href "/takipversie1/"
 
       - name: Verify Build Output
         run: |
