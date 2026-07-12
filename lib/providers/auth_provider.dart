@@ -119,9 +119,12 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncValue.loading();
     try {
       if (kIsWeb) {
-        // Web için Firebase Auth popup (en kararlı yöntem)
+        // Web için Firebase Auth redirect (popup COOP sorunu nedeniyle redirect kullanılıyor)
         final googleProvider = GoogleAuthProvider();
-        await _auth.signInWithPopup(googleProvider);
+        await _auth.signInWithRedirect(googleProvider);
+        // Redirect başladı, sayfa Google'a yönlenecek.
+        // authStateChanges listener dönüşte otomatik günceller.
+        return;
       } else {
         // Mobil için Google Identity Services (GIS) akışı
         final googleUser = await _googleSignIn.authenticate();
