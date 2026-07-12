@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
+import '../models/job_template.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
   const JobCreationScreen({super.key});
@@ -29,6 +30,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   final _customerNameFocus = FocusNode();
   
   DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = TimeOfDay.now();
   AppUser? _selectedWorker;
   Customer? _selectedCustomer;
   bool _isLoading = false;
@@ -279,16 +281,30 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       final distance = double.tryParse(_distanceController.text);
       final fee = double.tryParse(_feeController.text);
       
+      // Separate attached images from description blocks
+      final attachedImages = <String>[];
+      final descBlocks = <String>[];
+      for (final c in _extraDescControllers) {
+        final text = c.text.trim();
+        if (text.startsWith('[RESIM]')) {
+          attachedImages.add(text.substring(7));
+        } else if (text.isNotEmpty) {
+          descBlocks.add(text);
+        }
+      }
+      
       await ref.read(jobOperationsProvider.notifier).createJob(
             title: _titleController.text.trim(),
             description: _descController.text.trim(),
-            descriptionBlocks: _extraDescControllers.map((c) => c.text.trim()).toList(),
+            descriptionBlocks: descBlocks,
+            attachedImages: attachedImages,
             assignedWorkerId: _selectedWorker!.id,
             assignedWorkerName: _selectedWorker!.name,
             address: _addressController.text.trim(),
             customerName: _customerNameController.text.trim(),
             customerPhone: _customerPhoneController.text.trim(),
-            scheduledDate: _selectedDate,
+            customerId: _selectedCustomer?.id,
+            scheduledDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute),
             distanceKm: distance,
             fee: fee,
           );
@@ -309,12 +325,13 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     final workersAsync = ref.watch(organizationWorkersProvider);
     final customersAsync = ref.watch(customersProvider);
     final l10n = ref.read(translationProvider.notifier);
+    final branding = ref.watch(brandingProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text(l10n.translate('job_create_title')),
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -323,6 +340,10 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // JOB-07: Template selector
+              _buildTemplateSelector(l10n),
+              const SizedBox(height: 16),
+
               // 1. Müşteri Adı (en üstte) — odaktan çıkınca yeni isimse otomatik dialog açar
               _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person, 
                 onChanged: (_) {
@@ -405,10 +426,63 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               ),
               const SizedBox(height: 12),
 
-              // 3. Telefon + Adres
+              // 3. Telefon + Adres + Saat
               _buildField(l10n.translate('job_customer_phone'), _customerPhoneController, Icons.phone, keyboardType: TextInputType.phone),
               const SizedBox(height: 12),
               _buildField(l10n.translate('job_address'), _addressController, Icons.location_on, maxLines: 2),
+              const SizedBox(height: 12),
+              // Saat Seçici (adres ile iş başlığı arasında)
+              InkWell(
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: _selectedTime,
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.dark(useMaterial3: true).copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: Color(0xFF4FC3F7),
+                            onPrimary: Color(0xFF0D1B2A),
+                            surface: Color(0xFF1A2A3A),
+                            onSurface: Colors.white,
+                          ),
+                          timePickerTheme: const TimePickerThemeData(
+                            backgroundColor: Color(0xFF1A2A3A),
+                            hourMinuteTextColor: Colors.white,
+                            hourMinuteColor: Color(0xFF0D1B2A),
+                            dialHandColor: Color(0xFF4FC3F7),
+                            dialBackgroundColor: Color(0xFF0D1B2A),
+                            dialTextColor: Colors.white,
+                            entryModeIconColor: Color(0xFF4FC3F7),
+                            dayPeriodTextColor: Colors.white,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() => _selectedTime = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A2A3A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time, color: Color(0xFF4FC3F7)),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Saat: ${_selectedTime.format(context)}',
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
 
               // 4. İş Başlığı + Açıklama
@@ -419,6 +493,21 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
 
               // Açıklama Blokları (hemen açıklamanın altında, sıralı)
               ..._extraDescControllers.asMap().entries.map((entry) {
+                final text = entry.value.text;
+                if (text.startsWith('[RESIM]')) {
+                  final imageUrl = text.substring(7);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ImagePreviewBlock(
+                      imageUrl: imageUrl,
+                      onRemove: () {
+                        setState(() {
+                          _extraDescControllers.removeAt(entry.key);
+                        });
+                      },
+                    ),
+                  );
+                }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildField('Ek Açıklama ${entry.key + 1}', entry.value, Icons.add_comment),
@@ -568,6 +657,162 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     );
   }
 
+  // JOB-07: Template selector widget
+  Widget _buildTemplateSelector(dynamic l10n) {
+    final templatesAsync = ref.watch(jobTemplatesProvider);
+
+    return templatesAsync.when(
+      loading: () => const SizedBox(),
+      error: (_, __) => const SizedBox(),
+      data: (templates) {
+        if (templates.isEmpty) return const SizedBox();
+
+        return InkWell(
+          onTap: () => _showTemplatePicker(templates),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2A3A),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.4), width: 1),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.description_outlined, color: Color(0xFF4FC3F7), size: 22),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Şablondan Yükle',
+                    style: TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4FC3F7).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${templates.length} şablon',
+                    style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 11),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.arrow_forward_ios, color: Color(0xFF4FC3F7), size: 14),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showTemplatePicker(List<JobTemplate> templates) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A2A3A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Şablon Seç', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            const Text('Seçilen şablon form alanlarını dolduracaktır.', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+            const SizedBox(height: 16),
+            ...templates.map((t) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _applyTemplate(t);
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D1B2A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.description, color: Color(0xFF4FC3F7), size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(_describeTemplateFields(t), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward_ios, color: Color(0xFF546E7A), size: 14),
+                    ],
+                  ),
+                ),
+              ),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _applyTemplate(JobTemplate t) {
+    setState(() {
+      if (t.includeTitle && t.defaultTitle.isNotEmpty) _titleController.text = t.defaultTitle;
+      if (t.includeDescription && t.defaultDescription.isNotEmpty) _descController.text = t.defaultDescription;
+
+      // Clear existing extra description controllers and add template ones
+      for (var c in _extraDescControllers) { c.dispose(); }
+      _extraDescControllers.clear();
+      if (t.includeDescriptionBlocks) {
+        for (var block in t.defaultDescriptionBlocks) {
+          if (block.isNotEmpty) _extraDescControllers.add(TextEditingController(text: block));
+        }
+      }
+
+      if (t.includeCustomerName && t.defaultCustomerName.isNotEmpty) _customerNameController.text = t.defaultCustomerName;
+      if (t.includeCustomerPhone && t.defaultCustomerPhone.isNotEmpty) _customerPhoneController.text = t.defaultCustomerPhone;
+      if (t.includeAddress && t.defaultAddress.isNotEmpty) _addressController.text = t.defaultAddress;
+
+      if (t.includeFee) {
+        _showFeeField = true;
+        if (t.defaultFee != null) _feeController.text = t.defaultFee!.toStringAsFixed(0);
+      }
+      if (t.includeDistance && t.defaultDistance != null) {
+        _distanceController.text = t.defaultDistance!.toStringAsFixed(1);
+      }
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${t.name}" şablonu uygulandı ✓'), backgroundColor: Colors.green, duration: const Duration(seconds: 2)),
+      );
+    }
+  }
+
+  String _describeTemplateFields(JobTemplate t) {
+    final parts = <String>[];
+    if (t.includeTitle) parts.add('Başlık');
+    if (t.includeDescription) parts.add('Açıklama');
+    if (t.includeDescriptionBlocks) parts.add('Ek Blok');
+    if (t.includeCustomerName) parts.add('Müşteri');
+    if (t.includeAddress) parts.add('Adres');
+    if (t.includeFee) parts.add('Ücret');
+    if (t.includeDistance) parts.add('Mesafe');
+    return parts.join(', ');
+  }
+
   Widget _buildField(String label, TextEditingController controller, IconData icon, {int maxLines = 1, TextInputType? keyboardType, void Function(String)? onChanged, FocusNode? focusNode, void Function(String)? onFieldSubmitted}) {
     return TextFormField(
       controller: controller,
@@ -586,6 +831,75 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
       validator: (v) => v == null || v.trim().isEmpty ? 'Bu alan zorunludur' : null,
+    );
+  }
+}
+
+class _ImagePreviewBlock extends StatelessWidget {
+  final String imageUrl;
+  final VoidCallback onRemove;
+  const _ImagePreviewBlock({required this.imageUrl, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+            child: Image.network(
+              imageUrl,
+              height: 120,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  height: 120,
+                  color: const Color(0xFF1A2A3A),
+                  child: const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7), strokeWidth: 2)),
+                );
+              },
+              errorBuilder: (context, error, stack) => Container(
+                height: 120,
+                color: const Color(0xFF1A2A3A),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.broken_image, color: Colors.red, size: 32),
+                      SizedBox(height: 4),
+                      Text('Yüklenemedi', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.image, color: Color(0xFF4FC3F7), size: 16),
+                const SizedBox(width: 4),
+                const Expanded(child: Text('Resim eklendi', style: TextStyle(color: Color(0xFF90A4AE), fontSize: 12))),
+                InkWell(
+                  onTap: onRemove,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.close, color: Colors.redAccent, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

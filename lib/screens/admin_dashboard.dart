@@ -7,6 +7,7 @@ import '../models/app_user.dart';
 import '../models/job.dart';
 import '../providers/job_provider.dart';
 import 'module_settings_screen.dart';
+import 'job_template_screen.dart';
 import '../widgets/calendar/join_code_card.dart';
 
 class AdminDashboard extends ConsumerWidget {
@@ -19,17 +20,53 @@ class AdminDashboard extends ConsumerWidget {
     final pendingUsersAsync = ref.watch(pendingUsersProvider);
     final orgAsync = ref.watch(currentOrganizationProvider);
     final l10n = ref.read(translationProvider.notifier);
+    final branding = ref.watch(brandingProvider);
+    final currentLang = ref.watch(translationProvider).value ?? 'tr';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text('${l10n.translate('admin_panel_title')} — ${adminUser.name}'),
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
         actions: [
+          // ADM-02: Language toggle
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.language),
+            tooltip: 'Dil / Language / Taal',
+            onSelected: (lang) => ref.read(translationProvider.notifier).setLanguage(lang),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'tr',
+                child: Row(children: [
+                  Text('🇹🇷  Türkçe', style: TextStyle(fontWeight: currentLang == 'tr' ? FontWeight.bold : FontWeight.normal)),
+                  if (currentLang == 'tr') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'en',
+                child: Row(children: [
+                  Text('🇬🇧  English', style: TextStyle(fontWeight: currentLang == 'en' ? FontWeight.bold : FontWeight.normal)),
+                  if (currentLang == 'en') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'nl',
+                child: Row(children: [
+                  Text('🇳🇱  Nederlands', style: TextStyle(fontWeight: currentLang == 'nl' ? FontWeight.bold : FontWeight.normal)),
+                  if (currentLang == 'nl') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
+                ]),
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.settings_suggest_outlined),
             tooltip: 'Modül Ayarları',
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.description_outlined),
+            tooltip: 'Görev Şablonları',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -126,7 +163,9 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
   late TextEditingController _addressController;
   late TextEditingController _customerNameController;
   late TextEditingController _customerPhoneController;
+  late TextEditingController _missionNumberController;
   late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
   AppUser? _selectedWorker;
   bool _isLoading = false;
 
@@ -138,7 +177,9 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     _addressController = TextEditingController(text: widget.job.address);
     _customerNameController = TextEditingController(text: widget.job.customerName);
     _customerPhoneController = TextEditingController(text: widget.job.customerPhone);
+    _missionNumberController = TextEditingController(text: widget.job.missionNumber);
     _selectedDate = widget.job.scheduledDate;
+    _selectedTime = TimeOfDay.fromDateTime(widget.job.scheduledDate);
   }
 
   @override
@@ -148,6 +189,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     _addressController.dispose();
     _customerNameController.dispose();
     _customerPhoneController.dispose();
+    _missionNumberController.dispose();
     super.dispose();
   }
 
@@ -170,7 +212,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
         address: _addressController.text.trim(),
         customerName: _customerNameController.text.trim(),
         customerPhone: _customerPhoneController.text.trim(),
-        scheduledDate: _selectedDate,
+        scheduledDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute),
+        missionNumber: _missionNumberController.text.trim(),
       );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -184,6 +227,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
   Widget build(BuildContext context) {
     final workersAsync = ref.watch(organizationWorkersProvider);
     final l10n = ref.read(translationProvider.notifier);
+    final branding = ref.watch(brandingProvider);
 
     // Initial worker selection fix
     workersAsync.whenData((workers) {
@@ -194,7 +238,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
-      appBar: AppBar(title: Text(l10n.translate('job_title') + ' Düzenle'), backgroundColor: const Color(0xFF1565C0)),
+      appBar: AppBar(title: Text(l10n.translate('job_title') + ' Düzenle'), backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -202,6 +246,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _buildField('Görev No', _missionNumberController, Icons.tag),
+              const SizedBox(height: 16),
               _buildField(l10n.translate('job_title'), _titleController, Icons.title),
               const SizedBox(height: 16),
               _buildField(l10n.translate('job_description'), _descController, Icons.description, maxLines: 3),
@@ -242,6 +288,46 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
                   child: Row(children: [const Icon(Icons.calendar_today, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('${l10n.translate('job_date')}: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}', style: const TextStyle(color: Colors.white))]),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: _selectedTime,
+                    builder: (context, child) {
+                      return Theme(
+                        data: ThemeData.dark(useMaterial3: true).copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: Color(0xFF4FC3F7),
+                            onPrimary: Color(0xFF0D1B2A),
+                            surface: Color(0xFF1A2A3A),
+                            onSurface: Colors.white,
+                          ),
+                          timePickerTheme: const TimePickerThemeData(
+                            backgroundColor: Color(0xFF1A2A3A),
+                            hourMinuteTextColor: Colors.white,
+                            hourMinuteColor: Color(0xFF0D1B2A),
+                            dialHandColor: Color(0xFF4FC3F7),
+                            dialBackgroundColor: Color(0xFF0D1B2A),
+                            dialTextColor: Colors.white,
+                            entryModeIconColor: Color(0xFF4FC3F7),
+                            dayPeriodTextColor: Colors.white,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() => _selectedTime = picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: const Color(0xFF1A2A3A), borderRadius: BorderRadius.circular(12)),
+                  child: Row(children: [const Icon(Icons.access_time, color: Color(0xFF4FC3F7)), const SizedBox(width: 12), Text('Saat: ${_selectedTime.format(context)}', style: const TextStyle(color: Colors.white))]),
                 ),
               ),
               const SizedBox(height: 48),

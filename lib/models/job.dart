@@ -14,6 +14,8 @@ class Job {
   final String title;
   final String description;
   final List<String> descriptionBlocks;
+  final List<String> attachedImages;
+  final String? customerId;
   final String assignedWorkerId;
   final String assignedWorkerName;
   final String address;
@@ -39,6 +41,8 @@ class Job {
     required this.title,
     required this.description,
     this.descriptionBlocks = const [],
+    this.attachedImages = const [],
+    this.customerId,
     required this.assignedWorkerId,
     required this.assignedWorkerName,
     required this.address,
@@ -67,6 +71,8 @@ class Job {
       title: data['title'] as String,
       description: data['description'] as String,
       descriptionBlocks: List<String>.from(data['descriptionBlocks'] ?? []),
+      attachedImages: List<String>.from(data['attachedImages'] ?? []),
+      customerId: data['customerId'] as String?,
       assignedWorkerId: data['assignedWorkerId'] as String,
       assignedWorkerName: data['assignedWorkerName'] as String,
       address: data['address'] as String,
@@ -94,6 +100,8 @@ class Job {
       'title': title,
       'description': description,
       'descriptionBlocks': descriptionBlocks,
+      'attachedImages': attachedImages,
+      'customerId': customerId,
       'assignedWorkerId': assignedWorkerId,
       'assignedWorkerName': assignedWorkerName,
       'address': address,

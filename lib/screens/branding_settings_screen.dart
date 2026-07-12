@@ -64,12 +64,13 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = ref.read(translationProvider.notifier);
+    final branding = ref.watch(brandingProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('Marka Özelleştirme'),
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

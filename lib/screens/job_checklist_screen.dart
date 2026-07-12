@@ -10,7 +10,6 @@ import '../widgets/checklist/safety_step.dart';
 import '../widgets/checklist/payment_step.dart';
 import '../widgets/checklist/parts_step.dart';
 import '../widgets/checklist/photo_step.dart';
-import '../widgets/checklist/comments_section.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class JobChecklistScreen extends ConsumerStatefulWidget {
@@ -154,12 +153,13 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   Widget build(BuildContext context) {
     final l10n = ref.read(translationProvider.notifier);
     final org = ref.watch(currentOrganizationProvider).value;
+    final branding = ref.watch(brandingProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text('${widget.job.missionNumber} - ${widget.job.title}'),
-        backgroundColor: const Color(0xFF0D47A1),
+        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF0D47A1),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -215,8 +215,6 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         },
         steps: _buildSteps(l10n, org),
       ),
-      const Divider(color: Color(0xFF1A2A3A), thickness: 2),
-      CommentsSection(jobId: widget.job.id),
     ],
   ),
 ),

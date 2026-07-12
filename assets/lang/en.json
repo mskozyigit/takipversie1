@@ -98,5 +98,6 @@
   "job_payment_received": "Payment Received",
   "job_payment_pending": "Payment Pending",
   "calendar_today": "Today",
-  "worker_panel_title": "My Job List"
+  "worker_panel_title": "My Job List",
+  "logout": "Logout"
 }

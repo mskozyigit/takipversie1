@@ -8,6 +8,7 @@ import 'job_detail_screen.dart';
 import 'admin_dashboard.dart';
 import 'admin_analytics_screen.dart';
 import 'module_settings_screen.dart';
+import 'job_template_screen.dart';
 import '../providers/module_provider.dart';
 import '../widgets/calendar/time_grid_view.dart';
 
@@ -35,6 +36,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     final authState = ref.watch(authProvider).value;
     final isAdmin = authState is ApprovedAdmin;
     final orgAsync = ref.watch(currentOrganizationProvider);
+    final branding = ref.watch(brandingProvider);
     
     // Admin ise tüm işleri, Worker ise sadece kendine atananları izle (Aylık bazlı)
     final jobsAsync = isAdmin 
@@ -47,7 +49,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: Text(isAdmin ? l10n.translate('admin_panel_title') : l10n.translate('worker_panel_title'), style: const TextStyle(fontSize: 16)),
-        backgroundColor: isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1),
+        backgroundColor: branding.useBranding ? branding.primaryColor : (isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1)),
         actions: [
           if (isAdmin) ...[
             IconButton(
@@ -59,6 +61,11 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               icon: const Icon(Icons.settings),
               tooltip: 'Modüller',
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
+            ),
+            IconButton(
+              icon: const Icon(Icons.description_outlined),
+              tooltip: 'Şablonlar',
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
             ),
             IconButton(
               icon: const Icon(Icons.group_add),
@@ -88,9 +95,16 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 if (confirm == true) {
                   ref.read(authProvider.notifier).leaveOrganization();
                 }
+              } else if (value.startsWith('lang_')) {
+                // ADM-02: Language switch from popup
+                ref.read(translationProvider.notifier).setLanguage(value.substring(5));
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(value: 'lang_tr', child: Text('🇹🇷  Türkçe')),
+              PopupMenuItem(value: 'lang_en', child: Text('🇬🇧  English')),
+              PopupMenuItem(value: 'lang_nl', child: Text('🇳🇱  Nederlands')),
+              const PopupMenuDivider(),
               PopupMenuItem(value: 'leave', child: Text(l10n.translate('leave_org'))),
               PopupMenuItem(value: 'logout', child: Text(l10n.translate('logout'))),
             ],

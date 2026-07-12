@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
+import 'providers/notification_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/org_setup_screen.dart';
 import 'screens/pending_screen.dart';
@@ -71,15 +72,12 @@ class AuthGate extends ConsumerWidget {
     final l10n = ref.read(translationProvider.notifier);
 
     return authAsync.when(
-      // Yükleniyor
       loading: () => const Scaffold(
         backgroundColor: Color(0xFF0D1B2A),
         body: Center(
           child: CircularProgressIndicator(color: Color(0xFF4FC3F7)),
         ),
       ),
-
-      // Hata durumu
       error: (err, _) => Scaffold(
         backgroundColor: const Color(0xFF0D1B2A),
         body: Center(
@@ -89,26 +87,19 @@ class AuthGate extends ConsumerWidget {
           ),
         ),
       ),
+      data: (authState) {
+        // TEAM-02: Initialize push notifications when user is approved
+        if (authState is ApprovedAdmin || authState is ApprovedWorker) {
+          Future.microtask(() => ref.read(notificationProvider.notifier).initialize());
+        }
 
-      // Başarılı durum — AuthState türüne göre yönlendirme
-      data: (authState) => switch (authState) {
-        // Giriş yapılmamış → Login ekranı
-        Unauthenticated() => const LoginScreen(),
-
-        // Firebase'de hesap var ama Firestore'da kayıt yok → Org kurulumu
-        NeedsOrg(firebaseUser: final user) => OrgSetupScreen(firebaseUser: user),
-
-        // Onay bekliyor → Pending ekranı
-        PendingApproval() => const PendingScreen(),
-
-        // Onaylanmış Admin → Takvimli Ana Ekran
-        ApprovedAdmin(appUser: final user) => const CalendarHomeScreen(),
-
-        // Onaylanmış Worker → Takvimli Ana Ekran
-        ApprovedWorker(appUser: final user) => const CalendarHomeScreen(),
-
-        // Hata durumu (auth state'den dönen)
-        AuthError(message: final msg) => Scaffold(
+        return switch (authState) {
+          Unauthenticated() => const LoginScreen(),
+          NeedsOrg(firebaseUser: final user) => OrgSetupScreen(firebaseUser: user),
+          PendingApproval() => const PendingScreen(),
+          ApprovedAdmin(appUser: final user) => const CalendarHomeScreen(),
+          ApprovedWorker(appUser: final user) => const CalendarHomeScreen(),
+          AuthError(message: final msg) => Scaffold(
             backgroundColor: const Color(0xFF0D1B2A),
             body: Center(
               child: Padding(
@@ -133,6 +124,7 @@ class AuthGate extends ConsumerWidget {
               ),
             ),
           ),
+        };
       },
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_provider.dart';
 
@@ -16,15 +17,65 @@ class NotificationNotifier extends Notifier<bool> {
 
   Future<void> initialize() async {
     if (_initialized) return;
-    
+
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
     try {
+      final messaging = FirebaseMessaging.instance;
+
+      // Request permission (web: triggers browser prompt)
       if (kIsWeb) {
-        await _initializeWeb();
+        final settings = await messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+          state = false;
+          return;
+        }
+      } else {
+        // Mobile: request permission via native APIs
+        await messaging.requestPermission();
       }
-      // Mobile FCM can be added here for Android/iOS
+
+      // Get FCM token and store it
+      final token = await messaging.getToken();
+      if (token != null && authState.appUser != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(authState.appUser!.id)
+            .update({'fcmToken': token, 'pushEnabled': true});
+      }
+
+      // Listen for token refresh
+      messaging.onTokenRefresh.listen((newToken) async {
+        if (authState.appUser != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(authState.appUser!.id)
+              .update({'fcmToken': newToken});
+        }
+      });
+
+      // Foreground message handler
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        // Messages are also stored in Firestore (handled by inAppNotificationsProvider)
+        // This callback can trigger local UI updates if needed
+      });
+
+      // Handle notification tap when app is in background
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        // Navigate to job detail if jobId is present
+      });
+
+      // Handle notification that launched the app from terminated state
+      final initialMessage = await messaging.getInitialMessage();
+      if (initialMessage != null) {
+        // Handle initial message navigation
+      }
+
       _initialized = true;
       state = true;
     } catch (e) {
@@ -33,39 +84,20 @@ class NotificationNotifier extends Notifier<bool> {
     }
   }
 
-  Future<void> _initializeWeb() async {
-    // Dynamic import to avoid mobile compilation issues
-    try {
-      // Use dart:js interop for web FCM
-      await _requestWebPermission();
-    } catch (_) {
-      // Web FCM not available (e.g., in non-HTTPS context)
-    }
-  }
-
-  Future<void> _requestWebPermission() async {
-    // Web notification permission is handled via JavaScript interop
-    // For now, we store a flag that notifications are supported
-    final authState = ref.read(authProvider).value;
-    if (authState?.appUser == null) return;
-
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(authState!.appUser!.id)
-        .update({
-      'pushEnabled': true,
-    });
-  }
-
   Future<void> disable() async {
     final authState = ref.read(authProvider).value;
     if (authState?.appUser == null) return;
+
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
 
     await FirebaseFirestore.instance
         .collection('users')
         .doc(authState!.appUser!.id)
         .update({
       'pushEnabled': false,
+      'fcmToken': FieldValue.delete(),
     });
 
     _initialized = false;
@@ -82,13 +114,17 @@ final notificationProvider = NotifierProvider<NotificationNotifier, bool>(
 // -----------------------------------------------------------------------
 
 class InAppNotification {
+  final String id;
   final String title;
   final String body;
+  final String? jobId;
   final DateTime timestamp;
 
   const InAppNotification({
+    required this.id,
     required this.title,
     required this.body,
+    this.jobId,
     required this.timestamp,
   });
 }
@@ -106,8 +142,10 @@ final inAppNotificationsProvider = StreamProvider<List<InAppNotification>>((ref)
       .orderBy('timestamp', descending: true)
       .snapshots()
       .map((snap) => snap.docs.map((doc) => InAppNotification(
+        id: doc.id,
         title: doc.data()['title'] as String,
         body: doc.data()['body'] as String,
+        jobId: doc.data()['jobId'] as String?,
         timestamp: (doc.data()['timestamp'] as Timestamp).toDate(),
       )).toList());
 });

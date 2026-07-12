@@ -29,12 +29,8 @@ class LoginScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Logo / ikon
-              const Icon(
-                Icons.engineering_rounded,
-                size: 80,
-                color: Color(0xFF4FC3F7),
-              ),
+              // Logo / ikon — ADM-01: Branding logo desteği
+              _BrandingLogo(),
               const SizedBox(height: 24),
 
               // Başlık
@@ -109,6 +105,44 @@ class LoginScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ADM-01: Branding-aware logo widget
+class _BrandingLogo extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final branding = ref.watch(brandingProvider);
+
+    if (branding.useBranding && branding.logoUrl != null && branding.logoUrl!.isNotEmpty) {
+      return Center(
+        child: Container(
+          height: 80,
+          width: 200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              branding.logoUrl!,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.engineering_rounded,
+                size: 80,
+                color: Color(0xFF4FC3F7),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return const Icon(
+      Icons.engineering_rounded,
+      size: 80,
+      color: Color(0xFF4FC3F7),
     );
   }
 }

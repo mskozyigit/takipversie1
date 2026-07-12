@@ -31,6 +31,7 @@ const List<Module> availableModules = [
   Module(id: 'JOB-03', name: 'Mandatory Gates', description: 'Required photos and payment gates', dependsOn: ['MEDIA-01', 'PAY-01']),
   Module(id: 'JOB-04', name: 'Extra Fields', description: '"+" optional-field picker for job creation', isCore: true),
   Module(id: 'JOB-06', name: 'Mission Numbers', description: 'Auto-generated, editable Mission Numbers', isCore: true),
+  Module(id: 'JOB-07', name: 'Job Templates', description: 'Admin creates reusable job templates with default values', isCore: true),
   Module(id: 'MEDIA-01', name: 'Photos', description: 'Before/after photo capture'),
   Module(id: 'MEDIA-02', name: 'Compression', description: 'Client-side photo compression', dependsOn: ['MEDIA-01']),
   Module(id: 'MEDIA-05', name: 'Digital Signature', description: 'On-screen digital signature capture'),
@@ -42,6 +43,9 @@ const List<Module> availableModules = [
   Module(id: 'SAFE-01', name: 'Safety Checklist', description: 'Configurable safety/compliance checklist'),
   Module(id: 'TEAM-01', name: 'Comments', description: 'Task-level comments'),
   Module(id: 'REP-01', name: 'Analytics', description: 'Admin analytics dashboard'),
+  Module(id: 'TEAM-02', name: 'Push Notifications', description: 'Real-time push notifications via FCM', isCore: true),
+  Module(id: 'ADM-01', name: 'Branding', description: 'Custom logo and primary color'),
+  Module(id: 'ADM-02', name: 'Multi-language', description: 'TR/EN/NL language toggle for all users', isCore: true),
   Module(id: 'ADM-03', name: 'Audit Log', description: 'Who changed what, when'),
 ];
 

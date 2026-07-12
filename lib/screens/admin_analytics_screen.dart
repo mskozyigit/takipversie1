@@ -10,12 +10,13 @@ class AdminAnalyticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final analyticsAsync = ref.watch(analyticsProvider);
     final l10n = ref.read(translationProvider.notifier);
+    final branding = ref.watch(brandingProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('Analitik Dashboard'),
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: analyticsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFF4FC3F7))),

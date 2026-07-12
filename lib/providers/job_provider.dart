@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/job.dart';
+import '../models/job_template.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
 import 'auth_provider.dart';
@@ -126,8 +127,10 @@ class JobNotifier extends Notifier<void> {
     required String address,
     String? customerName,
     String? customerPhone,
+    String? customerId,
     required DateTime scheduledDate,
     List<String> descriptionBlocks = const [],
+    List<String> attachedImages = const [],
     double? distanceKm,
     double? fee,
   }) async {
@@ -159,6 +162,8 @@ class JobNotifier extends Notifier<void> {
       title: title,
       description: description,
       descriptionBlocks: descriptionBlocks,
+      attachedImages: attachedImages,
+      customerId: customerId,
       assignedWorkerId: assignedWorkerId,
       assignedWorkerName: assignedWorkerName,
       address: address,
@@ -173,6 +178,15 @@ class JobNotifier extends Notifier<void> {
 
     await jobRef.set(job.toFirestore());
     await _logAction(jobRef.id, 'Job Created', metadata: {'missionNumber': missionNumber});
+
+    // TEAM-02: Send push notification to assigned worker
+    await _sendJobNotification(
+      workerId: assignedWorkerId,
+      title: 'Yeni Görev: $title',
+      body: '$missionNumber atandı - ${scheduledDate.day}/${scheduledDate.month}/${scheduledDate.year}',
+      jobId: jobRef.id,
+      orgId: orgId,
+    );
   }
 
   Future<void> updateJob({
@@ -317,6 +331,29 @@ class JobNotifier extends Notifier<void> {
     });
   }
 
+  // TEAM-02: Send push notification to worker via Firestore
+  Future<void> _sendJobNotification({
+    required String workerId,
+    required String title,
+    required String body,
+    required String jobId,
+    required String orgId,
+  }) async {
+    try {
+      await _firestore.collection('notifications').add({
+        'userId': workerId,
+        'title': title,
+        'body': body,
+        'jobId': jobId,
+        'organizationId': orgId,
+        'read': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Notification is non-critical; silently fail
+    }
+  }
+
   // ADM-03 Helper
   Future<void> _logAction(String jobId, String type, {Map<String, dynamic>? metadata}) async {
     final authState = ref.read(authProvider).value;
@@ -339,3 +376,80 @@ class JobNotifier extends Notifier<void> {
 }
 
 final jobOperationsProvider = NotifierProvider<JobNotifier, void>(() => JobNotifier());
+
+// -----------------------------------------------------------------------
+// JOB-07: Job Templates
+// -----------------------------------------------------------------------
+
+/// Stream of all templates for the current organization
+final jobTemplatesProvider = StreamProvider<List<JobTemplate>>((ref) {
+  final authState = ref.watch(authProvider).value;
+  if (authState is! ApprovedAdmin) return Stream.value([]);
+
+  return _firestore
+      .collection('jobTemplates')
+      .where('organizationId', isEqualTo: authState.appUser.organizationId)
+      .orderBy('createdDate', descending: true)
+      .snapshots()
+      .map((snap) => snap.docs.map((doc) => JobTemplate.fromFirestore(doc)).toList());
+});
+
+/// Template CRUD operations
+class TemplateNotifier extends Notifier<void> {
+  @override
+  void build() {}
+
+  Future<void> createTemplate({
+    required String name,
+    bool includeTitle = true,
+    bool includeDescription = true,
+    bool includeDescriptionBlocks = false,
+    bool includeCustomerName = false,
+    bool includeCustomerPhone = false,
+    bool includeAddress = false,
+    bool includeFee = false,
+    bool includeDistance = false,
+    String defaultTitle = '',
+    String defaultDescription = '',
+    List<String> defaultDescriptionBlocks = const [],
+    String defaultCustomerName = '',
+    String defaultCustomerPhone = '',
+    String defaultAddress = '',
+    double? defaultFee,
+    double? defaultDistance,
+  }) async {
+    final authState = ref.read(authProvider).value;
+    if (authState is! ApprovedAdmin) return;
+
+    final template = JobTemplate(
+      id: _firestore.collection('jobTemplates').doc().id,
+      organizationId: authState.appUser.organizationId,
+      name: name,
+      createdDate: DateTime.now(),
+      includeTitle: includeTitle,
+      includeDescription: includeDescription,
+      includeDescriptionBlocks: includeDescriptionBlocks,
+      includeCustomerName: includeCustomerName,
+      includeCustomerPhone: includeCustomerPhone,
+      includeAddress: includeAddress,
+      includeFee: includeFee,
+      includeDistance: includeDistance,
+      defaultTitle: defaultTitle,
+      defaultDescription: defaultDescription,
+      defaultDescriptionBlocks: defaultDescriptionBlocks,
+      defaultCustomerName: defaultCustomerName,
+      defaultCustomerPhone: defaultCustomerPhone,
+      defaultAddress: defaultAddress,
+      defaultFee: defaultFee,
+      defaultDistance: defaultDistance,
+    );
+
+    await _firestore.collection('jobTemplates').doc(template.id).set(template.toFirestore());
+  }
+
+  Future<void> deleteTemplate(String templateId) async {
+    await _firestore.collection('jobTemplates').doc(templateId).delete();
+  }
+}
+
+final templateOperationsProvider = NotifierProvider<TemplateNotifier, void>(() => TemplateNotifier());

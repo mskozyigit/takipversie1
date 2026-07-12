@@ -10,12 +10,13 @@ class AuditLogScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auditLogsAsync = ref.watch(auditLogProvider(jobId));
+    final branding = ref.watch(brandingProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
         title: const Text('İş Geçmişi (Audit Log)'),
-        backgroundColor: const Color(0xFF1565C0),
+        backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: auditLogsAsync.when(
         data: (logs) => logs.isEmpty

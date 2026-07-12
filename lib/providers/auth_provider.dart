@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -407,8 +408,71 @@ class TranslationNotifier extends AsyncNotifier<String> {
     }
     return text;
   }
+
+  /// ADM-02: Admin-switched language — updates Firestore + reloads translations instantly
+  Future<void> setLanguage(String lang) async {
+    final authState = ref.read(authProvider).value;
+    String? orgId;
+    if (authState is ApprovedAdmin) orgId = authState.appUser.organizationId;
+    if (authState is ApprovedWorker) orgId = authState.appUser.organizationId;
+    if (authState is PendingApproval) orgId = authState.appUser.organizationId;
+
+    if (orgId != null) {
+      await FirebaseFirestore.instance
+          .collection('organizations')
+          .doc(orgId)
+          .update({'activeLanguage': lang});
+    }
+
+    // Reload translations immediately
+    try {
+      final jsonStr = await rootBundle.loadString('assets/lang/$lang.json');
+      final Map<String, dynamic> decoded = json.decode(jsonStr);
+      _map = decoded.map((key, value) => MapEntry(key, value.toString()));
+      state = AsyncValue.data(lang);
+    } catch (e) {
+      debugPrint('Translation reload error: $e');
+    }
+  }
 }
 
 final translationProvider = AsyncNotifierProvider<TranslationNotifier, String>(
   () => TranslationNotifier(),
 );
+
+// -----------------------------------------------------------------------
+// ADM-01: Branding Provider
+// -----------------------------------------------------------------------
+
+class BrandingData {
+  final bool useBranding;
+  final String? logoUrl;
+  final Color primaryColor;
+
+  const BrandingData({
+    this.useBranding = false,
+    this.logoUrl,
+    this.primaryColor = const Color(0xFF1565C0),
+  });
+}
+
+final brandingProvider = Provider<BrandingData>((ref) {
+  final org = ref.watch(currentOrganizationProvider).value;
+  if (org == null || !org.useBranding) {
+    return const BrandingData();
+  }
+
+  Color color;
+  try {
+    final hex = (org.primaryColorHex ?? '#1565C0').replaceFirst('#', '');
+    color = Color(int.parse('FF$hex', radix: 16));
+  } catch (_) {
+    color = const Color(0xFF1565C0);
+  }
+
+  return BrandingData(
+    useBranding: true,
+    logoUrl: org.logoUrl,
+    primaryColor: color,
+  );
+});

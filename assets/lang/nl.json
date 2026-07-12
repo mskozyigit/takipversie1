@@ -89,5 +89,6 @@
   "payment_method_cash": "Contante Betaling",
   "payment_confirmed_by": "Bevestigd door: {name}",
   "audit_action_cash_override": "Contante betaling handmatig bevestigd",
-  "log_distance_label": "Afstand (KM)"
+  "log_distance_label": "Afstand (KM)",
+  "logout": "Uitloggen"
 }
