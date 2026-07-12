@@ -53,8 +53,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     });
   }
 
-  void _showAddCustomerDialog(BuildContext context, WidgetRef ref) {
-    final nameCtrl = TextEditingController();
+  void _showAddCustomerDialog(BuildContext context, WidgetRef ref, {String? prefillName}) {
+    final nameCtrl = TextEditingController(text: prefillName);
     final phoneCtrl = TextEditingController();
     final addressCtrl = TextEditingController();
 
@@ -177,20 +177,45 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Müşteri Adı (en üstte) + ekle butonu sağda
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
-                  ),
+              // 1. Müşteri Adı (en üstte) + ekle butonu
+              customersAsync.when(
+                data: (customers) {
+                  final typedName = _customerNameController.text.trim();
+                  final exists = typedName.isNotEmpty && customers.any((c) => c.name.toLowerCase() == typedName.toLowerCase());
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person),
+                      ),
+                      if (typedName.isNotEmpty && !exists) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.save, color: Colors.green),
+                          tooltip: 'Müşteriyi Kaydet',
+                          onPressed: () => _showAddCustomerDialog(context, ref, prefillName: typedName),
+                          style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
+                        ),
+                      ],
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)),
+                        tooltip: 'Yeni Müşteri Ekle',
+                        onPressed: () => _showAddCustomerDialog(context, ref),
+                        style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => Row(children: [
+                  Expanded(child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person)),
                   const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)),
-                    tooltip: 'Yeni Müşteri Ekle',
-                    onPressed: () => _showAddCustomerDialog(context, ref),
-                    style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A)),
-                  ),
-                ],
+                  IconButton(icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)), onPressed: () => _showAddCustomerDialog(context, ref), style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A))),
+                ]),
+                error: (_, __) => Row(children: [
+                  Expanded(child: _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person)),
+                  const SizedBox(width: 8),
+                  IconButton(icon: const Icon(Icons.person_add, color: Color(0xFF4FC3F7)), onPressed: () => _showAddCustomerDialog(context, ref), style: IconButton.styleFrom(backgroundColor: const Color(0xFF1A2A3A))),
+                ]),
               ),
               const SizedBox(height: 12),
 

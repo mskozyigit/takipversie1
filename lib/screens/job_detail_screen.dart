@@ -88,81 +88,48 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Status Badge
-            _InfoRow(
-              label: 'Durum',
-              value: l10n.translate('job_status_${job.status.name}'),
-              icon: Icons.info_outline,
-              color: _getStatusColor(job.status),
-            ),
+            _InfoRow(label: 'Durum', value: l10n.translate('job_status_${job.status.name}'), icon: Icons.info_outline, color: _getStatusColor(job.status)),
             const SizedBox(height: 12),
 
-            // Job Title & Description
-            _DetailCard(
-              title: l10n.translate('job_title'),
-              value: job.title,
-              icon: Icons.work_outline,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-            _DetailCard(
-              title: l10n.translate('job_description'),
-              value: job.description,
-              icon: Icons.description_outlined,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-
-            // JOB-04: Description Blocks
-            if (job.descriptionBlocks.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                child: Text('Ek Bilgiler', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-              ...job.descriptionBlocks.map((block) => _DetailCard(
-                title: 'Bilgi',
-                value: block,
-                icon: Icons.info_outline,
-              )),
+            // Worker: Customer info on top
+            if (!isAdmin) ...[
+              _DetailCard(title: l10n.translate('job_customer_name'), value: job.customerName ?? '-', icon: Icons.person_outline),
+              _DetailCard(title: l10n.translate('job_customer_phone'), value: job.customerPhone ?? '-', icon: Icons.phone_outlined, onTap: job.customerPhone != null ? () => _makeCall(job.customerPhone!) : null),
+              _DetailCard(title: l10n.translate('job_address'), value: job.address, icon: Icons.location_on_outlined, onTap: () => _launchMaps(job.address), isLink: true),
+              const SizedBox(height: 8),
             ],
 
-            // Customer Info
-            _DetailCard(
-              title: l10n.translate('job_customer_name'),
-              value: job.customerName ?? '-',
-              icon: Icons.person_outline,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-            _DetailCard(
-              title: l10n.translate('job_customer_phone'),
-              value: job.customerPhone ?? '-',
-              icon: Icons.phone_outlined,
-              onTap: job.customerPhone != null ? () => _makeCall(job.customerPhone!) : null,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
+            // Job Title & Description
+            _DetailCard(title: l10n.translate('job_title'), value: job.title, icon: Icons.work_outline, onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null),
+            _DetailCard(title: l10n.translate('job_description'), value: job.description, icon: Icons.description_outlined, onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null),
 
-            // Location
-            _DetailCard(
-              title: l10n.translate('job_address'),
-              value: job.address,
-              icon: Icons.location_on_outlined,
-              onTap: () => _launchMaps(job.address),
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-              isLink: true,
-            ),
+            // Description Blocks
+            if (job.descriptionBlocks.isNotEmpty) ...[
+              ...job.descriptionBlocks.map((block) => _DetailCard(title: 'Bilgi', value: block, icon: Icons.info_outline)),
+            ],
 
             // Photos (if any)
             if (job.beforePhotoUrl != null || job.afterPhotoUrl != null) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                child: Text('Fotoğraflar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              ),
-              Row(
-                children: [
-                  if (job.beforePhotoUrl != null)
-                    Expanded(child: _PhotoPreview(url: job.beforePhotoUrl!, label: 'Öncesi')),
-                  const SizedBox(width: 12),
-                  if (job.afterPhotoUrl != null)
-                    Expanded(child: _PhotoPreview(url: job.afterPhotoUrl!, label: 'Sonrası')),
-                ],
-              ),
+              const SizedBox(height: 8),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('Fotoğraflar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+              const SizedBox(height: 8),
+              Row(children: [
+                if (job.beforePhotoUrl != null) Expanded(child: _PhotoPreview(url: job.beforePhotoUrl!, label: 'Öncesi')),
+                if (job.beforePhotoUrl != null && job.afterPhotoUrl != null) const SizedBox(width: 12),
+                if (job.afterPhotoUrl != null) Expanded(child: _PhotoPreview(url: job.afterPhotoUrl!, label: 'Sonrası')),
+              ]),
+            ],
+
+            // Admin: Customer info below
+            if (isAdmin) ...[
+              const SizedBox(height: 8),
+              _DetailCard(title: l10n.translate('job_customer_name'), value: job.customerName ?? '-', icon: Icons.person_outline, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
+              _DetailCard(title: l10n.translate('job_customer_phone'), value: job.customerPhone ?? '-', icon: Icons.phone_outlined, onTap: job.customerPhone != null ? () => _makeCall(job.customerPhone!) : null, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
+              _DetailCard(title: l10n.translate('job_address'), value: job.address, icon: Icons.location_on_outlined, onTap: () => _launchMaps(job.address), isLink: true, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
+            ],
+                value: block,
+                icon: Icons.info_outline,
+              )),
             ],
 
             const SizedBox(height: 32),
