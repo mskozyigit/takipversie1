@@ -182,8 +182,6 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     _ViewChip(label: l10n.translate('view_3day'), selected: _viewMode == 3, onTap: () => setState(() => _viewMode = 3)),
                     const SizedBox(width: 8),
                     _ViewChip(label: l10n.translate('view_week'), selected: _viewMode == 1, onTap: () => setState(() => _viewMode = 1)),
-                    const SizedBox(width: 8),
-                    _ViewChip(label: l10n.translate('view_month'), selected: _viewMode == 2, onTap: () => setState(() => _viewMode = 2)),
                   ],
                 ),
               ),
