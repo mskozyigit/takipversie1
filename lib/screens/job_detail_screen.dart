@@ -53,6 +53,136 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
     }
   }
 
+  Future<void> _showDescription2Dialog() async {
+    final l10n = ref.read(translationProvider.notifier);
+    final controller = TextEditingController(text: job.description2 ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        title: Text(l10n.translate('job_description2_title'), style: const TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          minLines: 2,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: l10n.translate('job_description2_hint'),
+            hintStyle: const TextStyle(color: Color(0xFF546E7A)),
+            filled: true,
+            fillColor: const Color(0xFF0D1B2A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF37474F)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF37474F)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1565C0)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.translate('button_cancel'), style: const TextStyle(color: Color(0xFF90A4AE))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l10n.translate('button_ok'), style: const TextStyle(color: Color(0xFF4FC3F7))),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) {
+      try {
+        await ref.read(jobOperationsProvider.notifier).updateDescription2(job.id, result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.translate('job_description2_saved')), backgroundColor: const Color(0xFF4CAF50)),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.translate('generic_error', {'error': '$e'})), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _showFeeEditDialog() async {
+    final l10n = ref.read(translationProvider.notifier);
+    final controller = TextEditingController(text: job.fee?.toStringAsFixed(0) ?? '');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        title: Text(l10n.translate('job_fee_edit_title'), style: const TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white, fontSize: 18),
+          decoration: InputDecoration(
+            hintText: '0',
+            hintStyle: const TextStyle(color: Color(0xFF546E7A)),
+            prefixIcon: const Padding(padding: EdgeInsets.only(left: 12, right: 4), child: Icon(Icons.attach_money, color: Color(0xFF4CAF50), size: 22)),
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            filled: true,
+            fillColor: const Color(0xFF0D1B2A),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF37474F)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF37474F)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF1565C0)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.translate('button_cancel'), style: const TextStyle(color: Color(0xFF90A4AE))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l10n.translate('button_save'), style: const TextStyle(color: Color(0xFF4FC3F7))),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) {
+      final newFee = double.tryParse(result);
+      if (newFee != null) {
+        try {
+          await ref.read(jobOperationsProvider.notifier).updateFee(job.id, newFee);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.translate('job_fee_updated')), backgroundColor: const Color(0xFF4CAF50)),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.translate('generic_error', {'error': '$e'})), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+    }
+  }
+
   Future<void> _makeCall(String phone) async {
     // Sanitize: strip non-numeric and limit length to prevent injection
     final sanitized = phone.replaceAll(RegExp(r'[^\d+]'), '');
@@ -119,7 +249,49 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
 
             // Job Title & Description
             _DetailCard(title: l10n.translate('job_title'), value: job.title, icon: Icons.work_outline, onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null),
-            _DetailCard(title: l10n.translate('job_description'), value: job.description, icon: Icons.description_outlined, onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null),
+            _DetailCard(
+              title: l10n.translate('job_description'),
+              value: job.description,
+              icon: Icons.description_outlined,
+              onTap: !isAdmin ? _showDescription2Dialog : null,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+            if (job.description2 != null && job.description2!.isNotEmpty)
+              _DetailCard(title: l10n.translate('job_description2_label'), value: job.description2!, icon: Icons.edit_note, onTap: !isAdmin ? _showDescription2Dialog : null),
+
+            // Fee — worker can edit, admin sees read-only
+            _DetailCard(
+              title: l10n.translate('job_fee_label'),
+              value: job.fee != null ? '${job.fee!.toStringAsFixed(0)} €' : '-',
+              icon: Icons.euro,
+              onTap: !isAdmin ? _showFeeEditDialog : null,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+
+            // Checklist Notes (worker notes between photos)
+            if (job.checklistNotes.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('job_checklist_notes_title'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
+              const SizedBox(height: 8),
+              ...job.checklistNotes.map((note) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF37474F)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.notes, color: Color(0xFF90A4AE), size: 16),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(note, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13))),
+                  ],
+                ),
+              )),
+            ],
 
             // Description Blocks
             if (job.descriptionBlocks.isNotEmpty) ...[
@@ -147,15 +319,29 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             ],
 
             // Before/After Photos (çalışan checklist fotoğrafları)
-            if (job.beforePhotoUrl != null || job.afterPhotoUrl != null) ...[
+            if (job.beforePhotoUrls.isNotEmpty || job.afterPhotoUrls.isNotEmpty) ...[
               const SizedBox(height: 8),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('photos_label'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
-              Row(children: [
-                if (job.beforePhotoUrl != null) Expanded(child: _PhotoPreview(url: job.beforePhotoUrl!, label: l10n.translate('before_photo_label'))),
-                if (job.beforePhotoUrl != null && job.afterPhotoUrl != null) const SizedBox(width: 12),
-                if (job.afterPhotoUrl != null) Expanded(child: _PhotoPreview(url: job.afterPhotoUrl!, label: l10n.translate('after_photo_label'))),
-              ]),
+              if (job.beforePhotoUrls.isNotEmpty) ...[
+                Padding(padding: const EdgeInsets.only(bottom: 4, left: 4), child: Text(l10n.translate('before_photo_label'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: job.beforePhotoUrls.map((url) => _PhotoThumb(url: url)).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+              if (job.afterPhotoUrls.isNotEmpty) ...[
+                Padding(padding: const EdgeInsets.only(bottom: 4, left: 4), child: Text(l10n.translate('after_photo_label'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: job.afterPhotoUrls.map((url) => _PhotoThumb(url: url)).toList(),
+                ),
+              ],
             ],
 
             // Admin: Customer info below
@@ -422,6 +608,55 @@ class _DescriptionImagePreview extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoThumb extends StatelessWidget {
+  final String url;
+  const _PhotoThumb({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => FullScreenImageViewer.show(context, url),
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.withOpacity(0.4), width: 1.5),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10.5),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              WebSafeImage(
+                url: url,
+                fit: BoxFit.cover,
+                cacheWidth: 200,
+                errorBuilder: (context, error, stack) => Container(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: const Center(child: Icon(Icons.broken_image, color: Colors.red, size: 24)),
+                ),
+              ),
+              Positioned(
+                bottom: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(Icons.zoom_in, color: Colors.white, size: 12),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

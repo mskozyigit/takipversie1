@@ -294,6 +294,41 @@ class JobNotifier extends Notifier<void> {
     }
   }
 
+  /// Worker can add their own description (description2) to a job.
+  /// Both worker and admin can call this.
+  Future<void> updateDescription2(String jobId, String description2) async {
+    final authState = ref.read(authProvider).value;
+    if (authState == null) return;
+
+    await _firestore.collection('jobs').doc(jobId).update({
+      'description2': description2,
+    });
+    await _logAction(jobId, 'Description2 Updated');
+  }
+
+  /// Worker can update the job fee in the field.
+  Future<void> updateFee(String jobId, double fee) async {
+    final authState = ref.read(authProvider).value;
+    if (authState == null) return;
+
+    await _firestore.collection('jobs').doc(jobId).update({
+      'fee': fee,
+    });
+    await _logAction(jobId, 'Fee Updated', metadata: {'fee': fee});
+  }
+
+  /// Worker adds a note during the checklist flow (between photos).
+  /// The note is appended to the checklistNotes list on the job document.
+  Future<void> addChecklistNote(String jobId, String note) async {
+    final authState = ref.read(authProvider).value;
+    if (authState == null) return;
+
+    await _firestore.collection('jobs').doc(jobId).update({
+      'checklistNotes': FieldValue.arrayUnion([note]),
+    });
+    await _logAction(jobId, 'Checklist Note Added');
+  }
+
   Future<void> deleteJob(String jobId) async {
     final authState = ref.read(authProvider).value;
     if (authState is! ApprovedAdmin) return;
@@ -330,15 +365,25 @@ class JobNotifier extends Notifier<void> {
     await _logAction(jobId, 'Status changed to ${newStatus.name}');
   }
 
-  Future<void> updateJobPhotos(String jobId, {String? beforeUrl, String? afterUrl}) async {
+  /// Set the full photo lists for before/after (used when deleting a photo).
+  Future<void> updateJobPhotos(String jobId, {List<String>? beforeUrls, List<String>? afterUrls}) async {
     final Map<String, dynamic> data = {};
-    if (beforeUrl != null) data['beforePhotoUrl'] = beforeUrl;
-    if (afterUrl != null) data['afterPhotoUrl'] = afterUrl;
+    if (beforeUrls != null) data['beforePhotoUrls'] = beforeUrls;
+    if (afterUrls != null) data['afterPhotoUrls'] = afterUrls;
 
     if (data.isNotEmpty) {
       await _firestore.collection('jobs').doc(jobId).update(data);
       await _logAction(jobId, 'Photos updated');
     }
+  }
+
+  /// Add a single photo URL to the before or after list via arrayUnion.
+  Future<void> addJobPhoto(String jobId, {required String url, required bool isBefore}) async {
+    final field = isBefore ? 'beforePhotoUrls' : 'afterPhotoUrls';
+    await _firestore.collection('jobs').doc(jobId).update({
+      field: FieldValue.arrayUnion([url]),
+    });
+    await _logAction(jobId, 'Photo added (${isBefore ? "before" : "after"})');
   }
 
   Future<void> addJobPart(String jobId, Map<String, dynamic> part) async {

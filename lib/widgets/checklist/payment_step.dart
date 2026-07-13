@@ -7,7 +7,7 @@ import '../../providers/job_provider.dart';
 import '../../theme/app_theme.dart';
 import '../web_safe_image.dart';
 
-class PaymentStep extends ConsumerWidget {
+class PaymentStep extends ConsumerStatefulWidget {
   final Job job;
   final Organization? org;
   final VoidCallback? onPaymentRecorded;
@@ -20,15 +20,23 @@ class PaymentStep extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PaymentStep> createState() => _PaymentStepState();
+}
+
+class _PaymentStepState extends ConsumerState<PaymentStep> {
+  bool _cashSelected = false;
+  bool _qrSelected = false;
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = ref.read(translationProvider.notifier);
-    if (job.isPaid) {
+    if (widget.job.isPaid) {
       return Row(
         children: [
           const Icon(Icons.check_circle, color: Colors.green),
           const SizedBox(width: 8),
           Text(
-            '${l10n.translate('job_payment_received')} (${job.paymentMethod == 'cash' ? l10n.translate('job_payment_cash') : l10n.translate('job_payment_qr')})',
+            '${l10n.translate('job_payment_received')} (${widget.job.paymentMethod == 'cash' ? l10n.translate('job_payment_cash') : l10n.translate('job_payment_qr')})',
             style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
           ),
         ],
@@ -38,7 +46,7 @@ class PaymentStep extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (org?.paymentQrUrl != null) ...[
+        if (widget.org?.paymentQrUrl != null) ...[
           Container(
             height: 200,
             width: 200,
@@ -48,7 +56,7 @@ class PaymentStep extends ConsumerWidget {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: WebSafeImage(url: org!.paymentQrUrl!, fit: BoxFit.contain),
+              child: WebSafeImage(url: widget.org!.paymentQrUrl!, fit: BoxFit.contain),
             ),
           ),
           Padding(
@@ -69,9 +77,10 @@ class PaymentStep extends ConsumerWidget {
           ),
         Row(
           children: [
-            if (org?.paymentQrUrl != null)
+            if (widget.org?.paymentQrUrl != null)
               ElevatedButton(
-                onPressed: () async {
+                onPressed: (_qrSelected || _cashSelected) ? null : () async {
+                  setState(() => _qrSelected = true);
                   final confirm = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
@@ -85,16 +94,27 @@ class PaymentStep extends ConsumerWidget {
                     ),
                   );
                   if (confirm == true) {
-                    ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'qr');
-                    onPaymentRecorded?.call();
+                    await ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'qr');
+                    widget.onPaymentRecorded?.call();
+                  } else {
+                    setState(() => _qrSelected = false);
                   }
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4FC3F7)),
-                child: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _qrSelected ? Colors.green : const Color(0xFF4FC3F7),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_qrSelected) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.check, color: Color(0xFF0D1B2A), size: 18)),
+                    Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
+                  ],
+                ),
               ),
-            if (org?.paymentQrUrl != null) const SizedBox(width: 12),
+            if (widget.org?.paymentQrUrl != null) const SizedBox(width: 12),
             OutlinedButton(
-              onPressed: () async {
+              onPressed: (_qrSelected || _cashSelected) ? null : () async {
+                setState(() => _cashSelected = true);
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
@@ -108,11 +128,23 @@ class PaymentStep extends ConsumerWidget {
                   ),
                 );
                 if (confirm == true) {
-                  ref.read(jobOperationsProvider.notifier).recordPayment(job.id, 'cash');
-                  onPaymentRecorded?.call();
+                  await ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'cash');
+                  widget.onPaymentRecorded?.call();
+                } else {
+                  setState(() => _cashSelected = false);
                 }
               },
-              child: Text(l10n.translate('job_payment_cash')),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: _cashSelected ? Colors.green.withOpacity(0.2) : null,
+                side: BorderSide(color: _cashSelected ? Colors.green : Theme.of(context).colorScheme.secondary, width: _cashSelected ? 2 : 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_cashSelected) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.check, color: Colors.green, size: 18)),
+                  Text(l10n.translate('job_payment_cash'), style: TextStyle(color: _cashSelected ? Colors.green : Theme.of(context).colorScheme.secondary)),
+                ],
+              ),
             ),
           ],
         ),

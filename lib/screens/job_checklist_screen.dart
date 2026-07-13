@@ -11,7 +11,7 @@ import '../providers/module_provider.dart';
 import '../widgets/checklist/safety_step.dart';
 import '../widgets/checklist/payment_step.dart';
 import '../widgets/checklist/parts_step.dart';
-import '../widgets/checklist/photo_step.dart';
+import '../widgets/checklist/multi_photo_picker.dart';
 import '../theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -25,11 +25,12 @@ class JobChecklistScreen extends ConsumerStatefulWidget {
 
 class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   int _currentStep = 0;
-  String? _beforePhotoUrl;
-  String? _afterPhotoUrl;
+  late List<String> _beforePhotoUrls;
+  late List<String> _afterPhotoUrls;
   final _noteController = TextEditingController();
   bool _isUploading = false;
   bool _isPaid = false;
+  late List<String> _checklistNotes;
 
   @override
   void initState() {
@@ -39,9 +40,10 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     } else if (widget.job.status == JobStatus.workCompleted || widget.job.status == JobStatus.closed) {
       _currentStep = 1;
     }
-    _beforePhotoUrl = widget.job.beforePhotoUrl;
-    _afterPhotoUrl = widget.job.afterPhotoUrl;
+    _beforePhotoUrls = List.from(widget.job.beforePhotoUrls);
+    _afterPhotoUrls = List.from(widget.job.afterPhotoUrls);
     _isPaid = widget.job.isPaid;
+    _checklistNotes = List.from(widget.job.checklistNotes);
   }
 
   @override
@@ -50,10 +52,10 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     super.dispose();
   }
 
-  Future<void> _takePhoto(bool isBefore) async {
+  /// Pick and upload a photo. Returns the download URL, or null if cancelled/failed.
+  Future<String?> _pickAndUploadPhoto(bool isBefore) async {
     final l10n = ref.read(translationProvider.notifier);
     
-    // Show source picker dialog first (avoids camera activity lifecycle issues on mobile)
     final source = await showDialog<ImageSource>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -63,7 +65,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
-                child: Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
@@ -85,7 +87,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       ),
     );
     
-    if (source == null || !mounted) return;
+    if (source == null || !mounted) return null;
     
     setState(() => _isUploading = true);
     try {
@@ -95,20 +97,24 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         source: source,
       );
       if (url != null) {
-        await ref.read(jobOperationsProvider.notifier).updateJobPhotos(
+        await ref.read(jobOperationsProvider.notifier).addJobPhoto(
           widget.job.id,
-          beforeUrl: isBefore ? url : null,
-          afterUrl: isBefore ? null : url,
+          url: url,
+          isBefore: isBefore,
         );
         setState(() {
-          if (isBefore) _beforePhotoUrl = url;
-          else _afterPhotoUrl = url;
+          if (isBefore) {
+            _beforePhotoUrls.add(url);
+          } else {
+            _afterPhotoUrls.add(url);
+          }
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.translate(isBefore ? 'photo_before_uploaded' : 'photo_after_uploaded')), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
           );
         }
+        return url;
       }
     } on FirebaseException catch (e) {
       if (mounted) {
@@ -128,6 +134,24 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
+    return null;
+  }
+
+  Future<void> _deletePhoto(bool isBefore, int index) async {
+    final urls = isBefore ? List.from(_beforePhotoUrls) : List.from(_afterPhotoUrls);
+    urls.removeAt(index);
+    setState(() {
+      if (isBefore) {
+        _beforePhotoUrls = urls;
+      } else {
+        _afterPhotoUrls = urls;
+      }
+    });
+    await ref.read(jobOperationsProvider.notifier).updateJobPhotos(
+      widget.job.id,
+      beforeUrls: isBefore ? urls : null,
+      afterUrls: isBefore ? null : urls,
+    );
   }
 
   void _nextStep() async {
@@ -150,22 +174,23 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
       // Before Photo
-      if (isMandatory && _beforePhotoUrl == null) {
+      if (isMandatory && _beforePhotoUrls.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_before_photo_needed')), backgroundColor: Colors.orange));
         return;
       }
       setState(() => _currentStep = 2);
     } else if (_currentStep == 2) {
-      // Note — save as comment (auto-save even if navigating back later)
+      // Note — save to checklistNotes on the job (visible to both worker & admin)
       final note = _noteController.text.trim();
       if (note.isNotEmpty) {
-        await ref.read(jobOperationsProvider.notifier).addComment(widget.job.id, note);
-        _noteController.clear(); // Prevent duplicate save on revisiting
+        await ref.read(jobOperationsProvider.notifier).addChecklistNote(widget.job.id, note);
+        _checklistNotes.add(note); // Update local list for instant UI
+        _noteController.clear(); // Clear input for next note
       }
       setState(() => _currentStep = 3);
     } else if (_currentStep == 3) {
       // After Photo
-      if (isMandatory && _afterPhotoUrl == null) {
+      if (isMandatory && _afterPhotoUrls.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('job_checklist_after_photo_needed')), backgroundColor: Colors.orange));
         return;
       }
@@ -302,24 +327,58 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       // 1: Before Photo
       Step(
         title: Text(l10n.translate('job_before_photo'), style: const TextStyle(color: Colors.white)),
-        content: PhotoStep(url: _beforePhotoUrl, onTap: () => _takePhoto(true), isUploading: _isUploading && _currentStep == 1),
+        content: MultiPhotoPicker(
+          photoUrls: _beforePhotoUrls,
+          label: l10n.translate('before_photo_label'),
+          isUploading: _isUploading && _currentStep == 1,
+          onPickPhoto: () => _pickAndUploadPhoto(true),
+          onPhotosChanged: (urls) async {
+            setState(() => _beforePhotoUrls = urls);
+            await ref.read(jobOperationsProvider.notifier).updateJobPhotos(
+              widget.job.id,
+              beforeUrls: urls,
+            );
+          },
+        ),
         isActive: _currentStep >= 1,
         state: _currentStep > 1 ? StepState.complete : StepState.indexed,
       ),
       // 2: Note
       Step(
         title: Text(l10n.translate('job_checklist_note'), style: const TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: _noteController,
-          maxLines: 3,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: l10n.translate('job_notes_hint'),
-            hintStyle: const TextStyle(color: Color(0xFF90A4AE)),
-            filled: true,
-            fillColor: Theme.of(context).colorScheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          ),
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Show previously saved checklist notes
+            if (_checklistNotes.isNotEmpty) ...[
+              Text(l10n.translate('job_checklist_previous_notes'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              ..._checklistNotes.map((note) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF37474F)),
+                ),
+                child: Text(note, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+              )),
+              const SizedBox(height: 12),
+            ],
+            TextField(
+              controller: _noteController,
+              maxLines: 3,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: l10n.translate('job_notes_hint'),
+                hintStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
         ),
         isActive: _currentStep >= 2,
         state: _currentStep > 2 ? StepState.complete : StepState.indexed,
@@ -327,7 +386,19 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       // 3: After Photo
       Step(
         title: Text(l10n.translate('job_after_photo'), style: const TextStyle(color: Colors.white)),
-        content: PhotoStep(url: _afterPhotoUrl, onTap: () => _takePhoto(false), isUploading: _isUploading && _currentStep == 3),
+        content: MultiPhotoPicker(
+          photoUrls: _afterPhotoUrls,
+          label: l10n.translate('after_photo_label'),
+          isUploading: _isUploading && _currentStep == 3,
+          onPickPhoto: () => _pickAndUploadPhoto(false),
+          onPhotosChanged: (urls) async {
+            setState(() => _afterPhotoUrls = urls);
+            await ref.read(jobOperationsProvider.notifier).updateJobPhotos(
+              widget.job.id,
+              afterUrls: urls,
+            );
+          },
+        ),
         isActive: _currentStep >= 3,
         state: _currentStep > 3 ? StepState.complete : StepState.indexed,
       ),

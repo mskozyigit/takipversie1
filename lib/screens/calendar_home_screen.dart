@@ -154,12 +154,19 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _ViewChip(label: l10n.translate('calendar_today'), selected: false, onTap: () => setState(() { _focusedDay = DateTime.now(); _selectedDay = _focusedDay; })),
-                    const Spacer(),
-                    IconButton(icon: const Icon(Icons.chevron_left, size: 22), visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 36, minHeight: 36), onPressed: () => setState(() => _focusedDay = _focusedDay.subtract(Duration(days: _viewMode == 3 ? 3 : _viewMode == 1 ? 7 : 1))), style: IconButton.styleFrom(foregroundColor: context.appExt.textSecondary)),
+                    _NavButton(
+                      icon: Icons.chevron_left,
+                      onTap: () => setState(() => _focusedDay = _focusedDay.subtract(Duration(days: _viewMode == 3 ? 3 : _viewMode == 1 ? 7 : 1))),
+                    ),
+                    const SizedBox(width: 12),
                     Text(_formatDateRange(), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14, fontWeight: FontWeight.w600)),
-                    IconButton(icon: const Icon(Icons.chevron_right, size: 22), visualDensity: VisualDensity.compact, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 36, minHeight: 36), onPressed: () => setState(() => _focusedDay = _focusedDay.add(Duration(days: _viewMode == 3 ? 3 : _viewMode == 1 ? 7 : 1))), style: IconButton.styleFrom(foregroundColor: context.appExt.textSecondary)),
+                    const SizedBox(width: 12),
+                    _NavButton(
+                      icon: Icons.chevron_right,
+                      onTap: () => setState(() => _focusedDay = _focusedDay.add(Duration(days: _viewMode == 3 ? 3 : _viewMode == 1 ? 7 : 1))),
+                    ),
                   ],
                 ),
               ),
@@ -168,8 +175,9 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _ViewChip(label: l10n.translate('view_1day'), selected: _viewMode == 0, onTap: () => setState(() => _viewMode = 0)),
+                    _ViewChip(label: l10n.translate('calendar_today'), selected: false, onTap: () => setState(() { _focusedDay = DateTime.now(); _selectedDay = _focusedDay; _viewMode = 0; })),
                     const SizedBox(width: 8),
                     _ViewChip(label: l10n.translate('view_3day'), selected: _viewMode == 3, onTap: () => setState(() => _viewMode = 3)),
                     const SizedBox(width: 8),
@@ -243,13 +251,30 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 44),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF4FC3F7) : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label, style: TextStyle(color: selected ? const Color(0xFF0D1B2A) : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  Widget _NavButton({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: context.appExt.textSecondary, size: 22),
       ),
     );
   }

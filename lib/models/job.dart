@@ -13,6 +13,7 @@ class Job {
   final String missionNumber;
   final String title;
   final String description;
+  final String? description2;
   final List<String> descriptionBlocks;
   final List<String> attachedImages;
   final String? customerId;
@@ -23,8 +24,8 @@ class Job {
   final String? customerPhone;
   final DateTime scheduledDate;
   final JobStatus status;
-  final String? beforePhotoUrl;
-  final String? afterPhotoUrl;
+  final List<String> beforePhotoUrls;
+  final List<String> afterPhotoUrls;
   final List<Map<String, dynamic>>? usedParts;
   final String? paymentMethod; // 'qr' or 'cash'
   final bool isPaid;
@@ -34,6 +35,7 @@ class Job {
   final Map<String, bool>? safetyChecklist;
   final double? fee;
   final int durationHours;
+  final List<String> checklistNotes;
 
   const Job({
     required this.id,
@@ -41,6 +43,7 @@ class Job {
     required this.missionNumber,
     required this.title,
     required this.description,
+    this.description2,
     this.descriptionBlocks = const [],
     this.attachedImages = const [],
     this.customerId,
@@ -52,8 +55,8 @@ class Job {
     required this.scheduledDate,
     required this.status,
     required this.createdDate,
-    this.beforePhotoUrl,
-    this.afterPhotoUrl,
+    this.beforePhotoUrls = const [],
+    this.afterPhotoUrls = const [],
     this.usedParts,
     this.paymentMethod,
     this.isPaid = false,
@@ -62,6 +65,7 @@ class Job {
     this.safetyChecklist,
     this.fee,
     this.durationHours = 2,
+    this.checklistNotes = const [],
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -72,6 +76,7 @@ class Job {
       missionNumber: data['missionNumber'] as String? ?? '',
       title: data['title'] as String,
       description: data['description'] as String,
+      description2: data['description2'] as String?,
       descriptionBlocks: List<String>.from(data['descriptionBlocks'] ?? []),
       attachedImages: List<String>.from(data['attachedImages'] ?? []),
       customerId: data['customerId'] as String?,
@@ -83,8 +88,8 @@ class Job {
       scheduledDate: (data['scheduledDate'] as Timestamp).toDate(),
       status: _parseStatus(data['status'] as String),
       createdDate: (data['createdDate'] as Timestamp).toDate(),
-      beforePhotoUrl: data['beforePhotoUrl'] as String?,
-      afterPhotoUrl: data['afterPhotoUrl'] as String?,
+      beforePhotoUrls: _parsePhotoList(data, 'beforePhotoUrls', 'beforePhotoUrl'),
+      afterPhotoUrls: _parsePhotoList(data, 'afterPhotoUrls', 'afterPhotoUrl'),
       usedParts: (data['usedParts'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList(),
       paymentMethod: data['paymentMethod'] as String?,
       isPaid: data['isPaid'] as bool? ?? false,
@@ -93,6 +98,7 @@ class Job {
       safetyChecklist: data['safetyChecklist'] != null ? Map<String, bool>.from(data['safetyChecklist']) : null,
       fee: (data['fee'] as num?)?.toDouble(),
       durationHours: data['durationHours'] as int? ?? 2,
+      checklistNotes: List<String>.from(data['checklistNotes'] ?? []),
     );
   }
 
@@ -102,6 +108,7 @@ class Job {
       'missionNumber': missionNumber,
       'title': title,
       'description': description,
+      'description2': description2,
       'descriptionBlocks': descriptionBlocks,
       'attachedImages': attachedImages,
       'customerId': customerId,
@@ -113,8 +120,8 @@ class Job {
       'scheduledDate': Timestamp.fromDate(scheduledDate),
       'status': status.name,
       'createdDate': Timestamp.fromDate(createdDate),
-      'beforePhotoUrl': beforePhotoUrl,
-      'afterPhotoUrl': afterPhotoUrl,
+      'beforePhotoUrls': beforePhotoUrls,
+      'afterPhotoUrls': afterPhotoUrls,
       'usedParts': usedParts,
       'paymentMethod': paymentMethod,
       'isPaid': isPaid,
@@ -123,7 +130,21 @@ class Job {
       'safetyChecklist': safetyChecklist,
       'fee': fee,
       'durationHours': durationHours,
+      'checklistNotes': checklistNotes,
     };
+  }
+
+  static List<String> _parsePhotoList(Map<String, dynamic> data, String listKey, String singleKey) {
+    // Önce yeni liste formatını dene
+    if (data[listKey] != null) {
+      return List<String>.from(data[listKey] as List);
+    }
+    // Eski tekli formatı listeye çevir (geriye dönük uyumluluk)
+    final single = data[singleKey] as String?;
+    if (single != null && single.isNotEmpty) {
+      return [single];
+    }
+    return [];
   }
 
   static JobStatus _parseStatus(String value) {
@@ -136,6 +157,7 @@ class Job {
   Job copyWith({
     String? title,
     String? description,
+    String? description2,
     String? assignedWorkerId,
     String? assignedWorkerName,
     String? address,
@@ -143,17 +165,19 @@ class Job {
     String? customerPhone,
     DateTime? scheduledDate,
     JobStatus? status,
-    String? beforePhotoUrl,
-    String? afterPhotoUrl,
+    List<String>? beforePhotoUrls,
+    List<String>? afterPhotoUrls,
     List<Map<String, dynamic>>? usedParts,
     String? paymentMethod,
     bool? isPaid,
+    List<String>? checklistNotes,
   }) {
     return Job(
       id: id,
       organizationId: organizationId,
       title: title ?? this.title,
       description: description ?? this.description,
+      description2: description2 ?? this.description2,
       assignedWorkerId: assignedWorkerId ?? this.assignedWorkerId,
       assignedWorkerName: assignedWorkerName ?? this.assignedWorkerName,
       address: address ?? this.address,
@@ -162,9 +186,10 @@ class Job {
       scheduledDate: scheduledDate ?? this.scheduledDate,
       status: status ?? this.status,
       createdDate: createdDate,
+      checklistNotes: checklistNotes ?? this.checklistNotes,
       missionNumber: missionNumber,
-      beforePhotoUrl: beforePhotoUrl ?? this.beforePhotoUrl,
-      afterPhotoUrl: afterPhotoUrl ?? this.afterPhotoUrl,
+      beforePhotoUrls: beforePhotoUrls ?? this.beforePhotoUrls,
+      afterPhotoUrls: afterPhotoUrls ?? this.afterPhotoUrls,
       usedParts: usedParts ?? this.usedParts,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       isPaid: isPaid ?? this.isPaid,
