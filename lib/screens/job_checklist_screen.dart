@@ -138,7 +138,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
   }
 
   Future<void> _deletePhoto(bool isBefore, int index) async {
-    final urls = isBefore ? List.from(_beforePhotoUrls) : List.from(_afterPhotoUrls);
+    final urls = List<String>.from(isBefore ? _beforePhotoUrls : _afterPhotoUrls);
     urls.removeAt(index);
     setState(() {
       if (isBefore) {

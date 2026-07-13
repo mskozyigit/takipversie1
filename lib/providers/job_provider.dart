@@ -5,6 +5,7 @@ import '../models/job_template.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
 import 'auth_provider.dart';
+import 'module_provider.dart';
 
 import '../models/audit_log.dart';
 import '../models/comment.dart';
@@ -458,8 +459,12 @@ class JobNotifier extends Notifier<void> {
     }
   }
 
-  // ADM-03 Helper
+  // ADM-03 Helper — only writes if ADM-03 audit log module is enabled
   Future<void> _logAction(String jobId, String type, {Map<String, dynamic>? metadata}) async {
+    // Skip logging if audit module is disabled (saves Firestore space)
+    final registry = ref.read(moduleRegistryProvider);
+    if (!(registry['ADM-03'] ?? false)) return;
+
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
