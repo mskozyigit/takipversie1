@@ -230,7 +230,34 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             _InfoRow(label: l10n.translate('status_label'), value: l10n.translate('job_status_${job.status.name}'), icon: Icons.info_outline, color: _getStatusColor(job.status)),
             const SizedBox(height: 12),
 
-            // Date & Time
+            // 2. 👤 Müşteri Adı
+            _DetailCard(
+              title: l10n.translate('job_customer_name'),
+              value: job.customerName ?? '-',
+              icon: Icons.person_outline,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+
+            // 3. 📞 Telefon
+            _DetailCard(
+              title: l10n.translate('job_customer_phone'),
+              value: job.customerPhone ?? '-',
+              icon: Icons.phone_outlined,
+              onTap: job.customerPhone != null && job.customerPhone!.isNotEmpty ? () => _makeCall(job.customerPhone!) : null,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+
+            // 4. 📍 Adres
+            _DetailCard(
+              title: l10n.translate('job_address'),
+              value: job.address,
+              icon: Icons.location_on_outlined,
+              onTap: () => _launchMaps(job.address),
+              isLink: true,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+
+            // 5. 📅 Tarih & 6. 🕐 Saat
             _InfoRow(
               label: l10n.translate('job_date'),
               value: '${l10n.translate('date_format_short', {'day': '${job.scheduledDate.day}', 'month': '${job.scheduledDate.month}', 'year': '${job.scheduledDate.year}'})}  ${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')}',
@@ -239,16 +266,23 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Worker: Customer info on top
-            if (!isAdmin) ...[
-              _DetailCard(title: l10n.translate('job_customer_name'), value: job.customerName ?? '-', icon: Icons.person_outline),
-              _DetailCard(title: l10n.translate('job_customer_phone'), value: job.customerPhone ?? '-', icon: Icons.phone_outlined, onTap: job.customerPhone != null ? () => _makeCall(job.customerPhone!) : null),
-              _DetailCard(title: l10n.translate('job_address'), value: job.address, icon: Icons.location_on_outlined, onTap: () => _launchMaps(job.address), isLink: true),
-              const SizedBox(height: 8),
-            ],
+            // 7. ⏱ Süre
+            _DetailCard(
+              title: l10n.translate('duration_label'),
+              value: l10n.translate('template_desc_duration_hours', {'hours': '${job.durationHours}'}),
+              icon: Icons.timelapse,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
 
-            // Job Title & Description
-            _DetailCard(title: l10n.translate('job_title'), value: job.title, icon: Icons.work_outline, onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null),
+            // 8. 📝 İş Başlığı
+            _DetailCard(
+              title: l10n.translate('job_title'),
+              value: job.title,
+              icon: Icons.work_outline,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+
+            // 9. 📄 Açıklama
             _DetailCard(
               title: l10n.translate('job_description'),
               value: job.description,
@@ -259,7 +293,21 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             if (job.description2 != null && job.description2!.isNotEmpty)
               _DetailCard(title: l10n.translate('job_description2_label'), value: job.description2!, icon: Icons.edit_note, onTap: !isAdmin ? _showDescription2Dialog : null),
 
-            // Fee — worker can edit, admin sees read-only
+            // 10. 👷 Personel
+            _DetailCard(
+              title: l10n.translate('job_assignee'),
+              value: job.assignedWorkerName,
+              icon: Icons.person,
+              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+            ),
+
+            // 11. 🗺 Mesafe / 💰 Ücret
+            if (job.estimatedTravelTime != null)
+              _DetailCard(
+                title: l10n.translate('log_travel_estimate'),
+                value: '${job.estimatedTravelTime!.inMinutes} ${l10n.translate('log_minutes')}',
+                icon: Icons.map,
+              ),
             _DetailCard(
               title: l10n.translate('job_fee_label'),
               value: job.fee != null ? '${job.fee!.toStringAsFixed(0)} €' : '-',
@@ -342,14 +390,6 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                   children: job.afterPhotoUrls.map((url) => _PhotoThumb(url: url)).toList(),
                 ),
               ],
-            ],
-
-            // Admin: Customer info below
-            if (isAdmin) ...[
-              const SizedBox(height: 8),
-              _DetailCard(title: l10n.translate('job_customer_name'), value: job.customerName ?? '-', icon: Icons.person_outline, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
-              _DetailCard(title: l10n.translate('job_customer_phone'), value: job.customerPhone ?? '-', icon: Icons.phone_outlined, onTap: job.customerPhone != null ? () => _makeCall(job.customerPhone!) : null, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
-              _DetailCard(title: l10n.translate('job_address'), value: job.address, icon: Icons.location_on_outlined, onTap: () => _launchMaps(job.address), isLink: true, onEdit: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)))),
             ],
 
             const SizedBox(height: 32),
