@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,21 +22,12 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // 2. Redirect sonucunu işle (web için signInWithRedirect dönüşü)
-    if (kIsWeb) {
-      try {
-        await FirebaseAuth.instance.getRedirectResult();
-      } catch (_) {
-        // Redirect olmamış olabilir, sessizce devam et
-      }
-    }
-
-    // 3. Google Sign-In Başlatma (Version 7.0+ require initialize)
+    // 2. Google Sign-In Başlatma (Version 7.0+ require initialize)
     if (!kIsWeb) {
       await GoogleSignIn.instance.initialize();
     }
 
-    // 4. Offline-First Yapılandırması (Section 5)
+    // 3. Offline-First Yapılandırması (Section 5)
     if (!kIsWeb) {
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: true,
@@ -50,7 +40,7 @@ void main() async {
     }
   }
 
-  // 5. Riverpod ProviderScope ile sarmalama
+  // 4. Riverpod ProviderScope ile sarmalama
   runApp(const ProviderScope(child: FieldServiceApp()));
 }
 
