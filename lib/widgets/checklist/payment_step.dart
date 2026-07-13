@@ -78,77 +78,93 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
         Row(
           children: [
             if (widget.org?.paymentQrUrl != null)
-              ElevatedButton(
-                onPressed: (_qrSelected || _cashSelected) ? null : () async {
-                  setState(() => _qrSelected = true);
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: Theme.of(ctx).colorScheme.surface,
-                      title: Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Colors.white)),
-                      content: Text(l10n.translate('payment_qr_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
-                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('job_payment_received'), style: const TextStyle(color: Colors.green))),
-                      ],
-                    ),
-                  );
-                  if (confirm == true) {
-                    await ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'qr');
+              _PaymentButton(
+                label: l10n.translate('job_payment_qr'),
+                selected: _qrSelected,
+                isPrimary: true,
+                onToggle: () {
+                  if (_qrSelected) {
+                    setState(() => _qrSelected = false);
                     widget.onPaymentRecorded?.call();
                   } else {
-                    setState(() => _qrSelected = false);
+                    setState(() {
+                      _qrSelected = true;
+                      _cashSelected = false;
+                    });
+                    ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'qr');
+                    widget.onPaymentRecorded?.call();
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _qrSelected ? Colors.green : const Color(0xFF4FC3F7),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_qrSelected) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.check, color: Color(0xFF0D1B2A), size: 18)),
-                    Text(l10n.translate('job_payment_qr'), style: const TextStyle(color: Color(0xFF0D1B2A))),
-                  ],
-                ),
               ),
             if (widget.org?.paymentQrUrl != null) const SizedBox(width: 12),
-            OutlinedButton(
-              onPressed: (_qrSelected || _cashSelected) ? null : () async {
-                setState(() => _cashSelected = true);
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: Theme.of(ctx).colorScheme.surface,
-                    title: Text(l10n.translate('job_payment_cash'), style: const TextStyle(color: Colors.white)),
-                      content: Text(l10n.translate('payment_cash_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
-                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('payment_method_cash'), style: const TextStyle(color: Colors.green))),
-                    ],
-                  ),
-                );
-                if (confirm == true) {
-                  await ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'cash');
+            _PaymentButton(
+              label: l10n.translate('job_payment_cash'),
+              selected: _cashSelected,
+              isPrimary: false,
+              onToggle: () {
+                if (_cashSelected) {
+                  setState(() => _cashSelected = false);
                   widget.onPaymentRecorded?.call();
                 } else {
-                  setState(() => _cashSelected = false);
+                  setState(() {
+                    _cashSelected = true;
+                    _qrSelected = false;
+                  });
+                  ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'cash');
+                  widget.onPaymentRecorded?.call();
                 }
               },
-              style: OutlinedButton.styleFrom(
-                backgroundColor: _cashSelected ? Colors.green.withOpacity(0.2) : null,
-                side: BorderSide(color: _cashSelected ? Colors.green : Theme.of(context).colorScheme.secondary, width: _cashSelected ? 2 : 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_cashSelected) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.check, color: Colors.green, size: 18)),
-                  Text(l10n.translate('job_payment_cash'), style: TextStyle(color: _cashSelected ? Colors.green : Theme.of(context).colorScheme.secondary)),
-                ],
-              ),
             ),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _PaymentButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool isPrimary;
+  final VoidCallback onToggle;
+
+  const _PaymentButton({
+    required this.label,
+    required this.selected,
+    required this.isPrimary,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isPrimary) {
+      return ElevatedButton(
+        onPressed: onToggle,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: selected ? Colors.green : const Color(0xFF4FC3F7),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.check, color: Color(0xFF0D1B2A), size: 18)),
+            Text(label, style: const TextStyle(color: Color(0xFF0D1B2A))),
+          ],
+        ),
+      );
+    }
+    return OutlinedButton(
+      onPressed: onToggle,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: selected ? Colors.green.withOpacity(0.2) : null,
+        side: BorderSide(color: selected ? Colors.green : Theme.of(context).colorScheme.secondary, width: selected ? 2 : 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (selected) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.check, color: Colors.green, size: 18)),
+          Text(label, style: TextStyle(color: selected ? Colors.green : Theme.of(context).colorScheme.secondary)),
+        ],
+      ),
     );
   }
 }
