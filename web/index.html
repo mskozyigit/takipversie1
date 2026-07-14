@@ -205,8 +205,10 @@
 
       // Yeni SW aktivasyonunu dinle
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(function(reg) {
-          // Sayfa yüklenirken zaten bekleyen bir SW var mı kontrol et
+        navigator.serviceWorker.getRegistration('/takipversie1/').then(function(reg) {
+          if (!reg) return;
+
+          // Zaten bekleyen bir SW var mı?
           if (reg.waiting) {
             showUpdateBanner();
           }
@@ -216,7 +218,7 @@
             var newWorker = reg.installing;
             if (!newWorker) return;
             newWorker.addEventListener('statechange', function() {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (newWorker.state === 'installed') {
                 showUpdateBanner();
               }
             });
@@ -233,14 +235,14 @@
 
       // Yenile butonu: önce waiting SW'ye skipWaiting gönder, sonra sayfayı yenile
       reloadBtn.addEventListener('click', function() {
-        navigator.serviceWorker.getRegistration().then(function(reg) {
+        navigator.serviceWorker.getRegistration('/takipversie1/').then(function(reg) {
           if (reg && reg.waiting) {
             reg.waiting.postMessage({type: 'SKIP_WAITING'});
           }
           // SW'nin aktive olması için kısa bir süre bekle, sonra reload
           setTimeout(function() {
             window.location.reload();
-          }, 300);
+          }, 500);
         }).catch(function() {
           // getRegistration başarısız olursa direkt reload
           window.location.reload();

@@ -4,7 +4,7 @@
 // - Cache-first strategy for static assets, network-only for Firestore
 
 // Cache version — bump this on each deploy to force cache refresh
-const CACHE_NAME = 'takipversie1-v4';
+const CACHE_NAME = 'takipversie1-v5';
 
 // Static assets to pre-cache on install (mobile-first strategy)
 const PRECACHE_URLS = [
@@ -102,7 +102,9 @@ self.addEventListener('install', (event) => {
           console.warn('[SW] Failed to cache:', url, err);
         }))
       );
-    }).then(() => self.skipWaiting())
+    })
+    // NOT: skipWaiting() burada çağrılmaz.
+    // Kullanıcı "Yenile" butonuna tıklayana kadar yeni SW bekler.
   );
 });
 
