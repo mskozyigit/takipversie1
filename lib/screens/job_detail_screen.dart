@@ -344,14 +344,31 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               icon: Icons.description_outlined,
               onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
             ),
-            // Worker ek açıklaması — her zaman görünür, boşsa ekleme butonu
-            if (!isAdmin)
-              _DetailCard(
-                title: l10n.translate('job_description2_label'),
-                value: (job.description2 != null && job.description2!.isNotEmpty) ? job.description2! : l10n.translate('job_description2_add'),
-                icon: (job.description2 != null && job.description2!.isNotEmpty) ? Icons.edit_note : Icons.add_comment_outlined,
-                onTap: _showDescription2Dialog,
-              ),
+            // Worker ek açıklaması — açıklamanın hemen altında
+            if (!isAdmin) ...[
+              if (job.description2 != null && job.description2!.isNotEmpty)
+                _DetailCard(
+                  title: l10n.translate('job_description2_label'),
+                  value: job.description2!,
+                  icon: Icons.edit_note,
+                  onTap: _showDescription2Dialog,
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: OutlinedButton.icon(
+                    onPressed: _showDescription2Dialog,
+                    icon: const Icon(Icons.add_comment_outlined, size: 18),
+                    label: Text(l10n.translate('job_description2_add')),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4FC3F7),
+                      side: const BorderSide(color: Color(0xFF4FC3F7), width: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+            ],
 
             // 10. 👷 Personel
             _DetailCard(
