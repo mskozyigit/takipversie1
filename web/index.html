@@ -203,20 +203,15 @@
         updateBanner.style.display = 'block';
       }
 
-      // Yeni SW aktivasyonunu dinle
+      // Yeni SW aktivasyonunu dinle (sadece oturum sırasındaki güncellemeler)
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(function(reg) {
-          // Halihazırda bekleyen bir SW varsa
-          if (reg.waiting) {
-            showUpdateBanner();
-          }
-
+          // updatefound: oturum sırasında yeni SW bulunduğunda tetiklenir
           reg.addEventListener('updatefound', function() {
             var newWorker = reg.installing;
             if (!newWorker) return;
             newWorker.addEventListener('statechange', function() {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // Yeni sürüm indirildi, kullanıcıya bildir
                 showUpdateBanner();
               }
             });
