@@ -203,9 +203,14 @@
         updateBanner.style.display = 'block';
       }
 
-      // Yeni SW aktivasyonunu dinle (sadece oturum sırasındaki güncellemeler)
+      // Yeni SW aktivasyonunu dinle
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(function(reg) {
+          // Sayfa yüklenirken zaten bekleyen bir SW var mı kontrol et
+          if (reg.waiting) {
+            showUpdateBanner();
+          }
+
           // updatefound: oturum sırasında yeni SW bulunduğunda tetiklenir
           reg.addEventListener('updatefound', function() {
             var newWorker = reg.installing;
@@ -226,10 +231,20 @@
         });
       }
 
-      // Yenile butonu: sayfayı yeniden yükle
+      // Yenile butonu: önce waiting SW'ye skipWaiting gönder, sonra sayfayı yenile
       reloadBtn.addEventListener('click', function() {
-        // SW zaten skipWaiting yaptı, sadece sayfayı yenile
-        window.location.reload();
+        navigator.serviceWorker.getRegistration().then(function(reg) {
+          if (reg && reg.waiting) {
+            reg.waiting.postMessage({type: 'SKIP_WAITING'});
+          }
+          // SW'nin aktive olması için kısa bir süre bekle, sonra reload
+          setTimeout(function() {
+            window.location.reload();
+          }, 300);
+        }).catch(function() {
+          // getRegistration başarısız olursa direkt reload
+          window.location.reload();
+        });
       });
     })();
   </script>
