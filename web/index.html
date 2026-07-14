@@ -231,20 +231,10 @@
         });
       }
 
-      // Yenile butonu: sayfayı yeniden yükle (SW zaten skipWaiting ile aktif)
+      // Yenile butonu: sayfayı yeniden yükle
       reloadBtn.addEventListener('click', function() {
-        // Önce tüm eski cache'leri temizle, sonra yeniden yükle
-        if ('caches' in window) {
-          caches.keys().then(function(keys) {
-            return Promise.all(keys.map(function(key) {
-              return caches.delete(key);
-            }));
-          }).then(function() {
-            window.location.reload();
-          });
-        } else {
-          window.location.reload();
-        }
+        // SW zaten skipWaiting yaptı, sadece sayfayı yenile
+        window.location.reload();
       });
     })();
   </script>
