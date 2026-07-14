@@ -10,6 +10,7 @@ class AdminAnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final analyticsAsync = ref.watch(analyticsProvider);
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
 
@@ -20,7 +21,8 @@ class AdminAnalyticsScreen extends ConsumerWidget {
         title: Text(l10n.translate('analytics_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
-      body: analyticsAsync.when(
+      body: SafeArea(
+        child: analyticsAsync.when(
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
         data: (data) => SingleChildScrollView(
@@ -84,12 +86,13 @@ class AdminAnalyticsScreen extends ConsumerWidget {
               Text(l10n.translate('analytics_per_worker'), style: TextStyle(color: context.cs.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
               if (data.perWorker.isEmpty)
-                Text(l10n.translate('analytics_no_data'), style: const TextStyle(color: Color(0xFF90A4AE)))
+                Text(l10n.translate('analytics_no_data'), style: TextStyle(color: context.appExt.textSecondary))
               else
                 ...data.perWorker.map((w) => _WorkerCard(stats: w)),
             ],
           ),
         ),
+      ),
       ),
     );
   }

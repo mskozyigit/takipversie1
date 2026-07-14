@@ -4,7 +4,26 @@
 // - Cache-first strategy for static assets, network-only for Firestore
 
 // Cache version — bump this on each deploy to force cache refresh
-const CACHE_NAME = 'takipversie1-v2';
+const CACHE_NAME = 'takipversie1-v3';
+
+// Static assets to pre-cache on install (mobile-first strategy)
+const PRECACHE_URLS = [
+  '/takipversie1/',
+  '/takipversie1/index.html',
+  '/takipversie1/main.dart.js',
+  '/takipversie1/flutter_bootstrap.js',
+  '/takipversie1/flutter.js',
+  '/takipversie1/manifest.json',
+  '/takipversie1/favicon.png',
+  '/takipversie1/version.json',
+  // Icons (PWA install + notifications)
+  '/takipversie1/icons/Icon-192.png',
+  '/takipversie1/icons/Icon-512.png',
+  '/takipversie1/icons/Icon-maskable-192.png',
+  '/takipversie1/icons/Icon-maskable-512.png',
+  // Default language file (first-load critical path)
+  '/takipversie1/assets/lang/tr.json',
+];
 
 // --- FCM Setup ---
 try {
@@ -25,10 +44,51 @@ if (typeof firebase !== 'undefined') {
   });
 
   const messaging = firebase.messaging();
+
+  // -------------------------------------------------------------------
+  // FCM Background Message Handler (Android 16 Heads-up Ready)
+  //
+  // Android 16 + Samsung OneUI / Xiaomi cihazlarda push bildirimlerinin
+  // "heads-up" (pop-up) olarak görünmesi için SUNUCU TARAFINDA da
+  // aşağıdaki FCM payload yapısı kullanılmalıdır:
+  //
+  // {
+  //   "message": {
+  //     "token": "...",
+  //     "notification": { "title": "...", "body": "..." },
+  //     "android": {
+  //       "priority": "high",
+  //       "notification": {
+  //         "channel_id": "default",
+  //         "priority": "high",
+  //         "visibility": "public",
+  //         "notification_priority": "PRIORITY_HIGH"
+  //       }
+  //     },
+  //     "webpush": {
+  //       "headers": { "Urgency": "high" }
+  //     }
+  //   }
+  // }
+  // -------------------------------------------------------------------
+
   messaging.onBackgroundMessage((payload) => {
-    self.registration.showNotification(payload.notification.title, {
-      body: payload.notification.body,
+    const title = payload.notification?.title || 'Yeni Bildirim';
+    const body = payload.notification?.body || '';
+    const jobId = payload.data?.jobId || 'general';
+    const tag = payload.data?.tag || jobId;
+
+    self.registration.showNotification(title, {
+      body: body,
       icon: '/takipversie1/icons/Icon-192.png',
+      badge: '/takipversie1/icons/Icon-192.png',
+      tag: tag,
+      requireInteraction: true,
+      renotify: true,
+      vibrate: [200, 100, 200],
+      data: payload.data || {},
+      timestamp: Date.now(),
+      silent: false,
     });
   });
 }
@@ -37,18 +97,22 @@ if (typeof firebase !== 'undefined') {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return Promise.allSettled([
-        '/takipversie1/',
-        '/takipversie1/main.dart.js',
-        '/takipversie1/flutter_bootstrap.js',
-        '/takipversie1/manifest.json',
-        '/takipversie1/icons/Icon-192.png',
-        '/takipversie1/icons/Icon-512.png',
-      ].map(url => cache.add(url).catch(err => {
-        console.warn('[SW] Failed to cache:', url, err);
-      })));
+      return Promise.allSettled(
+        PRECACHE_URLS.map(url => cache.add(url).catch(err => {
+          console.warn('[SW] Failed to cache:', url, err);
+        }))
+      );
     }).then(() => self.skipWaiting())
   );
+});
+
+// --- Message Handler: SKIP_WAITING ---
+// Flutter/web tarafından gönderilen SKIP_WAITING mesajını dinle.
+// Yeni SW'yi hemen aktive eder ve tüm client'lara UPDATE_READY bildirir.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {

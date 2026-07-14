@@ -1,16 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/auth_provider.dart';
+import '../models/app_user.dart';
 import '../theme/app_theme.dart';
+import 'calendar_home_screen.dart';
+
+/// Kullanıcının kendi Firestore belgesini dinleyen provider.
+/// Admin onaylayınca approvalStatus 'approved' olur → UI yönlenir.
+final _pendingUserProvider =
+    StreamProvider.family<AppUser?, String>((ref, uid) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .snapshots()
+      .map((doc) => doc.exists ? AppUser.fromFirestore(doc) : null);
+});
 
 class PendingScreen extends ConsumerWidget {
   const PendingScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
 
-    return Scaffold(
+    // Auto-redirect: admin onaylayınca Firestore'daki approvalStatus
+    // 'approved' olur. authStateChanges bunu tetiklemez — doğrudan
+    // kullanıcının Firestore belgesini dinleyerek yakalarız.
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final userDocAsync = ref.watch(_pendingUserProvider(uid));
+      ref.listen(_pendingUserProvider(uid), (prev, next) {
+        final user = next.value;
+        if (user != null && user.approvalStatus == ApprovalStatus.approved) {
+          Future.microtask(() {
+            if (context.mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const CalendarHomeScreen()),
+              );
+            }
+          });
+        }
+      });
+    }
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -38,8 +83,8 @@ class PendingScreen extends ConsumerWidget {
               Text(
                 l10n.translate('pending_subtitle'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF90A4AE),
+                style: TextStyle(
+                  color: context.appExt.textSecondary,
                   fontSize: 15,
                   height: 1.6,
                 ),
@@ -75,7 +120,7 @@ class PendingScreen extends ConsumerWidget {
               OutlinedButton.icon(
                 onPressed: () => ref.read(authProvider.notifier).signOut(),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF90A4AE),
+                  foregroundColor: context.appExt.textSecondary,
                   side: const BorderSide(color: Color(0xFF37474F)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -88,8 +133,7 @@ class PendingScreen extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
+      ),      ),    );
   }
 }
 

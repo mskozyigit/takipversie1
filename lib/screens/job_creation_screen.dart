@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
+import '../providers/connectivity_provider.dart';
+import '../providers/offline_queue_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
 import '../models/job_template.dart';
@@ -135,7 +138,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               style: const TextStyle(color: Colors.white), 
               decoration: InputDecoration(
                 labelText: l10n.translate('customer_phone_label'), 
-                labelStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                labelStyle: TextStyle(color: context.appExt.textSecondary),
                 prefixIcon: const Icon(Icons.phone, color: Color(0xFF4FC3F7)),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
@@ -149,7 +152,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               style: const TextStyle(color: Colors.white), 
               decoration: InputDecoration(
                 labelText: l10n.translate('customer_address_label'), 
-                labelStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                labelStyle: TextStyle(color: context.appExt.textSecondary),
                 prefixIcon: const Icon(Icons.location_on, color: Color(0xFF4FC3F7)),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
@@ -164,7 +167,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               _customerDialogShown = false;
               Navigator.pop(ctx);
             }, 
-            child: Text(l10n.translate('button_skip'), style: const TextStyle(color: Color(0xFF90A4AE))),
+            child: Text(l10n.translate('button_skip'), style: TextStyle(color: context.appExt.textSecondary)),
           ),
           ElevatedButton.icon(
             onPressed: () async {
@@ -214,7 +217,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: l10n.translate('customer_name_label'),
-                labelStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                labelStyle: TextStyle(color: context.appExt.textSecondary),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
                 border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none),
@@ -226,7 +229,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: l10n.translate('customer_phone_label'),
-                labelStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                labelStyle: TextStyle(color: context.appExt.textSecondary),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
                 border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none),
@@ -238,7 +241,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: l10n.translate('customer_address_label'),
-                labelStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                labelStyle: TextStyle(color: context.appExt.textSecondary),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
                 border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)), borderSide: BorderSide.none),
@@ -332,24 +335,59 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         }
       }
       
-      await ref.read(jobOperationsProvider.notifier).createJob(
-            title: _titleController.text.trim(),
-            description: _descController.text.trim(),
-            descriptionBlocks: descBlocks,
-            attachedImages: attachedImages,
-            assignedWorkerId: _selectedWorker?.id ?? 'unassigned',
-            assignedWorkerName: _selectedWorker?.name ?? l10n.translate('unassigned'),
-            address: _addressController.text.trim(),
-            customerName: _customerNameController.text.trim(),
-            customerPhone: _customerPhoneController.text.trim(),
-            customerId: _selectedCustomer?.id,
-            scheduledDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute),
-            distanceKm: distance,
-            fee: fee,
-            durationHours: _durationHours,
-            missionNumber: _missionNumberController.text.trim().isEmpty ? null : _missionNumberController.text.trim(),
+      final isOnline = ref.read(connectivityProvider);
+
+      if (isOnline) {
+        await ref.read(jobOperationsProvider.notifier).createJob(
+              title: _titleController.text.trim(),
+              description: _descController.text.trim(),
+              descriptionBlocks: descBlocks,
+              attachedImages: attachedImages,
+              assignedWorkerId: _selectedWorker?.id ?? 'unassigned',
+              assignedWorkerName: _selectedWorker?.name ?? l10n.translate('unassigned'),
+              address: _addressController.text.trim(),
+              customerName: _customerNameController.text.trim(),
+              customerPhone: _customerPhoneController.text.trim(),
+              customerId: _selectedCustomer?.id,
+              scheduledDate: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute),
+              distanceKm: distance,
+              fee: fee,
+              durationHours: _durationHours,
+              missionNumber: _missionNumberController.text.trim().isEmpty ? null : _missionNumberController.text.trim(),
+            );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.translate('job_created_success')), backgroundColor: Colors.green, duration: const Duration(seconds: 2)),
           );
-      if (mounted) Navigator.pop(context);
+          Navigator.pop(context);
+        }
+      } else {
+        // Çevrimdışı: kuyruğa ekle
+        await ref.read(offlineQueueProvider.notifier).enqueue({
+          'type': 'createJob',
+          'data': {
+            'title': _titleController.text.trim(),
+            'description': _descController.text.trim(),
+            'assignedWorkerId': _selectedWorker?.id ?? 'unassigned',
+            'assignedWorkerName': _selectedWorker?.name ?? l10n.translate('unassigned'),
+            'address': _addressController.text.trim(),
+            'customerName': _customerNameController.text.trim(),
+            'customerPhone': _customerPhoneController.text.trim(),
+            'scheduledDate': DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, _selectedTime.hour, _selectedTime.minute).toIso8601String(),
+            'missionNumber': _missionNumberController.text.trim().isEmpty ? null : _missionNumberController.text.trim(),
+            'distanceKm': distance,
+            'fee': fee,
+            'durationHours': _durationHours,
+            'descriptionBlocks': descBlocks,
+          },
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.translate('job_queued_offline')), backgroundColor: Colors.orange, duration: const Duration(seconds: 3)),
+          );
+          Navigator.pop(context);
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -361,14 +399,65 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     }
   }
 
+  /// Returns true if the user has entered any data into the form.
+  bool _hasUnsavedChanges() {
+    if (_titleController.text.trim().isNotEmpty) return true;
+    if (_descController.text.trim().isNotEmpty) return true;
+    if (_addressController.text.trim().isNotEmpty) return true;
+    if (_customerNameController.text.trim().isNotEmpty) return true;
+    if (_customerPhoneController.text.trim().isNotEmpty) return true;
+    if (_distanceController.text.trim().isNotEmpty) return true;
+    if (_feeController.text.trim().isNotEmpty) return true;
+    if (_missionNumberController.text.trim().isNotEmpty) return true;
+    if (_extraDescControllers.any((c) => c.text.trim().isNotEmpty)) return true;
+    if (_selectedWorker != null) return true;
+    if (_selectedCustomer != null) return true;
+    if (_showFeeField) return true;
+    if (_durationHours != 2) return true;
+    if (_paymentQrUrl != null) return true;
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final workersAsync = ref.watch(organizationWorkersProvider);
     final customersAsync = ref.watch(customersProvider);
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          if (_hasUnsavedChanges()) {
+            final shouldPop = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: Theme.of(ctx).colorScheme.surface,
+                title: Text(l10n.translate('exit_unsaved_title'), style: const TextStyle(color: Colors.white)),
+                content: Text(l10n.translate('exit_unsaved_message'), style: TextStyle(color: context.appExt.textSecondary)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(l10n.translate('button_cancel')),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(l10n.translate('button_ok'), style: const TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+            if (shouldPop == true && context.mounted) {
+              Navigator.pop(context);
+            }
+          } else {
+            if (context.mounted) Navigator.pop(context);
+          }
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(l10n.translate('job_create_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary,
@@ -493,7 +582,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                 decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
                 child: Row(children: [
                   const Icon(Icons.timelapse, color: Color(0xFF4FC3F7)), const SizedBox(width: 12),
-                  Text(l10n.translate('duration_label'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)), const SizedBox(width: 8),
+                  Text(l10n.translate('duration_label'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)), const SizedBox(width: 8),
                   DropdownButton<int>(value: _durationHours, dropdownColor: Theme.of(context).colorScheme.surface, style: const TextStyle(color: Colors.white, fontSize: 16), underline: const SizedBox(),
                     items: List.generate(8, (i) => i + 1).map((h) => DropdownMenuItem(value: h, child: Text(l10n.translate('template_desc_duration_hours', {'hours': '$h'}), style: const TextStyle(color: Colors.white)))).toList(),
                     onChanged: (v) => setState(() => _durationHours = v ?? 2),
@@ -511,7 +600,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
               const SizedBox(height: 12),
 
               // 10. 👷 Personel (opsiyonel)
-              Text(l10n.translate('job_assignee'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text(l10n.translate('job_assignee'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
               const SizedBox(height: 8),
               workersAsync.when(
                 data: (workers) => Container(
@@ -585,6 +674,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       ),
           ),
       ),
+    ),
     );
   }
 
@@ -655,7 +745,7 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
           children: [
             Text(l10n.translate('template_select_title'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(l10n.translate('template_select_subtitle'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+            Text(l10n.translate('template_select_subtitle'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)),
             const SizedBox(height: 16),
             ...templates.map((t) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -683,11 +773,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                           children: [
                             Text(t.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 2),
-                            Text(_describeTemplateFields(t), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                            Text(_describeTemplateFields(t), style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, color: Color(0xFF546E7A), size: 14),
+                      Icon(Icons.arrow_forward_ios, color: context.appExt.textTertiary, size: 14),
                     ],
                   ),
                 ),
@@ -807,7 +897,7 @@ class _ImagePreviewBlock extends ConsumerWidget {
                     children: [
                       const Icon(Icons.broken_image, color: Colors.red, size: 32),
                       const SizedBox(height: 4),
-                      Text(l10n.translate('image_load_error'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                      Text(l10n.translate('image_load_error'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
                     ],
                   ),
                 ),
@@ -820,7 +910,7 @@ class _ImagePreviewBlock extends ConsumerWidget {
               children: [
                 const Icon(Icons.image, color: Color(0xFF4FC3F7), size: 16),
                 const SizedBox(width: 4),
-                Expanded(child: Text(l10n.translate('image_added'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12))),
+                Expanded(child: Text(l10n.translate('image_added'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12))),
                 InkWell(
                   onTap: onRemove,
                   child: const Padding(
@@ -857,7 +947,7 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: Text(l10n.translate('photo_add_title'), style: const TextStyle(color: Colors.white)),
-        content: Text(l10n.translate('photo_add_source'), style: const TextStyle(color: Color(0xFF90A4AE))),
+        content: Text(l10n.translate('photo_add_source'), style: TextStyle(color: context.appExt.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, ImageSource.gallery),

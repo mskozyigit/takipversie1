@@ -28,8 +28,8 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: Text(l10n.translate('delete_job_title'), style: const TextStyle(color: Colors.white)),
-        content: Text(l10n.translate('delete_job_confirm', {'title': job.title}), style: const TextStyle(color: Color(0xFF90A4AE))),
+        title: Text(l10n.translate('delete_job_title'), style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
+        content: Text(l10n.translate('delete_job_confirm', {'title': job.title}), style: TextStyle(color: context.appExt.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('button_delete'), style: const TextStyle(color: Colors.red))),
@@ -60,18 +60,18 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: Text(l10n.translate('job_description2_title'), style: const TextStyle(color: Colors.white)),
+        title: Text(l10n.translate('job_description2_title'), style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
         content: TextField(
           controller: controller,
           maxLines: 4,
           minLines: 2,
           autofocus: true,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface),
           decoration: InputDecoration(
             hintText: l10n.translate('job_description2_hint'),
-            hintStyle: const TextStyle(color: Color(0xFF546E7A)),
+            hintStyle: TextStyle(color: context.appExt.textTertiary),
             filled: true,
-            fillColor: const Color(0xFF0D1B2A),
+            fillColor: Theme.of(ctx).colorScheme.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF37474F)),
@@ -89,7 +89,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.translate('button_cancel'), style: const TextStyle(color: Color(0xFF90A4AE))),
+            child: Text(l10n.translate('button_cancel'), style: TextStyle(color: context.appExt.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
@@ -123,7 +123,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: Text(l10n.translate('job_fee_edit_title'), style: const TextStyle(color: Colors.white)),
+        title: Text(l10n.translate('job_fee_edit_title'), style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
@@ -131,11 +131,11 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
           style: const TextStyle(color: Colors.white, fontSize: 18),
           decoration: InputDecoration(
             hintText: '0',
-            hintStyle: const TextStyle(color: Color(0xFF546E7A)),
+            hintStyle: TextStyle(color: context.appExt.textTertiary),
             prefixIcon: const Padding(padding: EdgeInsets.only(left: 12, right: 4), child: Icon(Icons.attach_money, color: Color(0xFF4CAF50), size: 22)),
             prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             filled: true,
-            fillColor: const Color(0xFF0D1B2A),
+            fillColor: Theme.of(ctx).colorScheme.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFF37474F)),
@@ -153,7 +153,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.translate('button_cancel'), style: const TextStyle(color: Color(0xFF90A4AE))),
+            child: Text(l10n.translate('button_cancel'), style: TextStyle(color: context.appExt.textSecondary)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
@@ -183,6 +183,55 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
     }
   }
 
+  Future<void> _showDurationEditDialog() async {
+    final l10n = ref.read(translationProvider.notifier);
+    final controller = TextEditingController(text: '${widget.job.durationHours}');
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        title: Text(l10n.translate('duration_label'), style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface)),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          autofocus: true,
+          style: TextStyle(color: Theme.of(ctx).colorScheme.onSurface, fontSize: 18),
+          decoration: InputDecoration(
+            hintText: l10n.translate('duration_hint'),
+            hintStyle: TextStyle(color: context.appExt.textTertiary),
+            suffixText: ' ${l10n.translate('log_hours')}',
+            filled: true,
+            fillColor: Theme.of(ctx).colorScheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.translate('button_cancel'), style: TextStyle(color: context.appExt.textSecondary))),
+          TextButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: Text(l10n.translate('button_save'), style: const TextStyle(color: Color(0xFF4FC3F7)))),
+        ],
+      ),
+    );
+    if (result != null && mounted) {
+      final hours = int.tryParse(result);
+      if (hours != null && hours > 0) {
+        try {
+          await ref.read(jobOperationsProvider.notifier).updateDuration(widget.job.id, hours);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.translate('job_duration_updated')), backgroundColor: const Color(0xFF4CAF50)),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.translate('generic_error', {'error': '$e'})), backgroundColor: Colors.red),
+            );
+          }
+        }
+      }
+    }
+  }
+
   Future<void> _makeCall(String phone) async {
     // Sanitize: strip non-numeric and limit length to prevent injection
     final sanitized = phone.replaceAll(RegExp(r'[^\d+]'), '');
@@ -196,9 +245,14 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider).value;
-    final isAdmin = authState is ApprovedAdmin;
+    final isActuallyAdmin = authState is ApprovedAdmin;
+    final viewAsWorker = ref.watch(viewAsWorkerProvider);
+    final isAdmin = isActuallyAdmin && !viewAsWorker;
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
+    // Canlı job verisi — Firestore güncellenince anında yansır
+    final job = ref.watch(jobByIdProvider(widget.job.id)).value ?? widget.job;
 
     return Scaffold(
       appBar: AppBar(
@@ -271,6 +325,7 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               title: l10n.translate('duration_label'),
               value: l10n.translate('template_desc_duration_hours', {'hours': '${job.durationHours}'}),
               icon: Icons.timelapse,
+              onTap: !isAdmin ? _showDurationEditDialog : null,
               onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
             ),
 
@@ -287,11 +342,16 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               title: l10n.translate('job_description'),
               value: job.description,
               icon: Icons.description_outlined,
-              onTap: !isAdmin ? _showDescription2Dialog : null,
               onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
             ),
-            if (job.description2 != null && job.description2!.isNotEmpty)
-              _DetailCard(title: l10n.translate('job_description2_label'), value: job.description2!, icon: Icons.edit_note, onTap: !isAdmin ? _showDescription2Dialog : null),
+            // Worker ek açıklaması — her zaman görünür, boşsa ekleme butonu
+            if (!isAdmin)
+              _DetailCard(
+                title: l10n.translate('job_description2_label'),
+                value: (job.description2 != null && job.description2!.isNotEmpty) ? job.description2! : l10n.translate('job_description2_add'),
+                icon: (job.description2 != null && job.description2!.isNotEmpty) ? Icons.edit_note : Icons.add_comment_outlined,
+                onTap: _showDescription2Dialog,
+              ),
 
             // 10. 👷 Personel
             _DetailCard(
@@ -310,8 +370,10 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               ),
             _DetailCard(
               title: l10n.translate('job_fee_label'),
-              value: job.fee != null ? '${job.fee!.toStringAsFixed(0)} €' : '-',
-              icon: Icons.euro,
+              value: job.fee != null 
+                ? '${job.fee!.toStringAsFixed(0)} €${isAdmin && job.feeEnteredBy == 1 ? '  👷' : ''}' 
+                : (!isAdmin ? l10n.translate('job_fee_add') : '-'),
+              icon: job.fee != null ? Icons.euro : (!isAdmin ? Icons.add_circle_outline : Icons.euro),
               onTap: !isAdmin ? _showFeeEditDialog : null,
               onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
             ),
@@ -333,9 +395,9 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.notes, color: Color(0xFF90A4AE), size: 16),
+                    Icon(Icons.notes, color: context.appExt.textSecondary, size: 16),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(note, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13))),
+                    Expanded(child: Text(note, style: TextStyle(color: context.appExt.textSecondary, fontSize: 13))),
                   ],
                 ),
               )),
@@ -596,7 +658,7 @@ class _PhotoPreview extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12)),
+        Text(label, style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
       ],
     );
   }
@@ -630,7 +692,7 @@ class _DescriptionImagePreview extends ConsumerWidget {
                     children: [
                       const Icon(Icons.broken_image, color: Colors.red, size: 32),
                       const SizedBox(height: 4),
-                      Text(l10n.translate('image_load_error'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11)),
+                      Text(l10n.translate('image_load_error'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
                     ],
                   ),
                 ),

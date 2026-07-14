@@ -43,6 +43,17 @@ class AppThemeExt extends ThemeExtension<AppThemeExt> {
     statusClosed: Color(0xFF4CAF50), // Green 500
   );
 
+  /// Varsayılan açık tema renkleri
+  static const defaultLight = AppThemeExt(
+    cardColor: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFF757575),
+    textTertiary: Color(0xFF9E9E9E),
+    statusNotStarted: Color(0xFF9E9E9E), // Grey 500
+    statusInProgress: Color(0xFFFF9800), // Orange 500
+    statusWorkCompleted: Color(0xFF1565C0), // Blue 700
+    statusClosed: Color(0xFF4CAF50), // Green 500
+  );
+
   /// Verilen JobStatus için doğru rengi döndürür (tek kaynak!).
   Color statusColor(JobStatus status) {
     switch (status) {
@@ -102,9 +113,17 @@ class AppThemeExt extends ThemeExtension<AppThemeExt> {
 // -----------------------------------------------------------------------
 
 extension AppThemeContext on BuildContext {
-  /// Uygulama tema extension'ına kısa erişim
-  AppThemeExt get appExt =>
-      Theme.of(this).extension<AppThemeExt>() ?? AppThemeExt.defaultDark;
+  /// Uygulama tema extension'ına kısa erişim.
+  /// Sistem temasına göre otomatik olarak dark/light varyantı döner.
+  AppThemeExt get appExt {
+    final ext = Theme.of(this).extension<AppThemeExt>();
+    if (ext != null) return ext;
+    // Fallback: sistem parlaklığına göre uygun temayı döndür
+    final brightness = Theme.of(this).brightness;
+    return brightness == Brightness.dark
+        ? AppThemeExt.defaultDark
+        : AppThemeExt.defaultLight;
+  }
 
   /// ColorScheme'e kısa erişim
   ColorScheme get cs => Theme.of(this).colorScheme;

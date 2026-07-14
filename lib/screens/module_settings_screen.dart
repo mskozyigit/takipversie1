@@ -11,6 +11,7 @@ class ModuleSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final registry = ref.watch(moduleRegistryProvider);
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
 
@@ -19,7 +20,8 @@ class ModuleSettingsScreen extends ConsumerWidget {
         title: Text(l10n.translate('admin_modules_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           Expanded(
             child: ListView.builder(
@@ -35,7 +37,7 @@ class ModuleSettingsScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: SwitchListTile(
                     title: Text(module.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text(module.description, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12)),
+                    subtitle: Text(module.description, style: TextStyle(color: context.appExt.textSecondary, fontSize: 12)),
                     value: isEnabled,
                     onChanged: module.isCore ? null : (val) {
                       ref.read(moduleOperationsProvider.notifier).toggleModule(module.id, val);
@@ -65,6 +67,7 @@ class ModuleSettingsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

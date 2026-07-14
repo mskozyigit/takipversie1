@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/web_safe_image.dart';
@@ -11,6 +12,7 @@ class LoginScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authAsync = ref.watch(authProvider);
     final isLoading = authAsync.isLoading;
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
 
     // Hata mesajı varsa göster
@@ -22,7 +24,14 @@ class LoginScreen extends ConsumerWidget {
       }
     });
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -108,8 +117,7 @@ class LoginScreen extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
+      ),      ),    );
   }
 }
 

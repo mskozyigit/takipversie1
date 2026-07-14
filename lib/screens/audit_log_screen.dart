@@ -12,6 +12,7 @@ class AuditLogScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auditLogsAsync = ref.watch(auditLogProvider(jobId));
     final branding = ref.watch(brandingProvider);
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
@@ -19,24 +20,32 @@ class AuditLogScreen extends ConsumerWidget {
         title: Text(l10n.translate('audit_log_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
-      body: auditLogsAsync.when(
+      body: SafeArea(
+        child: auditLogsAsync.when(
         data: (logs) => logs.isEmpty
-            ? Center(child: Text(l10n.translate('audit_log_empty'), style: const TextStyle(color: Color(0xFF90A4AE))))
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.history_toggle_off, size: 48, color: context.appExt.textTertiary),
+                    const SizedBox(height: 12),
+                    Text(l10n.translate('audit_log_empty'), style: TextStyle(color: context.appExt.textSecondary)),
+                  ],
+                ),
+              )
             : RepaintBoundary(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
                 itemCount: logs.length,
                 itemBuilder: (context, i) {
                   final log = logs[i];
-                  return Container(
+                  return Card(
+                    color: Theme.of(context).colorScheme.surface,
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    ),
-                    child: Column(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
@@ -45,7 +54,7 @@ class AuditLogScreen extends ConsumerWidget {
                             const Spacer(),
                             Text(
                               '${log.timestamp.day}/${log.timestamp.month} ${log.timestamp.hour}:${log.timestamp.minute}',
-                              style: const TextStyle(color: Color(0xFF546E7A), fontSize: 12),
+                              style: TextStyle(color: context.appExt.textTertiary, fontSize: 12),
                             ),
                           ],
                         ),
@@ -55,17 +64,19 @@ class AuditLogScreen extends ConsumerWidget {
                           const SizedBox(height: 4),
                           Text(
                             log.metadata.toString(),
-                            style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 11, fontStyle: FontStyle.italic),
+                            style: TextStyle(color: context.appExt.textSecondary, fontSize: 11, fontStyle: FontStyle.italic),
                           ),
                         ],
                       ],
+                    ),
                     ),
                   );
                 },
               ),
             ),
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
-        error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}))),
+        error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
+      ),
       ),
     );
   }

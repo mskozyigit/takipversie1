@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
@@ -28,6 +29,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
   Widget build(BuildContext context) {
     final pendingUsersAsync = ref.watch(pendingUsersProvider);
     final orgAsync = ref.watch(currentOrganizationProvider);
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
     final currentLang = ref.watch(translationProvider).value ?? 'tr';
@@ -37,11 +39,41 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
         title: Text('${l10n.translate('admin_panel_title')} — ${widget.adminUser.name}'),
         backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary,
         actions: [
-          // ADM-02: Language toggle
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: l10n.translate('module_settings_tooltip'),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.description_outlined),
+            tooltip: l10n.translate('template_tooltip'),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
+          ),
+          // ADM-02: Language toggle (Calendar ile aynı yapı)
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
             tooltip: l10n.translate('language_tooltip'),
-            onSelected: (lang) => ref.read(translationProvider.notifier).setLanguage(lang),
+            onSelected: (value) async {
+              if (value == 'logout') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: Theme.of(ctx).colorScheme.surface,
+                    title: Text(l10n.translate('logout'), style: const TextStyle(color: Colors.white)),
+                    content: Text(l10n.translate('logout_confirm'), style: TextStyle(color: context.appExt.textSecondary)),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('logout'), style: const TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  ref.read(authProvider.notifier).signOut();
+                }
+              } else {
+                ref.read(translationProvider.notifier).setLanguage(value);
+              }
+            },
             itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'tr',
@@ -64,42 +96,14 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                   if (currentLang == 'nl') const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.check, size: 16, color: Colors.green)),
                 ]),
               ),
+              const PopupMenuDivider(),
+              PopupMenuItem(value: 'logout', child: Text(l10n.translate('logout'))),
             ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_suggest_outlined),
-            tooltip: l10n.translate('module_settings_tooltip'),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModuleSettingsScreen())),
-          ),
-          IconButton(
-            icon: const Icon(Icons.description_outlined),
-            tooltip: l10n.translate('template_tooltip'),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l10n.translate('logout'),
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: Theme.of(ctx).colorScheme.surface,
-                  title: Text(l10n.translate('logout'), style: const TextStyle(color: Colors.white)),
-                  content: Text(l10n.translate('leave_org_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('logout'), style: const TextStyle(color: Colors.red))),
-                  ],
-                ),
-              );
-              if (confirm == true) {
-                ref.read(authProvider.notifier).signOut();
-              }
-            },
           ),
         ],
       ),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Organizasyon Bilgi Kartı
@@ -132,9 +136,16 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             child: pendingUsersAsync.when(
               data: (users) => users.isEmpty
                   ? Center(
-                      child: Text(
-                        l10n.translate('admin_no_pending'),
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.group_outlined, size: 48, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3)),
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.translate('admin_no_pending'),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+                          ),
+                        ],
                       ),
                     )
                   : RepaintBoundary(
@@ -156,6 +167,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                                     setState(() => _processingUserId = user.id);
                                     try {
                                       await ref.read(authProvider.notifier).updateUserStatus(user.id, ApprovalStatus.rejected);
+                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('worker_rejected')), backgroundColor: Colors.orange, duration: const Duration(seconds: 2)));
+                                    } catch (_) {
+                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('generic_error', {'error': 'Failed'})), backgroundColor: Colors.red));
                                     } finally {
                                       if (mounted) setState(() => _processingUserId = null);
                                     }
@@ -170,6 +184,9 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
                                     setState(() => _processingUserId = user.id);
                                     try {
                                       await ref.read(authProvider.notifier).updateUserStatus(user.id, ApprovalStatus.approved);
+                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('worker_approved')), backgroundColor: Colors.green, duration: const Duration(seconds: 2)));
+                                    } catch (_) {
+                                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('generic_error', {'error': 'Failed'})), backgroundColor: Colors.red));
                                     } finally {
                                       if (mounted) setState(() => _processingUserId = null);
                                     }
@@ -191,6 +208,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -297,6 +315,32 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     setState(() => _extraDescControllers.add(TextEditingController()));
   }
 
+  /// Returns true if the user has modified any field from the original job.
+  bool _hasUnsavedChanges() {
+    final j = widget.job;
+    if (_titleController.text.trim() != j.title) return true;
+    if (_descController.text.trim() != j.description) return true;
+    if (_addressController.text.trim() != j.address) return true;
+    if (_customerNameController.text.trim() != (j.customerName ?? '')) return true;
+    if (_customerPhoneController.text.trim() != (j.customerPhone ?? '')) return true;
+    if (_missionNumberController.text.trim() != j.missionNumber) return true;
+    if (_distanceController.text.trim().isNotEmpty) return true;
+    if (_feeController.text.trim() != (j.fee?.toStringAsFixed(0) ?? '')) return true;
+    if ((_selectedWorker?.id ?? 'unassigned') != j.assignedWorkerId) return true;
+    if (_durationHours != j.durationHours) return true;
+    if (_showFeeField != (j.fee != null)) return true;
+    final origDate = j.scheduledDate;
+    if (_selectedDate.day != origDate.day || _selectedDate.month != origDate.month || _selectedDate.year != origDate.year) return true;
+    if (_selectedTime.hour != origDate.hour || _selectedTime.minute != origDate.minute) return true;
+    final origBlocks = j.descriptionBlocks.where((b) => !b.startsWith('[RESIM]')).toList();
+    final currentBlocks = _extraDescControllers.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+    if (origBlocks.length != currentBlocks.length) return true;
+    for (int i = 0; i < origBlocks.length; i++) {
+      if (origBlocks[i] != currentBlocks[i]) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final workersAsync = ref.watch(organizationWorkersProvider);
@@ -310,7 +354,38 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
       }
     });
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          if (_hasUnsavedChanges()) {
+            final shouldPop = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: Theme.of(ctx).colorScheme.surface,
+                title: Text(l10n.translate('exit_unsaved_title'), style: const TextStyle(color: Colors.white)),
+                content: Text(l10n.translate('exit_unsaved_message'), style: TextStyle(color: context.appExt.textSecondary)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(l10n.translate('button_cancel')),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(l10n.translate('button_ok'), style: const TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+            if (shouldPop == true && context.mounted) {
+              Navigator.pop(context);
+            }
+          } else {
+            if (context.mounted) Navigator.pop(context);
+          }
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(title: Text(l10n.translate('job_edit_title')), backgroundColor: branding.useBranding ? branding.primaryColor : Theme.of(context).colorScheme.primary),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -377,7 +452,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                 decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12)),
                 child: Row(children: [
                   const Icon(Icons.timelapse, color: Color(0xFF4FC3F7)), const SizedBox(width: 12),
-                  Text(l10n.translate('duration_label'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)), const SizedBox(width: 8),
+                  Text(l10n.translate('duration_label'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)), const SizedBox(width: 8),
                   DropdownButton<int>(
                     value: _durationHours, dropdownColor: Theme.of(context).colorScheme.surface,
                     style: const TextStyle(color: Colors.white, fontSize: 16), underline: const SizedBox(),
@@ -397,7 +472,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
               const SizedBox(height: 12),
 
               // 10. Personel (opsiyonel)
-              Text(l10n.translate('job_assignee'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text(l10n.translate('job_assignee'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
               const SizedBox(height: 8),
               workersAsync.when(
                 data: (workers) => Container(
@@ -470,6 +545,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
         ),
       ),
       ),
+    ),
     );
   }
 
@@ -480,10 +556,10 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
       maxLines: maxLines,
       keyboardType: keyboardType,
       textInputAction: maxLines > 1 ? TextInputAction.newline : TextInputAction.next,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
+        labelStyle: TextStyle(color: context.appExt.textSecondary),
         prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.secondary),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surface,
@@ -549,7 +625,7 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
                       borderRadius: BorderRadius.circular(12),
                       child: WebSafeImage(url: widget.currentQrUrl!, fit: BoxFit.contain),
                     )
-                  : const Icon(Icons.qr_code, color: Color(0xFF546E7A), size: 32),
+                  : Icon(Icons.qr_code, color: context.appExt.textTertiary, size: 32),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -560,7 +636,7 @@ class _PaymentQrSectionState extends ConsumerState<_PaymentQrSection> {
                   const SizedBox(height: 4),
                   Text(
                     l10n.translate(widget.currentQrUrl != null ? 'qr_loaded' : 'qr_not_loaded'),
-                    style: TextStyle(color: widget.currentQrUrl != null ? Colors.green : const Color(0xFF90A4AE), fontSize: 12),
+                    style: TextStyle(color: widget.currentQrUrl != null ? Colors.green : context.appExt.textSecondary, fontSize: 12),
                   ),
                 ],
               ),

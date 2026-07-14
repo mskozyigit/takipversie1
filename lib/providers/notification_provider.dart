@@ -1,19 +1,43 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_provider.dart';
+
+final _auth = FirebaseAuth.instance;
 
 // -----------------------------------------------------------------------
 // Push Notification Provider (TEAM-02)
 // -----------------------------------------------------------------------
 
+/// Bildirime tıklandığında yönlendirilecek işin ID'sini tutar.
+/// UI tarafından watch edilir, değiştiğinde JobDetailScreen'e gidilir.
+class PendingJobIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? jobId) => state = jobId;
+  void clear() => state = null;
+}
+
+final pendingJobIdProvider = NotifierProvider<PendingJobIdNotifier, String?>(
+  () => PendingJobIdNotifier(),
+);
+
 class NotificationNotifier extends Notifier<bool> {
   bool _initialized = false;
+  StreamSubscription? _tokenSub;
+  StreamSubscription? _messageSub;
+  StreamSubscription? _messageOpenSub;
 
   @override
-  bool build() => _initialized;
+  bool build() {
+    // Provider dispose olduğunda listener'ları temizle
+    ref.onDispose(_cleanup);
+    return _initialized;
+  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -50,30 +74,52 @@ class NotificationNotifier extends Notifier<bool> {
       }
 
       // Listen for token refresh
-      messaging.onTokenRefresh.listen((newToken) async {
-        if (authState.appUser != null) {
-          await FirebaseFirestore.instance
+      _tokenSub = messaging.onTokenRefresh.listen((newToken) async {
+        final currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          final doc = await FirebaseFirestore.instance
               .collection('users')
-              .doc(authState.appUser!.id)
-              .update({'fcmToken': newToken});
+              .doc(currentUser.uid)
+              .get();
+          if (doc.exists) {
+            await doc.reference.update({'fcmToken': newToken});
+          }
         }
       });
 
-      // Foreground message handler
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        // Messages are also stored in Firestore (handled by inAppNotificationsProvider)
-        // This callback can trigger local UI updates if needed
+      // Foreground message handler — uygulama açıkken bildirim gelirse
+      _messageSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        final jobId = message.data['jobId'];
+        // pendingJobId'yi set et ki kullanıcı isterse tıklayıp gidebilsin
+        if (jobId != null && jobId.isNotEmpty) {
+          ref.read(pendingJobIdProvider.notifier).set(jobId);
+          // 3 saniye sonra temizle (yanlışlıkla geç yönlendirmeyi önle)
+          Future.delayed(const Duration(seconds: 3), () {
+            if (ref.read(pendingJobIdProvider) == jobId) {
+              ref.read(pendingJobIdProvider.notifier).clear();
+            }
+          });
+        }
       });
 
       // Handle notification tap when app is in background
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        // Navigate to job detail if jobId is present
+      _messageOpenSub = FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        final jobId = message.data['jobId'];
+        if (jobId != null && jobId.isNotEmpty) {
+          ref.read(pendingJobIdProvider.notifier).set(jobId);
+        }
       });
 
       // Handle notification that launched the app from terminated state
       final initialMessage = await messaging.getInitialMessage();
       if (initialMessage != null) {
-        // Handle initial message navigation
+        final jobId = initialMessage.data['jobId'];
+        if (jobId != null && jobId.isNotEmpty) {
+          // Uygulama yeni açıldığı için biraz bekle, sonra yönlendir
+          Future.delayed(const Duration(milliseconds: 800), () {
+            ref.read(pendingJobIdProvider.notifier).set(jobId);
+          });
+        }
       }
 
       _initialized = true;
@@ -85,6 +131,7 @@ class NotificationNotifier extends Notifier<bool> {
   }
 
   Future<void> disable() async {
+    _cleanup();
     final authState = ref.read(authProvider).value;
     if (authState?.appUser == null) return;
 
@@ -102,6 +149,15 @@ class NotificationNotifier extends Notifier<bool> {
 
     _initialized = false;
     state = false;
+  }
+
+  void _cleanup() {
+    _tokenSub?.cancel();
+    _messageSub?.cancel();
+    _messageOpenSub?.cancel();
+    _tokenSub = null;
+    _messageSub = null;
+    _messageOpenSub = null;
   }
 }
 

@@ -40,7 +40,20 @@
 
   <!-- Android/Chrome PWA meta tags -->
   <meta name="theme-color" content="#0D1B2A">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <!-- Safe-area CSS: çentikli ekranlarda (iPhone X+, Samsung Galaxy) içerik kesilmesini önler -->
+  <style>
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+    #update-banner {
+      padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    }
+  </style>
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
@@ -65,6 +78,56 @@
           crossorigin="anonymous"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"
           crossorigin="anonymous"></script>
+
+  <!-- ================================================================= -->
+  <!-- Permission Pre-check Helpers                                      -->
+  <!-- Bildirim ve kamera izin durumunu Flutter yüklenmeden önce kontrol   -->
+  <!-- eder. Sonuçlar window nesnesinde saklanır.                         -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      // Notification permission state
+      if ('Notification' in window) {
+        window._notificationPermission = Notification.permission;
+        // İzin değişikliklerini izle (Chrome'da permissions API varsa)
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({name: 'notifications'}).then(function(status) {
+            window._notificationPermission = status.state;
+            status.addEventListener('change', function() {
+              window._notificationPermission = this.state;
+            });
+          }).catch(function() { /* permissions API desteklenmiyor */ });
+        }
+      } else {
+        window._notificationPermission = 'denied';
+      }
+
+      // Camera permission state (if Permissions API available)
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name: 'camera'}).then(function(status) {
+          window._cameraPermission = status.state;
+          status.addEventListener('change', function() {
+            window._cameraPermission = this.state;
+          });
+        }).catch(function() {
+          window._cameraPermission = 'prompt';
+        });
+      } else {
+        window._cameraPermission = 'prompt';
+      }
+
+      // Helper: Flutter'dan erişilebilir permission kontrol fonksiyonu
+      window.checkPermission = function(name) {
+        if (name === 'notification' || name === 'notifications') {
+          return window._notificationPermission || 'prompt';
+        }
+        if (name === 'camera') {
+          return window._cameraPermission || 'prompt';
+        }
+        return 'prompt';
+      };
+    })();
+  </script>
 </head>
 <body>
   <!--
@@ -76,5 +139,245 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <!-- ================================================================= -->
+  <!-- Custom Service Worker Registration                                -->
+  <!-- Flutter'in deprecated SW'si yerine kendi SW'mizi kaydettirir.      -->
+  <!-- firebase-messaging-sw.js: cache + FCM + heads-up notifications.    -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      if (!('serviceWorker' in navigator)) return;
+
+      var swUrl = '/takipversie1/firebase-messaging-sw.js';
+
+      // Sayfa tamamen yüklendikten sonra SW'yi kaydet
+      // (flutter_bootstrap.js async olabilir, ondan sonra çalışmayı garantile)
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register(swUrl, {scope: '/takipversie1/'})
+          .then(function(reg) {
+            console.log('[SW] Custom SW registered:', reg.scope);
+
+            // Flutter'in deprecated SW'sini temizle
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              registrations.forEach(function(r) {
+                var scriptUrl = (r.active && r.active.scriptURL) || '';
+                if (scriptUrl.includes('flutter_service_worker')) {
+                  r.unregister().then(function(success) {
+                    if (success) console.log('[SW] Flutter deprecated SW unregistered');
+                  });
+                }
+              });
+            });
+          })
+          .catch(function(err) {
+            console.warn('[SW] Registration failed:', err);
+          });
+      });
+    })();
+  </script>
+
+  <!-- ================================================================= -->
+  <!-- Service Worker Update Notification Banner                       -->
+  <!-- Kullanıcıya yeni sürüm olduğunda "Yenile" butonu gösterir.       -->
+  <!-- ================================================================= -->
+  <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#1565C0;color:#fff;padding:12px 16px;font-family:Roboto,sans-serif;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+    <div style="display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto;">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">🔄</span>
+        <span>Yeni sürüm mevcut</span>
+      </span>
+      <button id="update-reload-btn" style="background:#fff;color:#1565C0;border:none;border-radius:6px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">Yenile</button>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var updateBanner = document.getElementById('update-banner');
+      var reloadBtn = document.getElementById('update-reload-btn');
+      var updateReady = false;
+
+      function showUpdateBanner() {
+        if (updateReady) return;
+        updateReady = true;
+        updateBanner.style.display = 'block';
+      }
+
+      // Yeni SW aktivasyonunu dinle
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(function(reg) {
+          // Halihazırda bekleyen bir SW varsa
+          if (reg.waiting) {
+            showUpdateBanner();
+          }
+
+          reg.addEventListener('updatefound', function() {
+            var newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', function() {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Yeni sürüm indirildi, kullanıcıya bildir
+                showUpdateBanner();
+              }
+            });
+          });
+        });
+
+        // SW'den gelen UPDATE_READY mesajını dinle
+        navigator.serviceWorker.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'UPDATE_READY') {
+            showUpdateBanner();
+          }
+        });
+      }
+
+      // Yenile butonu: waiting SW'ye SKIP_WAITING gönder ve sayfayı yenile
+      reloadBtn.addEventListener('click', function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(function(reg) {
+            if (reg.waiting) {
+              reg.waiting.postMessage({type: 'SKIP_WAITING'});
+            }
+            // SW aktivasyonundan sonra sayfayı yenile
+            setTimeout(function() { window.location.reload(); }, 1500);
+          });
+        } else {
+          window.location.reload();
+        }
+      });
+    })();
+  </script>
+
+  <!-- ================================================================= -->
+  <!-- A2HS Install Banner (PWA Kurulum İstemi)                         -->
+  <!-- beforeinstallprompt event'ini yakalar, kullanıcıya kurulum teklif  -->
+  <!-- eder. Sadece PWA kurulabilir olduğunda görünür.                    -->
+  <!-- ================================================================= -->
+  <div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#1A2A3A;color:#fff;padding:14px 16px;font-family:Roboto,sans-serif;font-size:14px;box-shadow:0 -2px 8px rgba(0,0,0,0.4);">
+    <div style="display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto;">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📲</span>
+        <span>Uygulamayı ana ekrana ekle</span>
+      </span>
+      <div style="display:flex;gap:8px;">
+        <button id="install-dismiss-btn" style="background:transparent;color:#90A4AE;border:1px solid #546E7A;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;">Sonra</button>
+        <button id="install-accept-btn" style="background:#1565C0;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">Kur</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var installBanner = document.getElementById('install-banner');
+      var acceptBtn = document.getElementById('install-accept-btn');
+      var dismissBtn = document.getElementById('install-dismiss-btn');
+      var deferredPrompt = null;
+
+      // beforeinstallprompt event'ini yakala
+      window.addEventListener('beforeinstallprompt', function(e) {
+        // Tarayıcının varsayılan mini info-bar'ını engelle
+        e.preventDefault();
+        // Event'i sakla, sonra kullan
+        deferredPrompt = e;
+        // Özel kurulum banner'ını göster
+        installBanner.style.display = 'block';
+      });
+
+      // Kurulum başarılı olduğunda banner'ı gizle
+      window.addEventListener('appinstalled', function() {
+        installBanner.style.display = 'none';
+        deferredPrompt = null;
+        console.log('PWA başarıyla kuruldu.');
+      });
+
+      // Kur butonu
+      acceptBtn.addEventListener('click', function() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(result) {
+          console.log('Kullanıcı seçimi:', result.outcome);
+          deferredPrompt = null;
+          installBanner.style.display = 'none';
+        });
+      });
+
+      // Sonra butonu
+      dismissBtn.addEventListener('click', function() {
+        installBanner.style.display = 'none';
+      });
+    })();
+  </script>
+
+  <!-- ================================================================= -->
+  <!-- Performance Metrics Observer (FCP / LCP / TTI)                    -->
+  <!-- Düşük donanımlı cihazlarda performans regresyonunu izlemek için.   -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      if (!('PerformanceObserver' in window)) return;
+
+      try {
+        // First Contentful Paint
+        var fcpObserver = new PerformanceObserver(function(list) {
+          var entries = list.getEntries();
+          if (entries.length > 0) {
+            var fcp = entries[entries.length - 1];
+            console.log('[Perf] FCP:', (fcp.startTime / 1000).toFixed(2) + 's');
+          }
+        });
+        fcpObserver.observe({type: 'paint', buffered: true});
+
+        // Largest Contentful Paint
+        var lcpObserver = new PerformanceObserver(function(list) {
+          var entries = list.getEntries();
+          if (entries.length > 0) {
+            var lcp = entries[entries.length - 1];
+            console.log('[Perf] LCP:', (lcp.startTime / 1000).toFixed(2) + 's');
+          }
+        });
+        lcpObserver.observe({type: 'largest-contentful-paint', buffered: true});
+
+        // Time to Interactive (yaklaşık: 5 saniyelik sessiz pencereden sonra)
+        var ttiTimeout;
+        var lastLongTask = performance.now();
+        var longTaskObserver = new PerformanceObserver(function(list) {
+          var entries = list.getEntries();
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].duration > 50) {
+              lastLongTask = Math.max(lastLongTask, entries[i].startTime + entries[i].duration);
+            }
+          }
+          clearTimeout(ttiTimeout);
+          ttiTimeout = setTimeout(function() {
+            var tti = lastLongTask;
+            if (tti > 0) {
+              console.log('[Perf] TTI:', (tti / 1000).toFixed(2) + 's');
+            }
+          }, 5000);
+        });
+        longTaskObserver.observe({type: 'longtask', buffered: true});
+
+        // Toplam yükleme süresi
+        window.addEventListener('load', function() {
+          var timing = performance.getEntriesByType('navigation')[0];
+          if (timing) {
+            console.log('[Perf] Page Load:', (timing.loadEventEnd / 1000).toFixed(2) + 's');
+            console.log('[Perf] DOM Ready:', (timing.domContentLoadedEventEnd / 1000).toFixed(2) + 's');
+          }
+        });
+
+        // Bellek kullanımı (Chrome only)
+        if (performance.memory) {
+          setInterval(function() {
+            var mem = performance.memory;
+            console.log('[Perf] JS Heap:', (mem.usedJSHeapSize / 1048576).toFixed(1) + 'MB /',
+                        (mem.totalJSHeapSize / 1048576).toFixed(1) + 'MB');
+          }, 30000); // Her 30 saniyede bir log
+        }
+      } catch (e) {
+        console.warn('[Perf] Metrics observer failed:', e);
+      }
+    })();
+  </script>
 </body>
 </html>

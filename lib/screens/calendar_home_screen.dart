@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/job.dart';
 import 'job_creation_screen.dart';
 import 'job_detail_screen.dart';
+import 'worker_profile_screen.dart';
 import 'admin_dashboard.dart';
 import 'admin_analytics_screen.dart';
 import 'module_settings_screen.dart';
 import 'job_template_screen.dart';
 import '../providers/module_provider.dart';
 import '../widgets/calendar/time_grid_view.dart';
+import '../widgets/connectivity_banner.dart';
+import '../providers/notification_provider.dart';
 import '../theme/app_theme.dart';
 
 class CalendarHomeScreen extends ConsumerStatefulWidget {
@@ -25,6 +29,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   DateTime? _selectedDay;
   int _viewMode = 1; // 0: 1-Day, 1: Week, 2: Month, 3: 3-Day Agenda
   String? _selectedWorkerId; // CAL-03
+  JobStatus? _statusFilter; // null = tümü
 
   @override
   void initState() {
@@ -35,18 +40,69 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider).value;
-    final isAdmin = authState is ApprovedAdmin;
+    final isActuallyAdmin = authState is ApprovedAdmin;
+    // Admin "işçi görünümü" moduna geçebilir
+    final viewAsWorker = ref.watch(viewAsWorkerProvider);
+    final isAdmin = isActuallyAdmin && !viewAsWorker;
     final branding = ref.watch(brandingProvider);
     
     // Admin ise tüm işleri, Worker ise sadece kendine atananları izle (Aylık bazlı)
     final jobsAsync = isAdmin 
       ? ref.watch(allJobsProvider(_focusedDay)) 
       : ref.watch(workerJobsProvider(_focusedDay));
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
 
-    return Scaffold(
+    // --- Bildirim yönlendirme: pendingJobId değişince JobDetailScreen'e git ---
+    ref.listen<String?>(pendingJobIdProvider, (prev, next) {
+      if (next == null || next.isEmpty) return;
+      // Job'ı Firestore'dan çek ve yönlendir
+      ref.read(jobByIdProvider(next).future).then((job) {
+        if (job != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => JobDetailScreen(job: job)),
+          );
+        }
+        // Yönlendirme sonrası temizle
+        ref.read(pendingJobIdProvider.notifier).clear();
+      });
+    });
+
+    // --- Okunmamış bildirim sayısı (rozet için) ---
+    final unreadNotifications = ref.watch(inAppNotificationsProvider).value ?? [];
+    final unreadCount = unreadNotifications.length;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          final shouldExit = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: Theme.of(ctx).colorScheme.surface,
+              title: Text(l10n.translate('exit_app_title'), style: const TextStyle(color: Colors.white)),
+              content: Text(l10n.translate('exit_app_message'), style: TextStyle(color: context.appExt.textSecondary)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text(l10n.translate('button_cancel')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(l10n.translate('button_ok'), style: const TextStyle(color: Colors.red)),
+                ),
+              ],
+            ),
+          );
+          if (shouldExit == true && context.mounted) {
+            SystemNavigator.pop();
+          }
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
-        title: Text(isAdmin ? l10n.translate('admin_panel_title') : l10n.translate('worker_panel_title'), style: const TextStyle(fontSize: 16)),
+        title: Text(isAdmin ? l10n.translate('admin_panel_title') : l10n.translate('worker_panel_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : (isAdmin ? const Color(0xFF1565C0) : const Color(0xFF0D47A1)),
         actions: [
           if (isAdmin) ...[
@@ -74,6 +130,51 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               ),
             ),
           ],
+          // --- Admin: İşçi görünümüne geç / çık ---
+          if (isActuallyAdmin)
+            IconButton(
+              icon: Icon(viewAsWorker ? Icons.visibility_off : Icons.visibility),
+              tooltip: viewAsWorker ? 'Admin görünümüne dön' : 'İşçi görünümünü dene',
+              onPressed: () => ref.read(viewAsWorkerProvider.notifier).toggle(),
+            ),
+          // --- Worker menü butonu (profil + ayarlar) ---
+          if (!isAdmin)
+            IconButton(
+              icon: const Icon(Icons.person_outline),
+              tooltip: l10n.translate('worker_menu_tooltip'),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const WorkerProfileScreen())),
+            ),
+          // --- Bildirim çanı (okunmamış rozeti ile) ---
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: l10n.translate('notifications_tooltip'),
+                onPressed: () {
+                  _showNotificationsSheet(context, unreadNotifications, l10n);
+                },
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.language),
             tooltip: l10n.translate('language_tooltip'),
@@ -86,7 +187,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   builder: (ctx) => AlertDialog(
                     backgroundColor: Theme.of(ctx).colorScheme.surface,
                     title: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.white)),
-                    content: Text(l10n.translate('leave_org_confirm'), style: const TextStyle(color: Color(0xFF90A4AE))),
+                    content: Text(l10n.translate('leave_org_confirm'), style: TextStyle(color: context.appExt.textSecondary)),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
                       TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('leave_org'), style: const TextStyle(color: Colors.red))),
@@ -132,14 +233,47 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        bottom: true,
-        child: jobsAsync.when(
+      body: Column(
+        children: [
+          const ConnectivityBanner(),
+          // Admin işçi görünümünde geziyorsa uyarı banner'ı
+          if (isActuallyAdmin && viewAsWorker)
+            Material(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.amber.shade800,
+                child: SafeArea(
+                  bottom: false,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.preview, size: 18, color: Colors.white),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text('👷 İşçi görünümündesiniz', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      ),
+                      TextButton(
+                        onPressed: () => ref.read(viewAsWorkerProvider.notifier).toggle(),
+                        child: const Text('Çık', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Expanded(
+            child: SafeArea(
+              bottom: true,
+              top: false,
+              child: jobsAsync.when(
         data: (jobs) {
-          // CAL-03: Apply worker filter
-          final filteredJobs = _selectedWorkerId == null 
+          // CAL-03: Apply worker filter + status filter
+          var filteredJobs = _selectedWorkerId == null 
             ? jobs 
             : jobs.where((j) => j.assignedWorkerId == _selectedWorkerId).toList();
+          if (_statusFilter != null) {
+            filteredJobs = filteredJobs.where((j) => j.status == _statusFilter).toList();
+          }
 
           return Column(
             children: [
@@ -149,6 +283,45 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   selectedWorkerId: _selectedWorkerId,
                   onChanged: (val) => setState(() => _selectedWorkerId = val),
                 ),
+
+              // --- Durum Filtre Chip'leri ---
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: l10n.translate('filter_all'),
+                      selected: _statusFilter == null,
+                      onTap: () => setState(() => _statusFilter = null),
+                    ),
+                    _FilterChip(
+                      label: l10n.translate('filter_not_started'),
+                      selected: _statusFilter == JobStatus.notStarted,
+                      color: context.appExt.statusNotStarted,
+                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.notStarted ? null : JobStatus.notStarted),
+                    ),
+                    _FilterChip(
+                      label: l10n.translate('filter_in_progress'),
+                      selected: _statusFilter == JobStatus.inProgress,
+                      color: context.appExt.statusInProgress,
+                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.inProgress ? null : JobStatus.inProgress),
+                    ),
+                    _FilterChip(
+                      label: l10n.translate('filter_completed'),
+                      selected: _statusFilter == JobStatus.workCompleted,
+                      color: context.appExt.statusWorkCompleted,
+                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.workCompleted ? null : JobStatus.workCompleted),
+                    ),
+                    _FilterChip(
+                      label: l10n.translate('filter_closed'),
+                      selected: _statusFilter == JobStatus.closed,
+                      color: context.appExt.statusClosed,
+                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.closed ? null : JobStatus.closed),
+                    ),
+                  ],
+                ),
+              ),
 
               // Tarih Navigasyonu
               Padding(
@@ -188,7 +361,18 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
 
               // Zaman Bazlı Grid Takvim
               Expanded(
-                child: RepaintBoundary(
+                child: filteredJobs.isEmpty && jobs.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.event_busy_outlined, size: 48, color: context.appExt.textTertiary),
+                            const SizedBox(height: 12),
+                            Text(l10n.translate('no_jobs_yet'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
+                          ],
+                        ),
+                      )
+                    : RepaintBoundary(
                   child: TimeGridView(
                   jobs: isAdmin && _selectedWorkerId != null
                       ? filteredJobs
@@ -205,8 +389,11 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
         },
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
-      ),
-      ),
+      ),  // jobsAsync.when
+      ),  // SafeArea
+      ),  // Expanded
+    ],  // Column children
+    ),  // Column
       floatingActionButton: isAdmin
           ? Semantics(
               label: l10n.translate('job_create_title'),
@@ -219,6 +406,7 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               ),
             )
           : null,
+    ),
     );
   }
 
@@ -231,6 +419,66 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
             : _focusedDay;
     if (_viewMode == 0 || _viewMode == 2) return fmt(_focusedDay);
     return '${fmt(_focusedDay)} - ${fmt(end)}';
+  }
+
+  /// Okunmamış bildirimleri alt sheet olarak gösterir.
+  /// Bir bildirime tıklanınca ilgili işin detayına gider.
+  void _showNotificationsSheet(BuildContext context, List<InAppNotification> notifications, dynamic l10n) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1A2A3A) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        if (notifications.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.notifications_off_outlined, size: 48, color: isDark ? Colors.white38 : Colors.black38),
+                const SizedBox(height: 12),
+                Text(l10n.translate('no_notifications'), style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
+              ],
+            ),
+          );
+        }
+        return ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          itemCount: notifications.length,
+          separatorBuilder: (_, __) => Divider(color: isDark ? Colors.white12 : Colors.black12, height: 1),
+          itemBuilder: (ctx, i) {
+            final notif = notifications[i];
+            return ListTile(
+              leading: const Icon(Icons.circle_notifications, color: Color(0xFF1565C0)),
+              title: Text(notif.title, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.w600)),
+              subtitle: Text(notif.body, style: TextStyle(color: isDark ? Colors.white54 : Colors.black54, fontSize: 13)),
+              trailing: Text(
+                _timeAgo(notif.timestamp),
+                style: TextStyle(color: isDark ? Colors.white38 : Colors.black38, fontSize: 11),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                if (notif.jobId != null) {
+                  ref.read(pendingJobIdProvider.notifier).set(notif.jobId);
+                }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'az önce';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}d';
+    if (diff.inHours < 24) return '${diff.inHours}s';
+    return '${diff.inDays}g';
   }
 
   Color _getStatusColor(JobStatus status) {
@@ -257,6 +505,34 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label, style: TextStyle(color: selected ? const Color(0xFF0D1B2A) : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+
+  /// Durum filtre chip'i — tıklanınca seçili duruma geçer, tekrar tıklanınca kalkar.
+  Widget _FilterChip({required String label, required bool selected, Color? color, required VoidCallback onTap}) {
+    final chipColor = color ?? context.appExt.textSecondary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? chipColor.withOpacity(0.25) : Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? chipColor : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? chipColor : context.appExt.textSecondary,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }

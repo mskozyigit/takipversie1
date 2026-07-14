@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/auth_provider.dart';
@@ -17,6 +18,9 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
   final _colorController = TextEditingController();
   bool _useBranding = false;
   bool _isSaving = false;
+  String? _initialLogoUrl;
+  String? _initialColorHex;
+  bool _initialUseBranding = false;
 
   @override
   void initState() {
@@ -24,8 +28,11 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
     final org = ref.read(currentOrganizationProvider).value;
     if (org != null) {
       _useBranding = org.useBranding;
+      _initialUseBranding = org.useBranding;
       _logoController.text = org.logoUrl ?? '';
+      _initialLogoUrl = org.logoUrl ?? '';
       _colorController.text = org.primaryColorHex ?? '#1565C0';
+      _initialColorHex = org.primaryColorHex ?? '#1565C0';
     }
   }
 
@@ -92,17 +99,58 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
     }
   }
 
+  /// Returns true if the user has modified any branding setting.
+  bool _hasUnsavedChanges() {
+    if (_useBranding != _initialUseBranding) return true;
+    if (_logoController.text.trim() != (_initialLogoUrl ?? '')) return true;
+    if (_colorController.text.trim() != (_initialColorHex ?? '#1565C0')) return true;
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
     final branding = ref.watch(brandingProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          if (_hasUnsavedChanges()) {
+            final shouldPop = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: Theme.of(ctx).colorScheme.surface,
+                title: Text(l10n.translate('exit_unsaved_title'), style: const TextStyle(color: Colors.white)),
+                content: Text(l10n.translate('exit_unsaved_message'), style: TextStyle(color: context.appExt.textSecondary)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: Text(l10n.translate('button_cancel')),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: Text(l10n.translate('button_ok'), style: const TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+            if (shouldPop == true && context.mounted) {
+              Navigator.pop(context);
+            }
+          } else {
+            if (context.mounted) Navigator.pop(context);
+          }
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(l10n.translate('branding_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
-      body: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -123,7 +171,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
 
             if (_useBranding) ...[
               // Logo URL
-              Text(l10n.translate('branding_logo_url'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text(l10n.translate('branding_logo_url'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
               const SizedBox(height: 8),
               TextField(
                 controller: _logoController,
@@ -180,7 +228,7 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
               const SizedBox(height: 24),
 
               // Preview
-              Text(l10n.translate('branding_preview'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14)),
+              Text(l10n.translate('branding_preview'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 14)),
               const SizedBox(height: 8),
               Container(
                 height: 80,
@@ -210,6 +258,8 @@ class _BrandingSettingsScreenState extends ConsumerState<BrandingSettingsScreen>
             ),
           ],
         ),
+      ),
+    ),
       ),
     );
   }

@@ -70,6 +70,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   Future<AuthState> build() async {
     // Firebase Auth değişikliklerini dinle
     _auth.authStateChanges().listen((firebaseUser) async {
+      // Eğer şu an manuel bir işlem (createOrganization, joinOrganization)
+      // loading state'teyse, authStateChanges'ı yoksay — işlem bitsin.
+      if (state.isLoading) return;
+
       if (firebaseUser == null) {
         state = AsyncValue.data(Unauthenticated());
         return;
@@ -122,7 +126,12 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
         // Web: signInWithPopup (COOP handled via Firebase Auth configuration)
         final googleProvider = GoogleAuthProvider();
         await _auth.signInWithPopup(googleProvider);
-        // authStateChanges listener picks up the result
+        // Hemen mevcut kullanıcıyı çözümle — authStateChanges'ı bekleme
+        final currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          final authState = await _resolveAuthState(currentUser);
+          state = AsyncValue.data(authState);
+        }
       } else {
         // Mobil için Google Identity Services (GIS) akışı
         final googleUser = await _googleSignIn.authenticate();
@@ -253,7 +262,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     try {
       await _firestore.collection('users').doc(user.uid).delete();
-      state = AsyncValue.data(Unauthenticated());
+      // Google oturumu hala geçerli — kullanıcıyı NeedsOrg'a döndür, logout yapma
+      state = AsyncValue.data(NeedsOrg(user));
     } catch (e) {
       debugPrint('İstek iptal edilemedi: $e');
       state = AsyncValue.data(AuthError(ref.read(translationProvider.notifier).translate('generic_error', {'error': '$e'})));
@@ -476,6 +486,20 @@ class TranslationNotifier extends AsyncNotifier<String> {
 
 final translationProvider = AsyncNotifierProvider<TranslationNotifier, String>(
   () => TranslationNotifier(),
+);
+
+// -----------------------------------------------------------------------
+// Admin → İşçi görünümü toggle (sadece admin kullanabilir)
+// -----------------------------------------------------------------------
+
+class ViewAsWorkerNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void toggle() => state = !state;
+}
+
+final viewAsWorkerProvider = NotifierProvider<ViewAsWorkerNotifier, bool>(
+  () => ViewAsWorkerNotifier(),
 );
 
 // -----------------------------------------------------------------------

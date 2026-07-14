@@ -17,6 +17,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
   Widget build(BuildContext context) {
     final templatesAsync = ref.watch(jobTemplatesProvider);
     final branding = ref.watch(brandingProvider);
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
@@ -29,7 +30,8 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
         onPressed: () => _showCreateDialog(context),
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: templatesAsync.when(
+      body: SafeArea(
+        child: templatesAsync.when(
         loading: () => Center(child: CircularProgressIndicator(color: context.cs.secondary)),
         error: (e, _) => Center(child: Text(l10n.translate('generic_error', {'error': '$e'}), style: const TextStyle(color: Colors.red))),
         data: (templates) {
@@ -38,11 +40,11 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.description_outlined, size: 64, color: Color(0xFF546E7A)),
+                  Icon(Icons.description_outlined, size: 64, color: context.appExt.textTertiary),
                   const SizedBox(height: 16),
                   Text(l10n.translate('template_empty'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
+                    style: TextStyle(color: context.appExt.textSecondary, fontSize: 14),
                   ),
                 ],
               ),
@@ -64,7 +66,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                   title: Text(t.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: Text(
                     _describeTemplate(t),
-                    style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12),
+                    style: TextStyle(color: context.appExt.textSecondary, fontSize: 12),
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
@@ -76,6 +78,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
           ),
           );
         },
+      ),
       ),
     );
   }
@@ -103,7 +106,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
         backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: Text(l10n.translate('template_delete_title'), style: const TextStyle(color: Colors.white)),
         content: Text(l10n.translate('template_delete_confirm', {'name': template.name}),
-          style: const TextStyle(color: Color(0xFF90A4AE))),
+          style: TextStyle(color: context.appExt.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
           TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('button_delete'), style: const TextStyle(color: Colors.red))),
@@ -112,6 +115,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
     );
     if (confirm == true && mounted) {
       await ref.read(templateOperationsProvider.notifier).deleteTemplate(template.id);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('template_deleted')), backgroundColor: Colors.green, duration: const Duration(seconds: 2)));
     }
   }
 
@@ -150,7 +154,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
               children: [
                 _buildDarkField(l10n.translate('template_name_required'), nameCtrl),
                 const SizedBox(height: 16),
-                Text(l10n.translate('template_fields_to_include'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                Text(l10n.translate('template_fields_to_include'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)),
                 const SizedBox(height: 8),
                 _toggle(l10n.translate('template_field_title'), inclTitle, (v) => setDialogState(() => inclTitle = v)),
                 if (inclTitle) _buildDarkField(l10n.translate('template_default_title'), titleCtrl),
@@ -174,7 +178,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        Text(l10n.translate('template_default_duration'), style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                        Text(l10n.translate('template_default_duration'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)),
                         const SizedBox(width: 8),
                         DropdownButton<int>(
                           value: defaultDur,
@@ -219,7 +223,10 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
                   defaultDistance: double.tryParse(distCtrl.text),
                   defaultDurationHours: defaultDur,
                 );
-                if (ctx.mounted) Navigator.pop(ctx);
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.translate('template_created')), backgroundColor: Colors.green, duration: const Duration(seconds: 2)));
+                  Navigator.pop(ctx);
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1565C0)),
               child: Text(l10n.translate('button_create')),
@@ -251,7 +258,7 @@ class _JobTemplateScreenState extends ConsumerState<JobTemplateScreen> {
         style: const TextStyle(color: Colors.white, fontSize: 14),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13),
+          labelStyle: TextStyle(color: context.appExt.textSecondary, fontSize: 13),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surface,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),

@@ -34,6 +34,7 @@ class Job {
   final bool isSafetyConfirmed;
   final Map<String, bool>? safetyChecklist;
   final double? fee;
+  final int? feeEnteredBy; // 0=admin, 1=worker, null=not set
   final int durationHours;
   final List<String> checklistNotes;
 
@@ -64,6 +65,7 @@ class Job {
     this.isSafetyConfirmed = false,
     this.safetyChecklist,
     this.fee,
+    this.feeEnteredBy,
     this.durationHours = 2,
     this.checklistNotes = const [],
   });
@@ -97,6 +99,7 @@ class Job {
       isSafetyConfirmed: data['isSafetyConfirmed'] as bool? ?? false,
       safetyChecklist: data['safetyChecklist'] != null ? Map<String, bool>.from(data['safetyChecklist']) : null,
       fee: (data['fee'] as num?)?.toDouble(),
+      feeEnteredBy: data['feeEnteredBy'] as int?,
       durationHours: data['durationHours'] as int? ?? 2,
       checklistNotes: List<String>.from(data['checklistNotes'] ?? []),
     );
@@ -129,6 +132,7 @@ class Job {
       'isSafetyConfirmed': isSafetyConfirmed,
       'safetyChecklist': safetyChecklist,
       'fee': fee,
+      'feeEnteredBy': feeEnteredBy,
       'durationHours': durationHours,
       'checklistNotes': checklistNotes,
     };

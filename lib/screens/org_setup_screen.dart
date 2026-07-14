@@ -58,25 +58,22 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authProvider).isLoading;
+    ref.watch(translationProvider);
     final l10n = ref.read(translationProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.logout, color: Color(0xFF90A4AE)),
+          icon: const Icon(Icons.logout),
           tooltip: l10n.translate('logout'),
           onPressed: () => ref.read(authProvider.notifier).signOut(),
         ),
-        title: Text(
-          l10n.translate('org_setup_title'),
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
+        title: Text(l10n.translate('org_setup_title')),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -93,7 +90,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
               const SizedBox(height: 8),
               Text(
                 l10n.translate('org_setup_subtitle'),
-                style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 14),
+                style: TextStyle(color: context.appExt.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 32),
 
@@ -163,6 +160,7 @@ class _OrgSetupScreenState extends ConsumerState<OrgSetupScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 }
@@ -200,13 +198,13 @@ class _ModeTab extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon,
-                  color: isSelected ? Colors.white : const Color(0xFF90A4AE),
+                  color: isSelected ? Colors.white : context.appExt.textSecondary,
                   size: 18),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : const Color(0xFF90A4AE),
+                  color: isSelected ? Colors.white : context.appExt.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -304,8 +302,8 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Color(0xFF90A4AE),
+      style: TextStyle(
+        color: context.appExt.textSecondary,
         fontSize: 13,
         fontWeight: FontWeight.w600,
       ),
@@ -334,11 +332,11 @@ class _StyledField extends StatelessWidget {
       controller: controller,
       textCapitalization: textCapitalization,
       validator: validator,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF546E7A)),
-        prefixIcon: Icon(prefixIcon, color: const Color(0xFF4FC3F7)),
+        hintStyle: TextStyle(color: context.appExt.textTertiary),
+        prefixIcon: Icon(prefixIcon, color: Theme.of(context).colorScheme.secondary),
         filled: true,
         fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(
@@ -374,7 +372,7 @@ class _InfoBox extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13),
+              style: TextStyle(color: context.appExt.textSecondary, fontSize: 13),
             ),
           ),
         ],

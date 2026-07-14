@@ -61,7 +61,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Theme.of(ctx).colorScheme.surface,
         title: Text(l10n.translate('photo_add_title'), style: const TextStyle(color: Colors.white)),
-        content: Text(l10n.translate('photo_add_source'), style: const TextStyle(color: Color(0xFF90A4AE))),
+        content: Text(l10n.translate('photo_add_source'), style: TextStyle(color: context.appExt.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -274,7 +274,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
                 if (!isFirst)
                   TextButton(
                     onPressed: details.onStepCancel,
-                    child: Text(l10n.translate('job_checklist_back'), style: const TextStyle(color: Color(0xFF90A4AE))),
+                    child: Text(l10n.translate('job_checklist_back'), style: TextStyle(color: context.appExt.textSecondary)),
                   ),
                 if (!isFirst) const Spacer(),
                 ElevatedButton(
@@ -316,9 +316,9 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${l10n.translate('job_description')}: ${widget.job.description}', style: const TextStyle(color: Color(0xFF90A4AE))),
+            Text('${l10n.translate('job_description')}: ${widget.job.description}', style: TextStyle(color: context.appExt.textSecondary)),
             const SizedBox(height: 8),
-            Text('${l10n.translate('job_address')}: ${widget.job.address}', style: const TextStyle(color: Color(0xFF90A4AE))),
+            Text('${l10n.translate('job_address')}: ${widget.job.address}', style: TextStyle(color: context.appExt.textSecondary)),
           ],
         ),
         isActive: _currentStep >= 0,
@@ -362,7 +362,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF37474F)),
                 ),
-                child: Text(note, style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 13)),
+                child: Text(note, style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)),
               )),
               const SizedBox(height: 12),
             ],
@@ -372,7 +372,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: l10n.translate('job_notes_hint'),
-                hintStyle: const TextStyle(color: Color(0xFF90A4AE)),
+                hintStyle: TextStyle(color: context.appExt.textSecondary),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surface,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -413,7 +413,7 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
       // Finish
       Step(
         title: Text(l10n.translate('job_checklist_finish'), style: const TextStyle(color: Colors.white)),
-        content: Text(l10n.translate('job_checklist_completed_msg'), style: const TextStyle(color: Color(0xFF90A4AE))),
+        content: Text(l10n.translate('job_checklist_completed_msg'), style: TextStyle(color: context.appExt.textSecondary)),
         isActive: _currentStep >= (isSafetyOn ? 5 : 4),
         state: _currentStep > (isSafetyOn ? 5 : 4) ? StepState.complete : StepState.indexed,
       ),

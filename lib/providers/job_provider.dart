@@ -115,6 +115,20 @@ final customersProvider = StreamProvider<List<Customer>>((ref) {
       .map((snapshot) => snapshot.docs.map((doc) => Customer.fromFirestore(doc)).toList());
 });
 
+// -----------------------------------------------------------------------
+// Single Job by ID — bildirim tıklamalarında yönlendirme için
+// -----------------------------------------------------------------------
+
+final jobByIdProvider = FutureProvider.family<Job?, String>((ref, jobId) async {
+  try {
+    final doc = await _firestore.collection('jobs').doc(jobId).get();
+    if (!doc.exists) return null;
+    return Job.fromFirestore(doc);
+  } catch (_) {
+    return null;
+  }
+});
+
 /// Job Operations Notifier
 class JobNotifier extends Notifier<void> {
   @override
@@ -195,6 +209,7 @@ class JobNotifier extends Notifier<void> {
       createdDate: DateTime.now(),
       estimatedTravelTime: estimatedTravel,
       fee: fee,
+      feeEnteredBy: fee != null ? 0 : null,
       durationHours: durationHours,
     );
 
@@ -268,7 +283,10 @@ class JobNotifier extends Notifier<void> {
     }
 
     if (distanceKm != null) data['distanceKm'] = distanceKm;
-    if (fee != null) data['fee'] = fee;
+    if (fee != null) {
+      data['fee'] = fee;
+      data['feeEnteredBy'] = 0; // Admin tarafından girildi/düzenlendi
+    }
     if (durationHours != null) data['durationHours'] = durationHours;
     if (descriptionBlocks != null) data['descriptionBlocks'] = descriptionBlocks;
     if (attachedImages != null) data['attachedImages'] = attachedImages;
@@ -314,8 +332,20 @@ class JobNotifier extends Notifier<void> {
 
     await _firestore.collection('jobs').doc(jobId).update({
       'fee': fee,
+      'feeEnteredBy': 1, // Worker tarafından girildi
     });
     await _logAction(jobId, 'Fee Updated', metadata: {'fee': fee});
+  }
+
+  /// Worker can update the job duration (hours) in the field.
+  Future<void> updateDuration(String jobId, int hours) async {
+    final authState = ref.read(authProvider).value;
+    if (authState == null) return;
+
+    await _firestore.collection('jobs').doc(jobId).update({
+      'durationHours': hours,
+    });
+    await _logAction(jobId, 'Duration Updated', metadata: {'hours': hours});
   }
 
   /// Worker adds a note during the checklist flow (between photos).
