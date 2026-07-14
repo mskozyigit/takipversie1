@@ -1,6 +1,10 @@
+// ignore_for_file: avoid_web_libraries_in_flutter
+import 'dart:async';
+import 'dart:typed_data';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -275,9 +279,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
 
   void _uploadQrForJob(BuildContext context) async {
     final l10n = ref.read(translationProvider.notifier);
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 600);
-    if (picked == null) return;
 
     setState(() => _isLoading = true);
     try {
@@ -984,7 +985,27 @@ class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
         return;
       }
 
-      final bytes = await picked.readAsBytes();
+      // Web'de blob URL güvenli okuma
+      Uint8List bytes;
+      if (kIsWeb) {
+        try {
+          final completer = Completer<Uint8List>();
+          final reader = html.FileReader();
+          reader.onLoad.listen((_) => completer.complete(reader.result as Uint8List));
+          reader.onError.listen((_) => completer.completeError(Exception('read failed')));
+          final request = html.HttpRequest();
+          request.open('GET', picked.path);
+          request.responseType = 'blob';
+          request.onLoad.listen((_) => reader.readAsArrayBuffer(request.response as html.Blob));
+          request.onError.listen((_) => completer.completeError(Exception('fetch failed')));
+          request.send();
+          bytes = await completer.future;
+        } catch (_) {
+          bytes = await picked.readAsBytes();
+        }
+      } else {
+        bytes = await picked.readAsBytes();
+      }
       final org = ref.read(currentOrganizationProvider).value;
       if (org == null || org.id.isEmpty) {
         if (mounted) {

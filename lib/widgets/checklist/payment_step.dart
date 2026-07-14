@@ -26,6 +26,88 @@ class PaymentStep extends ConsumerStatefulWidget {
 class _PaymentStepState extends ConsumerState<PaymentStep> {
   bool _cashSelected = false;
   bool _qrSelected = false;
+  double? _selectedAmount;
+
+  static const _amounts = [150.0, 200.0, 250.0, 300.0];
+
+  void _showQrDialog(double amount) {
+    final l10n = ref.read(translationProvider.notifier);
+    final qrUrl = widget.org?.paymentQrUrl;
+    if (qrUrl == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Tutar başlığı
+              Text(
+                '${amount.toStringAsFixed(0)} €',
+                style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.translate('payment_scan_qr'),
+                style: TextStyle(color: context.appExt.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              // QR Kod
+              Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: WebSafeImage(url: qrUrl, fit: BoxFit.contain, showLoading: true),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Ödendi butonu
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _qrSelected = true;
+                      _cashSelected = false;
+                      _selectedAmount = amount;
+                    });
+                    ref.read(jobOperationsProvider.notifier).recordPayment(widget.job.id, 'qr');
+                    widget.onPaymentRecorded?.call();
+                    Navigator.pop(ctx);
+                  },
+                  icon: const Icon(Icons.check, color: Colors.white),
+                  label: Text(l10n.translate('payment_done')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(l10n.translate('button_cancel'), style: TextStyle(color: context.appExt.textSecondary)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,31 +125,51 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       );
     }
 
+    final hasQr = widget.org?.paymentQrUrl != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (widget.org?.paymentQrUrl != null) ...[
-          Container(
-            height: 200,
-            width: 200,
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: WebSafeImage(url: widget.org!.paymentQrUrl!, fit: BoxFit.contain),
-            ),
+        // --- Hızlı tutar seçimi ---
+        if (hasQr) ...[
+          Text(
+            l10n.translate('payment_select_amount'),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14, fontWeight: FontWeight.w600),
           ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              l10n.translate('payment_qr_instruction'),
-              style: const TextStyle(color: Color(0xFF90A4AE), fontSize: 12, fontStyle: FontStyle.italic),
-            ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: _amounts.map((amount) => GestureDetector(
+              onTap: () => _showQrDialog(amount),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedAmount == amount
+                      ? Colors.green.withOpacity(0.2)
+                      : Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _selectedAmount == amount ? Colors.green : const Color(0xFF37474F),
+                    width: _selectedAmount == amount ? 2 : 1,
+                  ),
+                ),
+                child: Text(
+                  '${amount.toStringAsFixed(0)} €',
+                  style: TextStyle(
+                    color: _selectedAmount == amount ? Colors.green : Theme.of(context).colorScheme.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            )).toList(),
           ),
-        ]
-        else
+          const SizedBox(height: 16),
+        ],
+
+        // --- QR yoksa uyarı ---
+        if (!hasQr)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
@@ -75,9 +177,11 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
               style: const TextStyle(color: Colors.orange, fontSize: 12),
             ),
           ),
+
+        // --- Ödeme yöntemi butonları ---
         Row(
           children: [
-            if (widget.org?.paymentQrUrl != null)
+            if (hasQr)
               _PaymentButton(
                 label: l10n.translate('job_payment_qr'),
                 selected: _qrSelected,
@@ -96,7 +200,7 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
                   }
                 },
               ),
-            if (widget.org?.paymentQrUrl != null) const SizedBox(width: 12),
+            if (hasQr) const SizedBox(width: 12),
             _PaymentButton(
               label: l10n.translate('job_payment_cash'),
               selected: _cashSelected,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'auth_provider.dart';
+// ignore_for_file: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 void _log(String message) {
   if (kDebugMode) debugPrint(message);
@@ -48,8 +51,11 @@ class MediaNotifier extends Notifier<void> {
       }
 
       _log('[MEDIA] Picked file: ${pickedFile.name}, reading bytes...');
-      final bytes = await _compressImage(await pickedFile.readAsBytes());
-      return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: bytes);
+
+      // Web: blob URL'lerin ömrü kısa — doğrudan FileReader ile oku
+      final bytes = await _readBytesSafe(pickedFile);
+      final compressed = await _compressImage(bytes);
+      return await _uploadBytes(orgId: orgId, jobId: jobId, isBefore: isBefore, bytes: compressed);
     } on FirebaseException catch (e) {
       _log('[MEDIA] Storage Firebase error [${e.code}]: ${e.message}');
       rethrow;
@@ -57,6 +63,39 @@ class MediaNotifier extends Notifier<void> {
       _log('[MEDIA] uploadJobPhoto failed: $e');
       rethrow;
     }
+  }
+
+  /// Web'de blob URL güvenli okuma. Mobilde normal readAsBytes.
+  Future<Uint8List> _readBytesSafe(XFile file) async {
+    if (kIsWeb) {
+      try {
+        // dart:html FileReader ile blob'dan oku — revoked sorununu aşar
+        final completer = Completer<Uint8List>();
+        final reader = html.FileReader();
+        reader.onLoad.listen((_) {
+          completer.complete(reader.result as Uint8List);
+        });
+        reader.onError.listen((_) {
+          completer.completeError(Exception('FileReader failed: ${reader.error}'));
+        });
+        // Blob URL'den HttpRequest ile fetch edip Blob oluştur
+        final request = html.HttpRequest();
+        request.open('GET', file.path);
+        request.responseType = 'blob';
+        request.onLoad.listen((_) {
+          reader.readAsArrayBuffer(request.response as html.Blob);
+        });
+        request.onError.listen((_) {
+          completer.completeError(Exception('HTTP fetch failed for blob URL'));
+        });
+        request.send();
+        return await completer.future;
+      } catch (_) {
+        // Fallback: normal readAsBytes dene
+        return await file.readAsBytes();
+      }
+    }
+    return await file.readAsBytes();
   }
 
   /// Upload already-picked image bytes (for admin gallery upload — no double pick)
@@ -137,7 +176,7 @@ class MediaNotifier extends Notifier<void> {
     );
     if (pickedFile == null) return null;
 
-    final Uint8List bytes = await pickedFile.readAsBytes();
+    final Uint8List bytes = await _readBytesSafe(pickedFile);
     final img.Image? image = img.decodeImage(bytes);
     if (image == null) return null;
 
