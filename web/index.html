@@ -231,15 +231,16 @@
         });
       }
 
-      // Yenile butonu: waiting SW'ye SKIP_WAITING gönder ve sayfayı yenile
+      // Yenile butonu: sayfayı yeniden yükle (SW zaten skipWaiting ile aktif)
       reloadBtn.addEventListener('click', function() {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.ready.then(function(reg) {
-            if (reg.waiting) {
-              reg.waiting.postMessage({type: 'SKIP_WAITING'});
-            }
-            // SW aktivasyonundan sonra sayfayı yenile
-            setTimeout(function() { window.location.reload(); }, 1500);
+        // Önce tüm eski cache'leri temizle, sonra yeniden yükle
+        if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            return Promise.all(keys.map(function(key) {
+              return caches.delete(key);
+            }));
+          }).then(function() {
+            window.location.reload();
           });
         } else {
           window.location.reload();

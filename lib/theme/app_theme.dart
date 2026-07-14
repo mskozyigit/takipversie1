@@ -32,26 +32,26 @@ class AppThemeExt extends ThemeExtension<AppThemeExt> {
     required this.statusClosed,
   });
 
-  /// Varsayılan koyu tema renkleri
+  /// Varsayılan koyu tema renkleri (Canlı palet)
   static const defaultDark = AppThemeExt(
     cardColor: Color(0xFF1A2A3A),
     textSecondary: Color(0xFF90A4AE),
     textTertiary: Color(0xFF546E7A),
-    statusNotStarted: Color(0xFF9E9E9E), // Grey 500
-    statusInProgress: Color(0xFFFF9800), // Orange 500
-    statusWorkCompleted: Color(0xFF2196F3), // Blue 500
-    statusClosed: Color(0xFF4CAF50), // Green 500
+    statusNotStarted: Color(0xFF607D8B), // Blue Grey
+    statusInProgress: Color(0xFFFF6D00), // Dark Orange
+    statusWorkCompleted: Color(0xFF00BCD4), // Cyan
+    statusClosed: Color(0xFF388E3C), // Dark Green
   );
 
-  /// Varsayılan açık tema renkleri
+  /// Varsayılan açık tema renkleri (Canlı palet)
   static const defaultLight = AppThemeExt(
     cardColor: Color(0xFFFFFFFF),
     textSecondary: Color(0xFF757575),
     textTertiary: Color(0xFF9E9E9E),
-    statusNotStarted: Color(0xFF9E9E9E), // Grey 500
-    statusInProgress: Color(0xFFFF9800), // Orange 500
-    statusWorkCompleted: Color(0xFF1565C0), // Blue 700
-    statusClosed: Color(0xFF4CAF50), // Green 500
+    statusNotStarted: Color(0xFF607D8B), // Blue Grey
+    statusInProgress: Color(0xFFE65100), // Deep Orange (light tema için biraz koyu)
+    statusWorkCompleted: Color(0xFF00838F), // Dark Cyan (light tema için okunur)
+    statusClosed: Color(0xFF2E7D32), // Dark Green (light tema için okunur)
   );
 
   /// Verilen JobStatus için doğru rengi döndürür (tek kaynak!).

@@ -29,7 +29,6 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
   DateTime? _selectedDay;
   int _viewMode = 1; // 0: 1-Day, 1: Week, 2: Month, 3: 3-Day Agenda
   String? _selectedWorkerId; // CAL-03
-  JobStatus? _statusFilter; // null = tümü
 
   @override
   void initState() {
@@ -267,13 +266,10 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               top: false,
               child: jobsAsync.when(
         data: (jobs) {
-          // CAL-03: Apply worker filter + status filter
-          var filteredJobs = _selectedWorkerId == null 
+          // CAL-03: Apply worker filter
+          final filteredJobs = _selectedWorkerId == null 
             ? jobs 
             : jobs.where((j) => j.assignedWorkerId == _selectedWorkerId).toList();
-          if (_statusFilter != null) {
-            filteredJobs = filteredJobs.where((j) => j.status == _statusFilter).toList();
-          }
 
           return Column(
             children: [
@@ -283,45 +279,6 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                   selectedWorkerId: _selectedWorkerId,
                   onChanged: (val) => setState(() => _selectedWorkerId = val),
                 ),
-
-              // --- Durum Filtre Chip'leri ---
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: l10n.translate('filter_all'),
-                      selected: _statusFilter == null,
-                      onTap: () => setState(() => _statusFilter = null),
-                    ),
-                    _FilterChip(
-                      label: l10n.translate('filter_not_started'),
-                      selected: _statusFilter == JobStatus.notStarted,
-                      color: context.appExt.statusNotStarted,
-                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.notStarted ? null : JobStatus.notStarted),
-                    ),
-                    _FilterChip(
-                      label: l10n.translate('filter_in_progress'),
-                      selected: _statusFilter == JobStatus.inProgress,
-                      color: context.appExt.statusInProgress,
-                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.inProgress ? null : JobStatus.inProgress),
-                    ),
-                    _FilterChip(
-                      label: l10n.translate('filter_completed'),
-                      selected: _statusFilter == JobStatus.workCompleted,
-                      color: context.appExt.statusWorkCompleted,
-                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.workCompleted ? null : JobStatus.workCompleted),
-                    ),
-                    _FilterChip(
-                      label: l10n.translate('filter_closed'),
-                      selected: _statusFilter == JobStatus.closed,
-                      color: context.appExt.statusClosed,
-                      onTap: () => setState(() => _statusFilter = _statusFilter == JobStatus.closed ? null : JobStatus.closed),
-                    ),
-                  ],
-                ),
-              ),
 
               // Tarih Navigasyonu
               Padding(
@@ -505,34 +462,6 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(label, style: TextStyle(color: selected ? const Color(0xFF0D1B2A) : Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
-
-  /// Durum filtre chip'i — tıklanınca seçili duruma geçer, tekrar tıklanınca kalkar.
-  Widget _FilterChip({required String label, required bool selected, Color? color, required VoidCallback onTap}) {
-    final chipColor = color ?? context.appExt.textSecondary;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? chipColor.withOpacity(0.25) : Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? chipColor : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? chipColor : context.appExt.textSecondary,
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
       ),
     );
   }
