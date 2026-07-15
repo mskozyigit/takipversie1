@@ -344,31 +344,29 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               icon: Icons.description_outlined,
               onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
             ),
-            // Worker ek açıklaması — açıklamanın hemen altında
-            if (!isAdmin) ...[
-              if (job.description2 != null && job.description2!.isNotEmpty)
-                _DetailCard(
-                  title: l10n.translate('job_description2_label'),
-                  value: job.description2!,
-                  icon: Icons.edit_note,
-                  onTap: _showDescription2Dialog,
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: OutlinedButton.icon(
-                    onPressed: _showDescription2Dialog,
-                    icon: const Icon(Icons.add_comment_outlined, size: 18),
-                    label: Text(l10n.translate('job_description2_add')),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF4FC3F7),
-                      side: const BorderSide(color: Color(0xFF4FC3F7), width: 1),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
+            // Worker ek açıklaması — herkes görür, sadece worker düzenler
+            if (job.description2 != null && job.description2!.isNotEmpty)
+              _DetailCard(
+                title: l10n.translate('job_description2_label'),
+                value: job.description2!,
+                icon: Icons.edit_note,
+                onTap: !isAdmin ? _showDescription2Dialog : null,
+              )
+            else if (!isAdmin)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: OutlinedButton.icon(
+                  onPressed: _showDescription2Dialog,
+                  icon: const Icon(Icons.add_comment_outlined, size: 18),
+                  label: Text(l10n.translate('job_description2_add')),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4FC3F7),
+                    side: const BorderSide(color: Color(0xFF4FC3F7), width: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-            ],
+              ),
 
             // 10. 👷 Personel
             _DetailCard(
@@ -420,8 +418,16 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               )),
             ],
 
-            // Description Blocks
+            // Description Blocks (iş tanımı — metin + resimler)
             if (job.descriptionBlocks.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Divider(color: const Color(0xFF37474F), height: 1),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(l10n.translate('job_description'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+              const SizedBox(height: 8),
               ...job.descriptionBlocks.map((block) {
                 if (block.startsWith('[RESIM]')) {
                   final imageUrl = block.substring(7);
@@ -436,7 +442,9 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
 
             // Attached Images (admin tarafından eklenen resimler)
             if (job.attachedImages.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              Divider(color: const Color(0xFF37474F), height: 1),
+              const SizedBox(height: 12),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('attached_images'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               ...job.attachedImages.map((url) => Padding(
@@ -447,7 +455,9 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
 
             // Before/After Photos (çalışan checklist fotoğrafları)
             if (job.beforePhotoUrls.isNotEmpty || job.afterPhotoUrls.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+              Divider(color: const Color(0xFF37474F), height: 1),
+              const SizedBox(height: 12),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('photos_label'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               if (job.beforePhotoUrls.isNotEmpty) ...[

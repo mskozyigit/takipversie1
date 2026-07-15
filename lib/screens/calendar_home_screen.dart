@@ -356,17 +356,47 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     ],  // Column children
     ),  // Column
       floatingActionButton: isAdmin
-          ? Semantics(
-              label: l10n.translate('job_create_title'),
-              button: true,
-              child: FloatingActionButton(
-                tooltip: l10n.translate('job_create_title'),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                child: const Icon(Icons.add, color: Colors.white),
-              ),
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  label: l10n.translate('refresh_data'),
+                  button: true,
+                  child: FloatingActionButton.small(
+                    heroTag: 'refresh',
+                    tooltip: l10n.translate('refresh_data'),
+                    onPressed: () {
+                      ref.invalidate(allJobsProvider(_focusedDay));
+                      ref.invalidate(workerJobsProvider(_focusedDay));
+                    },
+                    backgroundColor: Theme.of(context).colorScheme.surface,
+                    child: const Icon(Icons.refresh, color: Color(0xFF4FC3F7)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Semantics(
+                  label: l10n.translate('job_create_title'),
+                  button: true,
+                  child: FloatingActionButton(
+                    heroTag: 'add',
+                    tooltip: l10n.translate('job_create_title'),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: const Icon(Icons.add, color: Colors.white),
+                  ),
+                ),
+              ],
             )
-          : null,
+          : FloatingActionButton.small(
+              heroTag: 'refresh-worker',
+              tooltip: l10n.translate('refresh_data'),
+              onPressed: () {
+                ref.invalidate(allJobsProvider(_focusedDay));
+                ref.invalidate(workerJobsProvider(_focusedDay));
+              },
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              child: const Icon(Icons.refresh, color: Color(0xFF4FC3F7)),
+            ),
     ),
     );
   }
