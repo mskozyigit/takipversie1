@@ -184,7 +184,7 @@
   "customer_registered": "Customer registered ✓",
   "customer_save": "Save Customer",
   "customer_select_hint": "Select registered customer...",
-  "qr_uploaded": "QR Code uploaded ✓",
+  "qr_uploaded": "{amount} € QR code uploaded ✓",
   "qr_upload_failed": "QR Code upload failed",
   "mission_number_hint": "💡 Leave empty for auto-generated mission number.",
   "time_label": "Time:",
@@ -347,6 +347,8 @@
   "qr_not_uploaded": "QR code not uploaded",
   "qr_upload": "Upload QR Code",
   "qr_replace": "Replace",
-  "qr_uploaded": "{amount} € QR code uploaded ✓",
-  "qr_upload_error": "Upload error: {error}"
+  "qr_upload_error": "Upload error: {error}",
+  "job_definition_section": "Job Definition",
+  "job_workflow_section": "Workflow",
+  "job_workflow_empty": "No workflow data yet."
 }

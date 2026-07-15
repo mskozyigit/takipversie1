@@ -184,7 +184,7 @@
   "customer_registered": "Müşteri kayıtlı ✓",
   "customer_save": "Müşteriyi Kaydet",
   "customer_select_hint": "Kayıtlı müşteri seç...",
-  "qr_uploaded": "QR Kod yüklendi ✓",
+  "qr_uploaded": "{amount} € QR kodu yüklendi ✓",
   "qr_upload_failed": "QR Kod yüklenemedi",
   "mission_number_hint": "💡 Boş bırakılırsa otomatik görev numarası atanır.",
   "time_label": "Saat:",
@@ -347,6 +347,8 @@
   "qr_not_uploaded": "QR kod yüklenmemiş",
   "qr_upload": "QR Kod Yükle",
   "qr_replace": "Değiştir",
-  "qr_uploaded": "{amount} € QR kodu yüklendi ✓",
-  "qr_upload_error": "Yükleme hatası: {error}"
+  "qr_upload_error": "Yükleme hatası: {error}",
+  "job_definition_section": "Is Tanimi",
+  "job_workflow_section": "Is Akisi",
+  "job_workflow_empty": "Henuz is akisi verisi yok."
 }

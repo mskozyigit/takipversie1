@@ -282,197 +282,124 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
           children: [
             // Status Badge
             _InfoRow(label: l10n.translate('status_label'), value: l10n.translate('job_status_${job.status.name}'), icon: Icons.info_outline, color: _getStatusColor(job.status)),
+            const SizedBox(height: 16),
+
+            // ╔══════════════ 📋 İŞ TANIMI ══════════════╗
+            _SectionHeader(icon: Icons.assignment, title: l10n.translate('job_definition_section')),
+
+            // Müşteri
+            _DetailCard(title: l10n.translate('job_customer_name'), value: job.customerName ?? '-', icon: Icons.person_outline, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+            _DetailCard(title: l10n.translate('job_customer_phone'), value: job.customerPhone ?? '-', icon: Icons.phone_outlined, onTap: job.customerPhone != null && job.customerPhone!.isNotEmpty ? () => _makeCall(job.customerPhone!) : null, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+            _DetailCard(title: l10n.translate('job_address'), value: job.address, icon: Icons.location_on_outlined, onTap: () => _launchMaps(job.address), isLink: true, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+
+            // Tarih & Saat
+            _InfoRow(label: l10n.translate('job_date'), value: '${l10n.translate('date_format_short', {'day': '${job.scheduledDate.day}', 'month': '${job.scheduledDate.month}', 'year': '${job.scheduledDate.year}'})}  ${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')}', icon: Icons.access_time, color: Theme.of(context).colorScheme.secondary),
             const SizedBox(height: 12),
 
-            // 2. 👤 Müşteri Adı
+            // Süre (çalışan değiştirebilir 👷)
+            _DetailCard(title: l10n.translate('duration_label'), value: l10n.translate('template_desc_duration_hours', {'hours': '${job.durationHours}'}), icon: Icons.timelapse, onTap: !isAdmin ? _showDurationEditDialog : null, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+
+            // İş Başlığı & Açıklama
+            _DetailCard(title: l10n.translate('job_title'), value: job.title, icon: Icons.work_outline, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+            _DetailCard(title: l10n.translate('job_description'), value: job.description, icon: Icons.description_outlined, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+
+            // Personel
+            _DetailCard(title: l10n.translate('job_assignee'), value: job.assignedWorkerName, icon: Icons.person, onEdit: isAdmin ? () => _navigateToEdit(job) : null),
+
+            // Mesafe
+            if (job.estimatedTravelTime != null)
+              _DetailCard(title: l10n.translate('log_travel_estimate'), value: '${job.estimatedTravelTime!.inMinutes} ${l10n.translate('log_minutes')}', icon: Icons.map),
+
+            // Ücret (çalışan girebilir 👷)
             _DetailCard(
-              title: l10n.translate('job_customer_name'),
-              value: job.customerName ?? '-',
-              icon: Icons.person_outline,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
+              title: l10n.translate('job_fee_label'),
+              value: job.fee != null ? '${job.fee!.toStringAsFixed(0)} €${isAdmin && job.feeEnteredBy == 1 ? '  👷' : ''}' : (!isAdmin ? l10n.translate('job_fee_add') : '-'),
+              icon: job.fee != null ? Icons.euro : (!isAdmin ? Icons.add_circle_outline : Icons.euro),
+              onTap: !isAdmin ? _showFeeEditDialog : null,
+              onEdit: isAdmin ? () => _navigateToEdit(job) : null,
             ),
 
-            // 3. 📞 Telefon
-            _DetailCard(
-              title: l10n.translate('job_customer_phone'),
-              value: job.customerPhone ?? '-',
-              icon: Icons.phone_outlined,
-              onTap: job.customerPhone != null && job.customerPhone!.isNotEmpty ? () => _makeCall(job.customerPhone!) : null,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
+            // Açıklama Blokları (iş tanımı)
+            if (job.descriptionBlocks.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...job.descriptionBlocks.map((block) => _DetailCard(title: l10n.translate('info_label'), value: block, icon: Icons.info_outline)),
+            ],
 
-            // 4. 📍 Adres
-            _DetailCard(
-              title: l10n.translate('job_address'),
-              value: job.address,
-              icon: Icons.location_on_outlined,
-              onTap: () => _launchMaps(job.address),
-              isLink: true,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
+            // Admin'in eklediği resimler
+            if (job.attachedImages.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('attached_images'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))),
+              const SizedBox(height: 8),
+              ...job.attachedImages.map((url) => Padding(padding: const EdgeInsets.only(bottom: 8), child: _DescriptionImagePreview(imageUrl: url))),
+            ],
 
-            // 5. 📅 Tarih & 6. 🕐 Saat
-            _InfoRow(
-              label: l10n.translate('job_date'),
-              value: '${l10n.translate('date_format_short', {'day': '${job.scheduledDate.day}', 'month': '${job.scheduledDate.month}', 'year': '${job.scheduledDate.year}'})}  ${job.scheduledDate.hour.toString().padLeft(2, '0')}:${job.scheduledDate.minute.toString().padLeft(2, '0')}',
-              icon: Icons.access_time,
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            _SectionDivider(),
+            const SizedBox(height: 8),
 
-            // 7. ⏱ Süre
-            _DetailCard(
-              title: l10n.translate('duration_label'),
-              value: l10n.translate('template_desc_duration_hours', {'hours': '${job.durationHours}'}),
-              icon: Icons.timelapse,
-              onTap: !isAdmin ? _showDurationEditDialog : null,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
+            // ╔══════════════ 🔧 İŞ AKIŞI ══════════════╗
+            _SectionHeader(icon: Icons.engineering, title: l10n.translate('job_workflow_section')),
 
-            // 8. 📝 İş Başlığı
-            _DetailCard(
-              title: l10n.translate('job_title'),
-              value: job.title,
-              icon: Icons.work_outline,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-
-            // 9. 📄 Açıklama
-            _DetailCard(
-              title: l10n.translate('job_description'),
-              value: job.description,
-              icon: Icons.description_outlined,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-            // Worker ek açıklaması — herkes görür, sadece worker düzenler
+            // Çalışan notu (description2)
             if (job.description2 != null && job.description2!.isNotEmpty)
-              _DetailCard(
-                title: l10n.translate('job_description2_label'),
-                value: job.description2!,
-                icon: Icons.edit_note,
-                onTap: !isAdmin ? _showDescription2Dialog : null,
-              )
+              _DetailCard(title: l10n.translate('job_description2_label'), value: job.description2!, icon: Icons.edit_note, onTap: !isAdmin ? _showDescription2Dialog : null)
             else if (!isAdmin)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
                 child: OutlinedButton.icon(
                   onPressed: _showDescription2Dialog,
                   icon: const Icon(Icons.add_comment_outlined, size: 18),
                   label: Text(l10n.translate('job_description2_add')),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF4FC3F7),
-                    side: const BorderSide(color: Color(0xFF4FC3F7), width: 1),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                  style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF4FC3F7), side: const BorderSide(color: Color(0xFF4FC3F7), width: 1), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 ),
               ),
 
-            // 10. 👷 Personel
-            _DetailCard(
-              title: l10n.translate('job_assignee'),
-              value: job.assignedWorkerName,
-              icon: Icons.person,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-
-            // 11. 🗺 Mesafe / 💰 Ücret
-            if (job.estimatedTravelTime != null)
-              _DetailCard(
-                title: l10n.translate('log_travel_estimate'),
-                value: '${job.estimatedTravelTime!.inMinutes} ${l10n.translate('log_minutes')}',
-                icon: Icons.map,
-              ),
-            _DetailCard(
-              title: l10n.translate('job_fee_label'),
-              value: job.fee != null 
-                ? '${job.fee!.toStringAsFixed(0)} €${isAdmin && job.feeEnteredBy == 1 ? '  👷' : ''}' 
-                : (!isAdmin ? l10n.translate('job_fee_add') : '-'),
-              icon: job.fee != null ? Icons.euro : (!isAdmin ? Icons.add_circle_outline : Icons.euro),
-              onTap: !isAdmin ? _showFeeEditDialog : null,
-              onEdit: isAdmin ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job))) : null,
-            ),
-
-            // Checklist Notes (worker notes between photos)
+            // Checklist Notları
             if (job.checklistNotes.isNotEmpty) ...[
               const SizedBox(height: 8),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('job_checklist_notes_title'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               ...job.checklistNotes.map((note) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF37474F)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.notes, color: context.appExt.textSecondary, size: 16),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(note, style: TextStyle(color: context.appExt.textSecondary, fontSize: 13))),
-                  ],
-                ),
+                width: double.infinity, margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF37474F))),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.notes, color: context.appExt.textSecondary, size: 16), const SizedBox(width: 10), Expanded(child: Text(note, style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)))]),
               )),
             ],
 
-            // Description Blocks (iş tanımı — metin + resimler)
-            if (job.descriptionBlocks.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Divider(color: const Color(0xFF37474F), height: 1),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(l10n.translate('job_description'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              const SizedBox(height: 8),
-              ...job.descriptionBlocks.map((block) =>
-                _DetailCard(title: l10n.translate('info_label'), value: block, icon: Icons.info_outline),
-              ),
-            ],
-
-            // Attached Images (admin tarafından eklenen resimler)
-            if (job.attachedImages.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Divider(color: const Color(0xFF37474F), height: 1),
-              const SizedBox(height: 12),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('attached_images'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
-              const SizedBox(height: 8),
-              ...job.attachedImages.map((url) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _DescriptionImagePreview(imageUrl: url),
-              )),
-            ],
-
-            // Before/After Photos (çalışan checklist fotoğrafları)
+            // İş Öncesi/Sonrası Fotoğraflar
             if (job.beforePhotoUrls.isNotEmpty || job.afterPhotoUrls.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Divider(color: const Color(0xFF37474F), height: 1),
               const SizedBox(height: 12),
               Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(l10n.translate('photos_label'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16))),
               const SizedBox(height: 8),
               if (job.beforePhotoUrls.isNotEmpty) ...[
                 Padding(padding: const EdgeInsets.only(bottom: 4, left: 4), child: Text(l10n.translate('before_photo_label'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))),
                 const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: job.beforePhotoUrls.map((url) => _PhotoThumb(url: url)).toList(),
-                ),
+                Wrap(spacing: 8, runSpacing: 8, children: job.beforePhotoUrls.map((url) => _PhotoThumb(url: url)).toList()),
                 const SizedBox(height: 12),
               ],
               if (job.afterPhotoUrls.isNotEmpty) ...[
                 Padding(padding: const EdgeInsets.only(bottom: 4, left: 4), child: Text(l10n.translate('after_photo_label'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12, fontWeight: FontWeight.w600))),
                 const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: job.afterPhotoUrls.map((url) => _PhotoThumb(url: url)).toList(),
-                ),
+                Wrap(spacing: 8, runSpacing: 8, children: job.afterPhotoUrls.map((url) => _PhotoThumb(url: url)).toList()),
               ],
             ],
+
+            // Boş akış uyarısı
+            if (job.description2 == null && job.checklistNotes.isEmpty && job.beforePhotoUrls.isEmpty && job.afterPhotoUrls.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(l10n.translate('job_workflow_empty'), textAlign: TextAlign.center, style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)),
+              ),
+
+            const SizedBox(height: 32),
+
+            // Action Button
+            if (!isAdmin && job.status != JobStatus.closed && job.status != JobStatus.workCompleted)
+              ElevatedButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job))),
+                style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: Text(job.status == JobStatus.notStarted ? l10n.translate('job_start_checklist') : l10n.translate('job_continue_checklist'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimary)),
+              ),
 
             const SizedBox(height: 32),
 
@@ -543,8 +470,50 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
     );
   }
 
+  void _navigateToEdit(Job job) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => JobEditScreen(job: job)));
+  }
+
   Color _getStatusColor(JobStatus status) {
     return context.appExt.statusColor(status);
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  const _SectionHeader({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 4, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1565C0).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF1565C0).withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF64B5F6), size: 20),
+          const SizedBox(width: 10),
+          Text(title, style: const TextStyle(color: Color(0xFF64B5F6), fontSize: 15, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionDivider extends StatelessWidget {
+  const _SectionDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Divider(color: Color(0xFF37474F), height: 1, thickness: 0.5),
+    );
   }
 }
 

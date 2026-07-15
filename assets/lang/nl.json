@@ -347,5 +347,8 @@
   "qr_not_uploaded": "QR code niet geüpload",
   "qr_upload": "QR Code Uploaden",
   "qr_replace": "Vervangen",
-  "qr_upload_error": "Upload fout: {error}"
+  "qr_upload_error": "Upload fout: {error}",
+  "job_definition_section": "Opdracht Definitie",
+  "job_workflow_section": "Werkstroom",
+  "job_workflow_empty": "Nog geen werkstroom gegevens."
 }
