@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/analytics_provider.dart';
 import '../models/job.dart';
 import 'job_creation_screen.dart';
 import 'job_detail_screen.dart';
@@ -368,6 +369,8 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     onPressed: () {
                       ref.invalidate(allJobsProvider(_focusedDay));
                       ref.invalidate(workerJobsProvider(_focusedDay));
+                      ref.invalidate(analyticsProvider);
+                      clearAnalyticsCache();
                     },
                     backgroundColor: Theme.of(context).colorScheme.surface,
                     child: const Icon(Icons.refresh, color: Color(0xFF4FC3F7)),
@@ -393,6 +396,8 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               onPressed: () {
                 ref.invalidate(allJobsProvider(_focusedDay));
                 ref.invalidate(workerJobsProvider(_focusedDay));
+                ref.invalidate(analyticsProvider);
+                clearAnalyticsCache();
               },
               backgroundColor: Theme.of(context).colorScheme.surface,
               child: const Icon(Icons.refresh, color: Color(0xFF4FC3F7)),
