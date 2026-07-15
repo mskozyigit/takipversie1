@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🧪 Test: Hepsini Çalıştır",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["test", "--no-pub"],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🧪 Test: Model Tests Only",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["test", "test/models/", "--no-pub"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🧪 Test: Provider Tests Only",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["test", "test/providers/", "--no-pub"],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🔍 Analyze (flutter analyze)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["analyze", "--no-fatal-infos", "--no-fatal-warnings"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": ["$dartAnalyzer"]
+    },
+    {
+      "label": "🚀 Run Web (localhost)",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "-d", "chrome", "--web-port", "5000"],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
