@@ -87,6 +87,10 @@ class _JobFormState extends ConsumerState<JobForm> {
       for (final block in j.descriptionBlocks) {
         _extraDescControllers.add(TextEditingController(text: block));
       }
+      // CRUD parity: load customer from customerId so edit pre-selects linked customer
+      if (j.customerId != null) {
+        _loadCustomerById(j.customerId!);
+      }
     } else {
       // Create mode
       _pendingJobId = FirebaseFirestore.instance.collection('jobs').doc().id;
@@ -198,6 +202,18 @@ class _JobFormState extends ConsumerState<JobForm> {
   }
 
   // ─── Customer Auto-Detect (create only) ───
+
+  /// Loads a customer by ID and pre-selects it in the dropdown.
+  /// Used in edit mode to restore customer association.
+  void _loadCustomerById(String customerId) {
+    final customersAsync = ref.read(customersProvider);
+    customersAsync.whenData((customers) {
+    final matches = customers.where((c) => c.id == customerId);
+    if (matches.isNotEmpty && mounted) {
+      setState(() => _selectedCustomer = matches.first);
+      }
+    });
+  }
 
   void _checkAndAutoOpenCustomerDialog() {
     if (isEdit) return;
