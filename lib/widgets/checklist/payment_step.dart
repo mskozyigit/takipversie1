@@ -32,7 +32,9 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
 
   void _showQrDialog(double amount) {
     final l10n = ref.read(translationProvider.notifier);
-    final qrUrl = widget.org?.paymentQrUrl;
+    final amountKey = amount.toStringAsFixed(0);
+    // Try per-amount QR first, fall back to single payment QR
+    final qrUrl = widget.org?.qrPaymentUrls[amountKey] ?? widget.org?.paymentQrUrl;
     if (qrUrl == null) return;
 
     showDialog(
@@ -125,7 +127,13 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
       );
     }
 
-    final hasQr = widget.org?.paymentQrUrl != null;
+    // Check if any QR code is available (per-amount or single)
+    final hasPerAmountQr = widget.org?.qrPaymentUrls.isNotEmpty == true;
+    final hasQr = widget.org?.paymentQrUrl != null || hasPerAmountQr;
+
+    // Highlight job's fee if it matches one of the amounts
+    final jobFee = widget.job.fee;
+    final jobFeeKey = jobFee != null ? jobFee.toStringAsFixed(0) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,30 +148,46 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
           Wrap(
             spacing: 10,
             runSpacing: 8,
-            children: _amounts.map((amount) => GestureDetector(
-              onTap: () => _showQrDialog(amount),
+            children: _amounts.map((amount) {
+              final amountKey = amount.toStringAsFixed(0);
+              final isMatchingJobFee = jobFeeKey == amountKey;
+              final hasAmountQr = widget.org?.qrPaymentUrls.containsKey(amountKey) == true;
+              final isHighlighted = _selectedAmount == amount || isMatchingJobFee;
+
+              return GestureDetector(
+              onTap: hasAmountQr || hasQr ? () => _showQrDialog(amount) : null,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
-                  color: _selectedAmount == amount
+                  color: isHighlighted
                       ? Colors.green.withOpacity(0.2)
                       : Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _selectedAmount == amount ? Colors.green : const Color(0xFF37474F),
-                    width: _selectedAmount == amount ? 2 : 1,
+                    color: isHighlighted ? Colors.green : const Color(0xFF37474F),
+                    width: isHighlighted ? 2 : 1,
                   ),
                 ),
-                child: Text(
-                  '${amount.toStringAsFixed(0)} €',
-                  style: TextStyle(
-                    color: _selectedAmount == amount ? Colors.green : Theme.of(context).colorScheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isMatchingJobFee && jobFee != null)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6),
+                        child: Icon(Icons.assignment, size: 16, color: Colors.green),
+                      ),
+                    Text(
+                      '${amount.toStringAsFixed(0)} €',
+                      style: TextStyle(
+                        color: isHighlighted ? Colors.green : Theme.of(context).colorScheme.onSurface,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            )).toList(),
+            );
           ),
           const SizedBox(height: 16),
         ],

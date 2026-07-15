@@ -163,6 +163,52 @@ class MediaNotifier extends Notifier<void> {
 
     return url;
   }
+
+  /// Upload a QR code image for a specific amount (150, 200, 250, 300).
+  /// Updates organization's qrPaymentUrls map in Firestore.
+  Future<String?> uploadOrgQrByAmount({
+    required String orgId,
+    required double amount,
+  }) async {
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 600,
+    );
+    if (pickedFile == null) return null;
+
+    final Uint8List bytes = await readBytesSafe(pickedFile);
+    final img.Image? image = img.decodeImage(bytes);
+    if (image == null) return null;
+
+    img.Image resized = image;
+    if (image.width > 600) {
+      resized = img.copyResize(image, width: 600);
+    }
+    final compressed = Uint8List.fromList(img.encodeJpg(resized, quality: 80));
+
+    final amountKey = amount.toStringAsFixed(0);
+    final path = '$orgId/qr_codes/$amountKey.jpg';
+    final refStorage = _storage.ref().child(path);
+    await refStorage.putData(compressed, SettableMetadata(contentType: 'image/jpeg'));
+    final url = await refStorage.getDownloadURL();
+
+    // Update organization's qrPaymentUrls
+    final orgDoc = await FirebaseFirestore.instance
+        .collection('organizations')
+        .doc(orgId)
+        .get();
+    final existingUrls = Map<String, String>.from(
+      (orgDoc.data()?['qrPaymentUrls'] as Map<String, dynamic>?) ?? {},
+    );
+    existingUrls[amountKey] = url;
+
+    await FirebaseFirestore.instance.collection('organizations').doc(orgId).update({
+      'qrPaymentUrls': existingUrls,
+    });
+
+    return url;
+  }
 }
 
 final mediaProvider = NotifierProvider<MediaNotifier, void>(() => MediaNotifier());

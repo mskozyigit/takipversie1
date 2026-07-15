@@ -5,6 +5,7 @@ import '../providers/media_provider.dart';
 import '../models/app_user.dart';
 import 'module_settings_screen.dart';
 import 'job_template_screen.dart';
+import 'qr_management_screen.dart';
 import '../widgets/calendar/join_code_card.dart';
 import '../widgets/web_safe_image.dart';
 import '../theme/app_theme.dart';
@@ -44,6 +45,11 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
             icon: const Icon(Icons.description_outlined),
             tooltip: l10n.translate('template_tooltip'),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobTemplateScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.qr_code),
+            tooltip: 'QR Kod Yönetimi',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrManagementScreen())),
           ),
           // ADM-02: Language toggle (Calendar ile aynı yapı)
           PopupMenuButton<String>(

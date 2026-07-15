@@ -7,6 +7,7 @@ class Organization {
   final DateTime createdDate;
   final String activeLanguage;
   final String? paymentQrUrl;
+  final Map<String, String> qrPaymentUrls; // {"150": "url", "200": "url", ...}
   final int lastMissionNumber;
   final Map<String, bool> enabledModules;
 
@@ -21,6 +22,7 @@ class Organization {
     required this.createdDate,
     this.activeLanguage = 'nl',
     this.paymentQrUrl,
+    this.qrPaymentUrls = const {},
     this.lastMissionNumber = 1000,
     this.enabledModules = const {},
     this.useBranding = false,
@@ -37,6 +39,9 @@ class Organization {
       createdDate: (data['createdDate'] as Timestamp).toDate(),
       activeLanguage: data['activeLanguage'] as String? ?? 'nl',
       paymentQrUrl: data['paymentQrUrl'] as String?,
+      qrPaymentUrls: data['qrPaymentUrls'] != null
+          ? Map<String, String>.from(data['qrPaymentUrls'])
+          : const {},
       lastMissionNumber: data['lastMissionNumber'] as int? ?? 1000,
       enabledModules: Map<String, bool>.from(data['enabledModules'] ?? {}),
       useBranding: data['useBranding'] as bool? ?? false,
@@ -52,6 +57,7 @@ class Organization {
       'createdDate': Timestamp.fromDate(createdDate),
       'activeLanguage': activeLanguage,
       'paymentQrUrl': paymentQrUrl,
+      'qrPaymentUrls': qrPaymentUrls,
       'lastMissionNumber': lastMissionNumber,
       'enabledModules': enabledModules,
       'useBranding': useBranding,
