@@ -103,18 +103,9 @@ self.addEventListener('install', (event) => {
         }))
       );
     })
-    // NOT: skipWaiting() burada çağrılmaz.
-    // Kullanıcı "Yenile" butonuna tıklayana kadar yeni SW bekler.
+    // skipWaiting() burada çağrılmaz — yeni SW tüm sekmeler kapanana kadar bekler,
+    // sonra activate event'inde otomatik devreye girer.
   );
-});
-
-// --- Message Handler: SKIP_WAITING ---
-// Flutter/web tarafından gönderilen SKIP_WAITING mesajını dinle.
-// Yeni SW'yi hemen aktive eder ve tüm client'lara UPDATE_READY bildirir.
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });
 
 self.addEventListener('activate', (event) => {

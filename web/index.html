@@ -50,9 +50,6 @@
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
     }
-    #update-banner {
-      padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
-    }
   </style>
 
   <!-- Favicon -->
@@ -190,80 +187,6 @@
       } else {
         cleanAndRegister();
       }
-    })();
-  </script>
-
-  <!-- ================================================================= -->
-  <!-- Service Worker Update Notification Banner                       -->
-  <!-- Kullanıcıya yeni sürüm olduğunda "Yenile" butonu gösterir.       -->
-  <!-- ================================================================= -->
-  <div id="update-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#1565C0;color:#fff;padding:12px 16px;font-family:Roboto,sans-serif;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
-    <div style="display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto;">
-      <span style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:18px;">🔄</span>
-        <span>Yeni sürüm mevcut</span>
-      </span>
-      <button id="update-reload-btn" style="background:#fff;color:#1565C0;border:none;border-radius:6px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">Yenile</button>
-    </div>
-  </div>
-
-  <script>
-    (function() {
-      var updateBanner = document.getElementById('update-banner');
-      var reloadBtn = document.getElementById('update-reload-btn');
-      var updateReady = false;
-
-      function showUpdateBanner() {
-        if (updateReady) return;
-        updateReady = true;
-        updateBanner.style.display = 'block';
-      }
-
-      // Yeni SW aktivasyonunu dinle
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration('/takipversie1/').then(function(reg) {
-          if (!reg) return;
-
-          // Zaten bekleyen bir SW var mı?
-          if (reg.waiting) {
-            showUpdateBanner();
-          }
-
-          // updatefound: oturum sırasında yeni SW bulunduğunda tetiklenir
-          reg.addEventListener('updatefound', function() {
-            var newWorker = reg.installing;
-            if (!newWorker) return;
-            newWorker.addEventListener('statechange', function() {
-              if (newWorker.state === 'installed') {
-                showUpdateBanner();
-              }
-            });
-          });
-        });
-
-        // SW'den gelen UPDATE_READY mesajını dinle
-        navigator.serviceWorker.addEventListener('message', function(event) {
-          if (event.data && event.data.type === 'UPDATE_READY') {
-            showUpdateBanner();
-          }
-        });
-      }
-
-      // Yenile butonu: önce waiting SW'ye skipWaiting gönder, sonra sayfayı yenile
-      reloadBtn.addEventListener('click', function() {
-        navigator.serviceWorker.getRegistration('/takipversie1/').then(function(reg) {
-          if (reg && reg.waiting) {
-            reg.waiting.postMessage({type: 'SKIP_WAITING'});
-          }
-          // SW'nin aktive olması için kısa bir süre bekle, sonra reload
-          setTimeout(function() {
-            window.location.reload();
-          }, 500);
-        }).catch(function() {
-          // getRegistration başarısız olursa direkt reload
-          window.location.reload();
-        });
-      });
     })();
   </script>
 

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
+import '../providers/job_provider.dart';
 import '../models/app_user.dart';
 import '../models/job.dart';
-import '../providers/job_provider.dart';
 import 'module_settings_screen.dart';
 import 'job_template_screen.dart';
 import '../widgets/calendar/join_code_card.dart';
 import '../widgets/web_safe_image.dart';
+import '../widgets/checklist/multi_photo_picker.dart';
 import '../theme/app_theme.dart';
 
 class AdminDashboard extends ConsumerStatefulWidget {
@@ -239,6 +240,8 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
   bool _isLoading = false;
   bool _showFeeField = false;
   int _durationHours = 2;
+  List<String> _attachedImages = [];
+  bool _isImageUploading = false;
 
   @override
   void initState() {
@@ -253,11 +256,12 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     _selectedDate = j.scheduledDate;
     _selectedTime = TimeOfDay.fromDateTime(j.scheduledDate);
     _durationHours = j.durationHours;
+    _attachedImages = List.from(j.attachedImages);
     if (j.fee != null) {
       _feeController.text = j.fee!.toStringAsFixed(0);
       _showFeeField = true;
     }
-    // Load existing description blocks (skip image blocks for edit simplicity)
+    // Load existing description blocks (text only — images handled separately)
     for (final block in j.descriptionBlocks) {
       _extraDescControllers.add(TextEditingController(text: block));
     }
@@ -302,6 +306,7 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
         fee: fee,
         durationHours: _durationHours,
         descriptionBlocks: descBlocks,
+        attachedImages: _attachedImages,
       );
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -313,6 +318,77 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
 
   void _addDescriptionBlock() {
     setState(() => _extraDescControllers.add(TextEditingController()));
+  }
+
+  /// Pick and upload an image for job edit. Returns the download URL.
+  Future<String?> _pickAndUploadImage() async {
+    final l10n = ref.read(translationProvider.notifier);
+
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        title: Text(l10n.translate('photo_add_title'), style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.translate('photo_add_source'), style: TextStyle(color: context.appExt.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
+                const SizedBox(width: 8),
+                Text(l10n.translate('photo_gallery'), style: const TextStyle(color: Color(0xFF4FC3F7))),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+            icon: const Icon(Icons.camera_alt, size: 20),
+            label: Text(l10n.translate('photo_camera')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (source == null || !mounted) return null;
+
+    setState(() => _isImageUploading = true);
+    try {
+      final url = await ref.read(mediaProvider.notifier).uploadJobPhoto(
+        jobId: widget.job.id,
+        isBefore: true,
+        source: source,
+      );
+      if (url != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.translate('photo_before_uploaded')), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
+        );
+        return url;
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        final msg = e.code == 'unavailable'
+            ? l10n.translate('checklist_photo_offline')
+            : l10n.translate('job_checklist_photo_error', {'error': e.message ?? 'Unknown error'});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.translate('job_checklist_photo_error', {'error': e.toString()})), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImageUploading = false);
+    }
+    return null;
   }
 
   /// Returns true if the user has modified any field from the original job.
@@ -337,6 +413,12 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
     if (origBlocks.length != currentBlocks.length) return true;
     for (int i = 0; i < origBlocks.length; i++) {
       if (origBlocks[i] != currentBlocks[i]) return true;
+    }
+    // Check attached images
+    final origImages = j.attachedImages;
+    if (origImages.length != _attachedImages.length) return true;
+    for (int i = 0; i < origImages.length; i++) {
+      if (origImages[i] != _attachedImages[i]) return true;
     }
     return false;
   }
@@ -532,6 +614,15 @@ class _JobEditScreenState extends ConsumerState<JobEditScreen> {
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5),
                 ),
+              ),
+
+              // 13. Ekli Görseller
+              MultiPhotoPicker(
+                photoUrls: _attachedImages,
+                label: l10n.translate('attached_images'),
+                isUploading: _isImageUploading,
+                onPickPhoto: _pickAndUploadImage,
+                onPhotosChanged: (urls) => setState(() => _attachedImages = urls),
               ),
 
               const SizedBox(height: 24),

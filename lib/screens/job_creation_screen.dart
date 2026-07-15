@@ -1,14 +1,9 @@
-// ignore_for_file: avoid_web_libraries_in_flutter
-import 'dart:async';
-import 'dart:typed_data';
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/media_provider.dart';
@@ -17,7 +12,7 @@ import '../providers/offline_queue_provider.dart';
 import '../models/app_user.dart';
 import '../models/customer.dart';
 import '../models/job_template.dart';
-import '../widgets/web_safe_image.dart';
+import '../widgets/checklist/multi_photo_picker.dart';
 import '../theme/app_theme.dart';
 
 class JobCreationScreen extends ConsumerStatefulWidget {
@@ -49,6 +44,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
   String? _paymentQrUrl;
   bool _customerDialogShown = false;
   int _durationHours = 2;
+  List<String> _attachedImages = [];
+  bool _isImageUploading = false;
 
   @override
   void initState() {
@@ -314,6 +311,78 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
     }
   }
 
+  /// Pick and upload an image for job creation. Returns the download URL.
+  /// Uses the same flow as checklist's _pickAndUploadPhoto for consistency.
+  Future<String?> _pickAndUploadImage() async {
+    final l10n = ref.read(translationProvider.notifier);
+
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(ctx).colorScheme.surface,
+        title: Text(l10n.translate('photo_add_title'), style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.translate('photo_add_source'), style: TextStyle(color: context.appExt.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
+                const SizedBox(width: 8),
+                Text(l10n.translate('photo_gallery'), style: const TextStyle(color: Color(0xFF4FC3F7))),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+            icon: const Icon(Icons.camera_alt, size: 20),
+            label: Text(l10n.translate('photo_camera')),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (source == null || !mounted) return null;
+
+    setState(() => _isImageUploading = true);
+    try {
+      final url = await ref.read(mediaProvider.notifier).uploadJobPhoto(
+        jobId: 'creation_${DateTime.now().millisecondsSinceEpoch}',
+        isBefore: true,
+        source: source,
+      );
+      if (url != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.translate('photo_before_uploaded')), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
+        );
+        return url;
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        final msg = e.code == 'unavailable'
+            ? l10n.translate('checklist_photo_offline')
+            : l10n.translate('job_checklist_photo_error', {'error': e.message ?? 'Unknown error'});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red, duration: const Duration(seconds: 4)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.translate('job_checklist_photo_error', {'error': e.toString()})), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImageUploading = false);
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -325,13 +394,11 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
       final fee = double.tryParse(_feeController.text);
       
       // Separate attached images from description blocks
-      final attachedImages = <String>[];
+      final attachedImages = List<String>.from(_attachedImages);
       final descBlocks = <String>[];
       for (final c in _extraDescControllers) {
         final text = c.text.trim();
-        if (text.startsWith('[RESIM]')) {
-          attachedImages.add(text.substring(7));
-        } else if (text.isNotEmpty) {
+        if (text.isNotEmpty) {
           descBlocks.add(text);
         }
       }
@@ -638,18 +705,8 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                   child: ActionChip(avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)), label: Text(l10n.translate('add_fee_button'), style: const TextStyle(color: Color(0xFF4FC3F7))), onPressed: () => setState(() => _showFeeField = true), backgroundColor: Theme.of(context).colorScheme.surface, side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5)),
                 ),
 
-              // 12. 📎 Açıklama Blokları
+              // 12. 📎 Açıklama Blokları (sadece metin)
               ..._extraDescControllers.asMap().entries.map((entry) {
-                final text = entry.value.text;
-                if (text.startsWith('[RESIM]')) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ImagePreviewBlock(
-                      imageUrl: text.substring(7),
-                      onRemove: () => setState(() => _extraDescControllers.removeAt(entry.key)),
-                    ),
-                  );
-                }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildField(l10n.translate('extra_description_label', {'number': '${entry.key + 1}'}), entry.value, Icons.add_comment),
@@ -660,8 +717,14 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
                 child: ActionChip(avatar: const Icon(Icons.add, size: 16, color: Color(0xFF4FC3F7)), label: Text(l10n.translate('add_description_block'), style: const TextStyle(color: Color(0xFF4FC3F7))), onPressed: _addDescriptionBlock, backgroundColor: Theme.of(context).colorScheme.surface, side: const BorderSide(color: Color(0xFF4FC3F7), width: 0.5)),
               ),
 
-              // Resim Ekleme
-              _ImageUploadField(onImagePicked: (url) { if (url != null) _extraDescControllers.add(TextEditingController(text: '[RESIM]$url')); }),
+              // 13. 🖼️ Ekli Görseller
+              MultiPhotoPicker(
+                photoUrls: _attachedImages,
+                label: l10n.translate('attached_images'),
+                isUploading: _isImageUploading,
+                onPickPhoto: _pickAndUploadImage,
+                onPhotosChanged: (urls) => setState(() => _attachedImages = urls),
+              ),
 
               const SizedBox(height: 48),
               ElevatedButton(
@@ -862,209 +925,6 @@ class _JobCreationScreenState extends ConsumerState<JobCreationScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
       validator: isRequired ? (v) => v == null || v.trim().isEmpty ? l10n.translate('validation_required') : null : null,
-    );
-  }
-}
-
-class _ImagePreviewBlock extends ConsumerWidget {
-  final String imageUrl;
-  final VoidCallback onRemove;
-  const _ImagePreviewBlock({required this.imageUrl, required this.onRemove});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = ref.read(translationProvider.notifier);
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
-            child: WebSafeImage(
-              url: imageUrl,
-              height: 120,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) => Container(
-                height: 120,
-                color: Theme.of(context).colorScheme.surface,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.broken_image, color: Colors.red, size: 32),
-                      const SizedBox(height: 4),
-                      Text(l10n.translate('image_load_error'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 11)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.image, color: Color(0xFF4FC3F7), size: 16),
-                const SizedBox(width: 4),
-                Expanded(child: Text(l10n.translate('image_added'), style: TextStyle(color: context.appExt.textSecondary, fontSize: 12))),
-                InkWell(
-                  onTap: onRemove,
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, color: Colors.redAccent, size: 18),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ImageUploadField extends ConsumerStatefulWidget {
-  final void Function(String?) onImagePicked;
-  const _ImageUploadField({required this.onImagePicked});
-
-  @override
-  ConsumerState<_ImageUploadField> createState() => _ImageUploadFieldState();
-}
-
-class _ImageUploadFieldState extends ConsumerState<_ImageUploadField> {
-  String? _imageUrl;
-  bool _isUploading = false;
-
-  Future<void> _pickAndUpload() async {
-    final l10n = ref.read(translationProvider.notifier);
-    // Show source picker for mobile reliability
-    final source = await showDialog<ImageSource>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(ctx).colorScheme.surface,
-        title: Text(l10n.translate('photo_add_title'), style: const TextStyle(color: Colors.white)),
-        content: Text(l10n.translate('photo_add_source'), style: TextStyle(color: context.appExt.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.photo_library, color: Color(0xFF4FC3F7), size: 20),
-                const SizedBox(width: 8),
-                Text(l10n.translate('photo_gallery'), style: const TextStyle(color: Color(0xFF4FC3F7))),
-              ],
-            ),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, ImageSource.camera),
-            icon: const Icon(Icons.camera_alt, size: 20),
-            label: Text(l10n.translate('photo_camera')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1565C0),
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-    
-    if (source == null || !mounted) return;
-    
-    final picker = ImagePicker();
-    setState(() => _isUploading = true);
-    try {
-      final picked = await picker.pickImage(source: source, imageQuality: 65, maxWidth: 800);
-      if (picked == null) {
-        if (mounted) setState(() => _isUploading = false);
-        return;
-      }
-
-      // Web'de blob URL güvenli okuma
-      Uint8List bytes;
-      if (kIsWeb) {
-        try {
-          final completer = Completer<Uint8List>();
-          final reader = html.FileReader();
-          reader.onLoad.listen((_) => completer.complete(reader.result as Uint8List));
-          reader.onError.listen((_) => completer.completeError(Exception('read failed')));
-          final request = html.HttpRequest();
-          request.open('GET', picked.path);
-          request.responseType = 'blob';
-          request.onLoad.listen((_) => reader.readAsArrayBuffer(request.response as html.Blob));
-          request.onError.listen((_) => completer.completeError(Exception('fetch failed')));
-          request.send();
-          bytes = await completer.future;
-        } catch (_) {
-          bytes = await picked.readAsBytes();
-        }
-      } else {
-        bytes = await picked.readAsBytes();
-      }
-      final org = ref.read(currentOrganizationProvider).value;
-      if (org == null || org.id.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.translate('org_info_not_loaded')), backgroundColor: Colors.orange),
-          );
-        }
-        if (mounted) setState(() => _isUploading = false);
-        return;
-      }
-      final url = await ref.read(mediaProvider.notifier).uploadJobPhotoFromBytes(
-        orgId: org.id,
-        jobId: 'creation_${DateTime.now().millisecondsSinceEpoch}',
-        bytes: bytes,
-        isBefore: true,
-      );
-      if (url != null) {
-        setState(() => _imageUrl = url);
-        widget.onImagePicked(url);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.translate('job_checklist_photo_error', {'error': '$e'})), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isUploading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = ref.read(translationProvider.notifier);
-    return InkWell(
-      onTap: _isUploading ? null : _pickAndUpload,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF4FC3F7).withOpacity(0.3), width: 1),
-        ),
-        child: _isUploading
-            ? Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Theme.of(context).colorScheme.secondary)))
-            : _imageUrl != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: WebSafeImage(url: _imageUrl!, height: 150, width: double.infinity, fit: BoxFit.cover),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add_a_photo, color: Color(0xFF4FC3F7), size: 28),
-                      const SizedBox(width: 12),
-                      Text(l10n.translate('photo_add_button'), style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 15, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-      ),
     );
   }
 }
