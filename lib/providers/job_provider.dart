@@ -116,17 +116,14 @@ final customersProvider = StreamProvider<List<Customer>>((ref) {
 });
 
 // -----------------------------------------------------------------------
-// Single Job by ID — bildirim tıklamalarında yönlendirme için
+// Single Job by ID — canlı Firestore stream (ücret, durum, fotoğraf anlık)
 // -----------------------------------------------------------------------
 
-final jobByIdProvider = FutureProvider.family<Job?, String>((ref, jobId) async {
-  try {
-    final doc = await _firestore.collection('jobs').doc(jobId).get();
+final jobByIdProvider = StreamProvider.family<Job?, String>((ref, jobId) {
+  return _firestore.collection('jobs').doc(jobId).snapshots().map((doc) {
     if (!doc.exists) return null;
     return Job.fromFirestore(doc);
-  } catch (_) {
-    return null;
-  }
+  });
 });
 
 /// Job Operations Notifier

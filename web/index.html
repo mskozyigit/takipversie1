@@ -142,7 +142,7 @@
 
   <!-- ================================================================= -->
   <!-- Custom Service Worker Registration                                -->
-  <!-- Flutter'in deprecated SW'si yerine kendi SW'mizi kaydettirir.      -->
+  <!-- Önce tüm eski SW'leri sil, sonra kendi SW'mizi kaydettir.         -->
   <!-- firebase-messaging-sw.js: cache + FCM + heads-up notifications.    -->
   <!-- ================================================================= -->
   <script>
@@ -150,30 +150,46 @@
       if (!('serviceWorker' in navigator)) return;
 
       var swUrl = '/takipversie1/firebase-messaging-sw.js';
+      var swScope = '/takipversie1/';
 
-      // Sayfa tamamen yüklendikten sonra SW'yi kaydet
-      // (flutter_bootstrap.js async olabilir, ondan sonra çalışmayı garantile)
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register(swUrl, {scope: '/takipversie1/'})
-          .then(function(reg) {
-            console.log('[SW] Custom SW registered:', reg.scope);
-
-            // Flutter'in deprecated SW'sini temizle
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-              registrations.forEach(function(r) {
-                var scriptUrl = (r.active && r.active.scriptURL) || '';
-                if (scriptUrl.includes('flutter_service_worker')) {
-                  r.unregister().then(function(success) {
-                    if (success) console.log('[SW] Flutter deprecated SW unregistered');
-                  });
-                }
+      // Önce TÜM eski service worker'ları temizle, sonra bizimkini kaydet
+      function cleanAndRegister() {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          var unregisterPromises = registrations.map(function(reg) {
+            var scriptUrl = (reg.active && reg.active.scriptURL) || '';
+            // Flutter'in deprecated SW'sini ve scope'u bizimkinden farklı olanları sil
+            if (scriptUrl.includes('flutter_service_worker') || reg.scope !== swScope) {
+              return reg.unregister().then(function(success) {
+                console.log('[SW] Unregistered:', reg.scope, scriptUrl, success);
+              }).catch(function(err) {
+                console.warn('[SW] Unregister failed:', reg.scope, err);
               });
-            });
-          })
-          .catch(function(err) {
-            console.warn('[SW] Registration failed:', err);
+            }
+            return Promise.resolve();
           });
-      });
+
+          // Tüm eski SW'ler silindikten sonra bizimkini kaydet
+          Promise.all(unregisterPromises).then(function() {
+            // Kısa bir gecikme — tarayıcının unregister'ı işlemesi için
+            setTimeout(function() {
+              navigator.serviceWorker.register(swUrl, {scope: swScope})
+                .then(function(reg) {
+                  console.log('[SW] Custom SW registered:', reg.scope);
+                })
+                .catch(function(err) {
+                  console.warn('[SW] Registration failed:', err);
+                });
+            }, 200);
+          });
+        });
+      }
+
+      // Sayfa yüklenir yüklenmez çalıştır (load event'ini bekleme)
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', cleanAndRegister);
+      } else {
+        cleanAndRegister();
+      }
     })();
   </script>
 

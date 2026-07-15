@@ -153,6 +153,7 @@
   "button_cancel": "Cancel",
   "button_ok": "OK",
   "button_delete": "Delete",
+  "button_done": "Done",
   "logout_confirm": "Are you sure you want to log out?",
   "job_created_success": "Job created successfully",
   "job_queued_offline": "Job queued. Will be sent automatically when online.",

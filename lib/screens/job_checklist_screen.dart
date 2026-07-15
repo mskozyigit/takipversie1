@@ -97,18 +97,8 @@ class _JobChecklistScreenState extends ConsumerState<JobChecklistScreen> {
         source: source,
       );
       if (url != null) {
-        await ref.read(jobOperationsProvider.notifier).addJobPhoto(
-          widget.job.id,
-          url: url,
-          isBefore: isBefore,
-        );
-        setState(() {
-          if (isBefore) {
-            _beforePhotoUrls.add(url);
-          } else {
-            _afterPhotoUrls.add(url);
-          }
-        });
+        // Fotoğrafın Firestore'a eklenmesi MultiPhotoPicker.onPhotosChanged
+        // tarafından updateJobPhotos ile yapılır. Burada sadece upload + snackbar.
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.translate(isBefore ? 'photo_before_uploaded' : 'photo_after_uploaded')), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),

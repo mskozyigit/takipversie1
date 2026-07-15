@@ -493,15 +493,31 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
             if (!isAdmin && (job.status == JobStatus.closed || job.status == JobStatus.workCompleted))
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
+                    SizedBox(
+                      width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => JobChecklistScreen(job: job))),
                         icon: const Icon(Icons.replay, size: 18),
                         label: Text(l10n.translate('job_edit_reopen')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.check_circle_outline, size: 18),
+                        label: Text(l10n.translate('button_done')),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF4CAF50),
+                          side: const BorderSide(color: Color(0xFF4CAF50)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),

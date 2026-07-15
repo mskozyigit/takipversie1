@@ -153,6 +153,7 @@
   "button_cancel": "İptal",
   "button_ok": "Tamam",
   "button_delete": "Sil",
+  "button_done": "Tamamlandı",
   "logout_confirm": "Çıkış yapmak istediğine emin misin?",
   "job_created_success": "İş başarıyla oluşturuldu",
   "job_queued_offline": "İş kuyruğa alındı. İnternet bağlantısı sağlandığında otomatik gönderilecek.",

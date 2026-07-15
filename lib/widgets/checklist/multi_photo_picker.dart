@@ -81,25 +81,33 @@ class MultiPhotoPicker extends ConsumerWidget {
               );
             }),
 
-            // Add photo button (if under max)
+            // Add photo button (always visible when under max)
             if (canAdd && !isUploading)
               _AddPhotoTile(
+                label: l10n.translate('photo_add_button'),
                 onTap: () async {
                   final url = await onPickPhoto();
                   if (url != null) {
-                    final updated = List<String>.from(photoUrls)..add(url);
-                    onPhotosChanged(updated);
+                    // Avoid double-add: if _pickAndUploadPhoto already added
+                    // the URL to the list, don't add again.
+                    if (!photoUrls.contains(url)) {
+                      final updated = List<String>.from(photoUrls)..add(url);
+                      onPhotosChanged(updated);
+                    }
                   }
                 },
               ),
           ],
         ),
 
-        if (photoUrls.isEmpty && !isUploading)
+        // Hint: kaç fotoğraf daha eklenebileceğini göster
+        if (canAdd && !isUploading)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 6),
             child: Text(
-              l10n.translate('photo_optional_hint'),
+              photoUrls.isEmpty
+                  ? l10n.translate('photo_optional_hint')
+                  : '${l10n.translate('photo_add_button')} (${photoUrls.length}/${MultiPhotoPicker.maxPhotos})',
               style: TextStyle(color: context.appExt.textTertiary, fontSize: 11, fontStyle: FontStyle.italic),
             ),
           ),
@@ -187,8 +195,9 @@ class _PhotoTile extends StatelessWidget {
 
 class _AddPhotoTile extends StatelessWidget {
   final VoidCallback onTap;
+  final String label;
 
-  const _AddPhotoTile({required this.onTap});
+  const _AddPhotoTile({required this.onTap, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -202,8 +211,22 @@ class _AddPhotoTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFF37474F), width: 1.5, strokeAlign: BorderSide.strokeAlignInside),
         ),
-        child: const Center(
-          child: Icon(Icons.add_a_photo, color: Color(0xFF4FC3F7), size: 28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_a_photo, color: Color(0xFF4FC3F7), size: 28),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF4FC3F7), fontSize: 10, fontWeight: FontWeight.w500),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -144,6 +144,7 @@
   "button_cancel": "Annuleren",
   "button_ok": "OK",
   "button_delete": "Verwijderen",
+  "button_done": "Klaar",
   "logout_confirm": "Weet je zeker dat je wilt uitloggen?",
   "job_created_success": "Taak succesvol aangemaakt",
   "job_queued_offline": "Taak in wachtrij. Wordt automatisch verzonden bij verbinding.",

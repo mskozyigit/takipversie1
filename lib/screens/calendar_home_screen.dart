@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/job.dart';
@@ -56,14 +57,17 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     ref.listen<String?>(pendingJobIdProvider, (prev, next) {
       if (next == null || next.isEmpty) return;
       // Job'ı Firestore'dan çek ve yönlendir
-      ref.read(jobByIdProvider(next).future).then((job) {
-        if (job != null && mounted) {
+      FirebaseFirestore.instance.collection('jobs').doc(next).get().then((doc) {
+        if (doc.exists && mounted) {
+          final job = Job.fromFirestore(doc);
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => JobDetailScreen(job: job)),
           );
         }
         // Yönlendirme sonrası temizle
+        ref.read(pendingJobIdProvider.notifier).clear();
+      }).catchError((_) {
         ref.read(pendingJobIdProvider.notifier).clear();
       });
     });
