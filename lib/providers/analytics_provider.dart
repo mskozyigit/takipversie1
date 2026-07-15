@@ -66,11 +66,6 @@ class _CacheEntry {
 
 _CacheEntry? _cache;
 
-/// Clear analytics cache — kullanıcı "Yenile" dediğinde çağrılır.
-void clearAnalyticsCache() {
-  _cache = null;
-}
-
 final analyticsProvider = FutureProvider<AnalyticsData>((ref) async {
   final authState = ref.watch(authProvider).value;
   if (authState is! ApprovedAdmin) {

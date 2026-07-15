@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../providers/job_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/analytics_provider.dart';
 import '../models/job.dart';
 import 'job_creation_screen.dart';
 import 'job_detail_screen.dart';
@@ -357,51 +356,14 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     ],  // Column children
     ),  // Column
       floatingActionButton: isAdmin
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  label: l10n.translate('refresh_data'),
-                  button: true,
-                  child: FloatingActionButton.small(
-                    heroTag: 'refresh',
-                    tooltip: l10n.translate('refresh_data'),
-                    onPressed: () {
-                      ref.invalidate(allJobsProvider(_focusedDay));
-                      ref.invalidate(workerJobsProvider(_focusedDay));
-                      ref.invalidate(analyticsProvider);
-                      clearAnalyticsCache();
-                    },
-                    backgroundColor: Theme.of(context).colorScheme.surface,
-                    child: const Icon(Icons.refresh, color: Color(0xFF4FC3F7)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Semantics(
-                  label: l10n.translate('job_create_title'),
-                  button: true,
-                  child: FloatingActionButton(
-                    heroTag: 'add',
-                    tooltip: l10n.translate('job_create_title'),
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child: const Icon(Icons.add, color: Colors.white),
-                  ),
-                ),
-              ],
+          ? FloatingActionButton(
+              heroTag: 'add',
+              tooltip: l10n.translate('job_create_title'),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobCreationScreen())),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: const Icon(Icons.add, color: Colors.white),
             )
-          : FloatingActionButton.small(
-              heroTag: 'refresh-worker',
-              tooltip: l10n.translate('refresh_data'),
-              onPressed: () {
-                ref.invalidate(allJobsProvider(_focusedDay));
-                ref.invalidate(workerJobsProvider(_focusedDay));
-                ref.invalidate(analyticsProvider);
-                clearAnalyticsCache();
-              },
-              backgroundColor: Theme.of(context).colorScheme.surface,
-              child: const Icon(Icons.refresh, color: Color(0xFF4FC3F7)),
-            ),
+          : null,
     ),
     );
   }
