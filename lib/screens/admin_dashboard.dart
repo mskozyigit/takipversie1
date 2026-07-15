@@ -48,7 +48,7 @@ class _AdminDashboardState extends ConsumerState<AdminDashboard> {
           ),
           IconButton(
             icon: const Icon(Icons.qr_code),
-            tooltip: 'QR Kod Yönetimi',
+            tooltip: l10n.translate('qr_management_title'),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrManagementScreen())),
           ),
           // ADM-02: Language toggle (Calendar ile aynı yapı)

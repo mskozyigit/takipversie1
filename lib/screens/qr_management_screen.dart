@@ -27,14 +27,14 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D1B2A),
       appBar: AppBar(
-        title: const Text('QR Kod Yönetimi'),
+        title: Text(l10n.translate('qr_management_title')),
         backgroundColor: branding.useBranding ? branding.primaryColor : const Color(0xFF1565C0),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Her tutar için bir QR kod resmi yükleyin.\nÇalışan iş akışında, işin ücretiyle eşleşen QR kodu gösterilir.',
+            l10n.translate('qr_management_desc'),
             style: TextStyle(color: context.appExt.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 24),
@@ -66,17 +66,17 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
                         if (currentUrl != null)
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                            tooltip: 'QR Kodu Kaldır',
+                            tooltip: l10n.translate('qr_remove'),
                             onPressed: isUploading ? null : () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
                                   backgroundColor: const Color(0xFF1A2A3A),
-                                  title: const Text('QR Kodu Kaldır', style: TextStyle(color: Colors.white)),
-                                  content: Text('$key € QR kodu kaldırılsın mı?', style: const TextStyle(color: Color(0xFF90A4AE))),
+                                  title: Text(l10n.translate('qr_remove'), style: const TextStyle(color: Colors.white)),
+                                  content: Text(l10n.translate('qr_remove_confirm', {'amount': key}), style: const TextStyle(color: Color(0xFF90A4AE))),
                                   actions: [
-                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('İptal')),
-                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Kaldır', style: TextStyle(color: Colors.red))),
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.translate('button_cancel'))),
+                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l10n.translate('button_delete'), style: const TextStyle(color: Colors.red))),
                                   ],
                                 ),
                               );
@@ -129,7 +129,7 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
                             children: [
                               Icon(Icons.qr_code, size: 32, color: Color(0xFF546E7A)),
                               SizedBox(height: 4),
-                              Text('QR kod yüklenmemiş', style: TextStyle(color: Color(0xFF546E7A), fontSize: 12)),
+                              Text(l10n.translate('qr_not_uploaded'), style: const TextStyle(color: Color(0xFF546E7A), fontSize: 12)),
                             ],
                           ),
                         ),
@@ -140,7 +140,7 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
                       child: OutlinedButton.icon(
                         onPressed: isUploading ? null : () => _uploadQr(amount, key),
                         icon: Icon(currentUrl != null ? Icons.swap_horiz : Icons.upload, size: 18),
-                        label: Text(currentUrl != null ? 'Değiştir' : 'QR Kod Yükle'),
+                        label: Text(currentUrl != null ? l10n.translate('qr_replace') : l10n.translate('qr_upload')),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF4FC3F7),
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -171,14 +171,14 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
       );
       if (url != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$key € QR kodu yüklendi ✓'), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
+          SnackBar(content: Text(l10n.translate('qr_uploaded', {'amount': key})), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
         );
         setState(() {}); // Refresh to show new image
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Yükleme hatası: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(l10n.translate('qr_upload_error', {'error': e.toString()})), backgroundColor: Colors.red),
         );
       }
     } finally {

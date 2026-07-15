@@ -339,5 +339,14 @@
   "exit_app_title": "Çıkış",
   "exit_app_message": "Uygulamadan çıkmak istiyor musunuz?",
   "exit_unsaved_title": "Kaydedilmemiş Değişiklikler",
-  "exit_unsaved_message": "Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?"
+  "exit_unsaved_message": "Kaydedilmemiş değişiklikler var. Çıkmak istediğinize emin misiniz?",
+  "qr_management_title": "QR Kod Yönetimi",
+  "qr_management_desc": "Her tutar için bir QR kod resmi yükleyin.\nÇalışan iş akışında, işin ücretiyle eşleşen QR kodu gösterilir.",
+  "qr_remove": "QR Kodu Kaldır",
+  "qr_remove_confirm": "{amount} € QR kodu kaldırılsın mı?",
+  "qr_not_uploaded": "QR kod yüklenmemiş",
+  "qr_upload": "QR Kod Yükle",
+  "qr_replace": "Değiştir",
+  "qr_uploaded": "{amount} € QR kodu yüklendi ✓",
+  "qr_upload_error": "Yükleme hatası: {error}"
 }

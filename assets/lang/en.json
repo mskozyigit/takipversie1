@@ -339,5 +339,14 @@
   "exit_app_title": "Exit",
   "exit_app_message": "Do you want to exit the app?",
   "exit_unsaved_title": "Unsaved Changes",
-  "exit_unsaved_message": "You have unsaved changes. Are you sure you want to leave?"
+  "exit_unsaved_message": "You have unsaved changes. Are you sure you want to leave?",
+  "qr_management_title": "QR Code Management",
+  "qr_management_desc": "Upload a QR code image for each amount.\nThe matching QR code will be shown in the worker's workflow based on the job fee.",
+  "qr_remove": "Remove QR Code",
+  "qr_remove_confirm": "Remove {amount} € QR code?",
+  "qr_not_uploaded": "QR code not uploaded",
+  "qr_upload": "Upload QR Code",
+  "qr_replace": "Replace",
+  "qr_uploaded": "{amount} € QR code uploaded ✓",
+  "qr_upload_error": "Upload error: {error}"
 }
