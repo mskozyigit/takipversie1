@@ -567,14 +567,7 @@ class _JobFormState extends ConsumerState<JobForm> {
 
                   // Mission Number
                   _buildField(l10n.translate('job_mission_number'), _missionNumberController, Icons.tag, isRequired: false),
-                  if (!isEdit) ...[
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12, bottom: 12),
-                      child: Text(l10n.translate('mission_number_hint'), style: TextStyle(color: context.appExt.textTertiary, fontSize: 11, fontStyle: FontStyle.italic)),
-                    ),
-                  ] else
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
                   // Customer Name
                   _buildField(l10n.translate('job_customer_name'), _customerNameController, Icons.person,

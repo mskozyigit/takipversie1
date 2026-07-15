@@ -384,13 +384,6 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
               ],
             ],
 
-            // Boş akış uyarısı
-            if (job.description2 == null && job.checklistNotes.isEmpty && job.beforePhotoUrls.isEmpty && job.afterPhotoUrls.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(l10n.translate('job_workflow_empty'), textAlign: TextAlign.center, style: TextStyle(color: context.appExt.textSecondary, fontSize: 13)),
-              ),
-
             const SizedBox(height: 32),
 
             // Action Button
