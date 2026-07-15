@@ -212,10 +212,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
               ),
               if (_showSlowLoadingMessage) ...[
                 const SizedBox(height: 24),
-                const Text('Yükleniyor...',
-                    style: TextStyle(color: Colors.white54, fontSize: 14)),
+                Text(l10n.translate('app_loading'),
+                    style: const TextStyle(color: Colors.white54, fontSize: 14)),
                 const SizedBox(height: 8),
-                Text('İnternet bağlantınızı kontrol edin',
+                Text(l10n.translate('app_check_internet'),
                     style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12)),
               ],
             ],

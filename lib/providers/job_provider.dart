@@ -6,11 +6,10 @@ import '../models/app_user.dart';
 import '../models/customer.dart';
 import 'auth_provider.dart';
 import 'module_provider.dart';
+import 'firestore_provider.dart';
 
 import '../models/audit_log.dart';
 import '../models/comment.dart';
-
-final _firestore = FirebaseFirestore.instance;
 
 // -----------------------------------------------------------------------
 // Audit Log Provider
@@ -20,7 +19,7 @@ final auditLogProvider = StreamProvider.family<List<AuditLogEntry>, String>((ref
   final authState = ref.watch(authProvider).value;
   if (authState == null) return Stream.value([]);
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('auditLogs')
       .where('jobId', isEqualTo: jobId)
       .orderBy('timestamp', descending: true)
@@ -37,7 +36,7 @@ final commentsProvider = StreamProvider.family<List<JobComment>, String>((ref, j
   final orgId = authState?.appUser?.organizationId;
   if (orgId == null) return Stream.value([]);
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('comments')
       .where('jobId', isEqualTo: jobId)
       .where('organizationId', isEqualTo: orgId)
@@ -54,7 +53,7 @@ final allJobsProvider = StreamProvider.family<List<Job>, DateTime>((ref, date) {
   final start = DateTime(date.year, date.month, 1);
   final end = DateTime(date.year, date.month + 1, 1).subtract(const Duration(milliseconds: 1));
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('jobs')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
       .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
@@ -75,7 +74,7 @@ final workerJobsProvider = StreamProvider.family<List<Job>, DateTime>((ref, date
   final start = DateTime(date.year, date.month, 1);
   final end = DateTime(date.year, date.month + 1, 1).subtract(const Duration(milliseconds: 1));
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('jobs')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
       .where('assignedWorkerId', isEqualTo: authState.appUser.id)
@@ -94,7 +93,7 @@ final organizationWorkersProvider = StreamProvider<List<AppUser>>((ref) {
   final authState = ref.watch(authProvider).value;
   if (authState is! ApprovedAdmin) return Stream.value([]);
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('users')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
       .where('approvalStatus', isEqualTo: 'approved')
@@ -108,7 +107,7 @@ final customersProvider = StreamProvider<List<Customer>>((ref) {
   final authState = ref.watch(authProvider).value;
   if (authState is! ApprovedAdmin) return Stream.value([]);
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('customers')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
       .snapshots()
@@ -120,7 +119,7 @@ final customersProvider = StreamProvider<List<Customer>>((ref) {
 // -----------------------------------------------------------------------
 
 final jobByIdProvider = StreamProvider.family<Job?, String>((ref, jobId) {
-  return _firestore.collection('jobs').doc(jobId).snapshots().map((doc) {
+  return ref.read(firestoreProvider).collection('jobs').doc(jobId).snapshots().map((doc) {
     if (!doc.exists) return null;
     return Job.fromFirestore(doc);
   });
@@ -131,7 +130,9 @@ class JobNotifier extends Notifier<void> {
   @override
   void build() {}
 
-  Future<void> createJob({
+  /// Returns the created job's document ID.
+  /// If [id] is provided, uses it instead of auto-generating.
+  Future<String> createJob({
     required String title,
     required String description,
     required String assignedWorkerId,
@@ -147,13 +148,14 @@ class JobNotifier extends Notifier<void> {
     double? fee,
     int durationHours = 2,
     String? missionNumber,
+    String? id,
   }) async {
     final authState = ref.read(authProvider).value;
-    if (authState is! ApprovedAdmin) return;
+    if (authState is! ApprovedAdmin) return '';
 
     final l10n = ref.read(translationProvider.notifier);
     final orgId = authState.appUser.organizationId;
-    final jobRef = _firestore.collection('jobs').doc();
+    final jobRef = ref.read(firestoreProvider).collection('jobs').doc(id);
     
     // LOG-01: Distance-based ETA calculation (Assume 50km/h + 15m buffer)
     Duration? estimatedTravel;
@@ -166,21 +168,21 @@ class JobNotifier extends Notifier<void> {
     String finalMissionNumber;
     if (missionNumber != null && missionNumber.trim().isNotEmpty) {
       // Custom mission number: validate uniqueness
-      final collision = await _firestore
+      final collision = await ref.read(firestoreProvider)
           .collection('jobs')
           .where('organizationId', isEqualTo: orgId)
           .where('missionNumber', isEqualTo: missionNumber.trim())
           .get();
       
       if (collision.docs.isNotEmpty) {
-        final nextNum = (await _firestore.collection('organizations').doc(orgId).get()).data()?['lastMissionNumber'] ?? 1000;
+        final nextNum = (await ref.read(firestoreProvider).collection('organizations').doc(orgId).get()).data()?['lastMissionNumber'] ?? 1000;
         throw Exception(l10n.translate('job_mission_collision', {'next': '#${nextNum + 1}'}));
       }
       finalMissionNumber = missionNumber.trim();
     } else {
       // Auto-generate sequential mission number
-      finalMissionNumber = await _firestore.runTransaction((transaction) async {
-        final orgDoc = await transaction.get(_firestore.collection('organizations').doc(orgId));
+      finalMissionNumber = await ref.read(firestoreProvider).runTransaction((transaction) async {
+        final orgDoc = await transaction.get(ref.read(firestoreProvider).collection('organizations').doc(orgId));
         final currentNum = (orgDoc.data()?['lastMissionNumber'] as int? ?? 1000) + 1;
         transaction.update(orgDoc.reference, {'lastMissionNumber': currentNum});
         return '#$currentNum';
@@ -223,6 +225,7 @@ class JobNotifier extends Notifier<void> {
         orgId: orgId,
       );
     }
+    return jobRef.id;
   }
 
   Future<void> updateJob({
@@ -234,6 +237,7 @@ class JobNotifier extends Notifier<void> {
     required String address,
     String? customerName,
     String? customerPhone,
+    String? customerId,
     required DateTime scheduledDate,
     String? missionNumber,
     double? distanceKm,
@@ -260,19 +264,20 @@ class JobNotifier extends Notifier<void> {
       'address': address,
       'customerName': customerName,
       'customerPhone': customerPhone,
+      if (customerId != null) 'customerId': customerId,
       'scheduledDate': Timestamp.fromDate(scheduledDate),
     };
 
     if (missionNumber != null && missionNumber.trim().isNotEmpty) {
       // Validate uniqueness if edited
-      final collision = await _firestore
+      final collision = await ref.read(firestoreProvider)
           .collection('jobs')
           .where('organizationId', isEqualTo: authState.appUser!.organizationId)
           .where('missionNumber', isEqualTo: missionNumber.trim())
           .get();
 
       if (collision.docs.isNotEmpty && collision.docs.first.id != jobId) {
-        final nextNum = (await _firestore.collection('organizations').doc(authState.appUser!.organizationId).get()).data()?['lastMissionNumber'] ?? 1000;
+        final nextNum = (await ref.read(firestoreProvider).collection('organizations').doc(authState.appUser!.organizationId).get()).data()?['lastMissionNumber'] ?? 1000;
         final l10n = ref.read(translationProvider.notifier);
         throw Exception(l10n.translate('job_mission_collision', {'next': '#${nextNum + 1}'}));
       }
@@ -289,12 +294,12 @@ class JobNotifier extends Notifier<void> {
     if (attachedImages != null) data['attachedImages'] = attachedImages;
     if (estimatedTravel != null) data['estimatedTravelTime'] = estimatedTravel.inMinutes;
 
-    await _firestore.collection('jobs').doc(jobId).update(data);
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update(data);
     await _logAction(jobId, 'Job Updated');
 
     // Notify newly assigned worker if different from before
     if (assignedWorkerId != 'unassigned') {
-      final oldJob = await _firestore.collection('jobs').doc(jobId).get();
+      final oldJob = await ref.read(firestoreProvider).collection('jobs').doc(jobId).get();
       final previousWorkerId = oldJob.data()?['assignedWorkerId'] as String?;
       if (previousWorkerId != assignedWorkerId) {
         final l10n = ref.read(translationProvider.notifier);
@@ -316,7 +321,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'description2': description2,
     });
     await _logAction(jobId, 'Description2 Updated');
@@ -327,7 +332,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'fee': fee,
       'feeEnteredBy': 1, // Worker tarafından girildi
     });
@@ -339,7 +344,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'durationHours': hours,
     });
     await _logAction(jobId, 'Duration Updated', metadata: {'hours': hours});
@@ -351,7 +356,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'checklistNotes': FieldValue.arrayUnion([note]),
     });
     await _logAction(jobId, 'Checklist Note Added');
@@ -361,7 +366,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState is! ApprovedAdmin) return;
 
-    await _firestore.collection('jobs').doc(jobId).delete();
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).delete();
     await _logAction(jobId, 'Job Deleted');
   }
 
@@ -369,7 +374,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('customers').add({
+    await ref.read(firestoreProvider).collection('customers').add({
       'organizationId': authState.appUser!.organizationId,
       'name': name,
       'address': address,
@@ -378,13 +383,13 @@ class JobNotifier extends Notifier<void> {
   }
 
   Future<void> updateJobStatus(String jobId, JobStatus newStatus) async {
-    final doc = await _firestore.collection('jobs').doc(jobId).get();
+    final doc = await ref.read(firestoreProvider).collection('jobs').doc(jobId).get();
     final currentStatus = _parseStatus(doc.data()?['status']);
 
     // JOB-05: Duplicate-action guard (Idempotency)
     if (currentStatus == newStatus) return;
 
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'status': newStatus.name,
       if (newStatus == JobStatus.inProgress) 'startedAt': FieldValue.serverTimestamp(),
       if (newStatus == JobStatus.workCompleted) 'completedAt': FieldValue.serverTimestamp(),
@@ -400,7 +405,7 @@ class JobNotifier extends Notifier<void> {
     if (afterUrls != null) data['afterPhotoUrls'] = afterUrls;
 
     if (data.isNotEmpty) {
-      await _firestore.collection('jobs').doc(jobId).update(data);
+      await ref.read(firestoreProvider).collection('jobs').doc(jobId).update(data);
       await _logAction(jobId, 'Photos updated');
     }
   }
@@ -408,14 +413,14 @@ class JobNotifier extends Notifier<void> {
   /// Add a single photo URL to the before or after list via arrayUnion.
   Future<void> addJobPhoto(String jobId, {required String url, required bool isBefore}) async {
     final field = isBefore ? 'beforePhotoUrls' : 'afterPhotoUrls';
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       field: FieldValue.arrayUnion([url]),
     });
     await _logAction(jobId, 'Photo added (${isBefore ? "before" : "after"})');
   }
 
   Future<void> addJobPart(String jobId, Map<String, dynamic> part) async {
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'usedParts': FieldValue.arrayUnion([part]),
     });
     await _logAction(jobId, 'Part added: ${part['name']}');
@@ -425,7 +430,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('comments').add({
+    await ref.read(firestoreProvider).collection('comments').add({
       'jobId': jobId,
       'organizationId': authState.appUser!.organizationId,
       'authorId': authState.appUser!.id,
@@ -436,7 +441,7 @@ class JobNotifier extends Notifier<void> {
   }
 
   Future<void> updateSafetyChecklist(String jobId, Map<String, bool> checklist) async {
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'safetyChecklist': checklist,
       'isSafetyConfirmed': !checklist.values.contains(false),
     });
@@ -447,7 +452,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     final workerName = authState is ApprovedWorker ? authState.appUser.name : 'System';
 
-    await _firestore.collection('jobs').doc(jobId).update({
+    await ref.read(firestoreProvider).collection('jobs').doc(jobId).update({
       'paymentMethod': method,
       'isPaid': true,
       'status': JobStatus.closed.name,
@@ -472,7 +477,7 @@ class JobNotifier extends Notifier<void> {
     required String orgId,
   }) async {
     try {
-      await _firestore.collection('notifications').add({
+      await ref.read(firestoreProvider).collection('notifications').add({
         'userId': workerId,
         'title': title,
         'body': body,
@@ -495,7 +500,7 @@ class JobNotifier extends Notifier<void> {
     final authState = ref.read(authProvider).value;
     if (authState == null) return;
 
-    await _firestore.collection('auditLogs').add({
+    await ref.read(firestoreProvider).collection('auditLogs').add({
       'organizationId': authState.appUser!.organizationId,
       'actorId': authState.appUser!.id,
       'actorName': authState.appUser!.name,
@@ -522,7 +527,7 @@ final jobTemplatesProvider = StreamProvider<List<JobTemplate>>((ref) {
   final authState = ref.watch(authProvider).value;
   if (authState is! ApprovedAdmin) return Stream.value([]);
 
-  return _firestore
+  return ref.read(firestoreProvider)
       .collection('jobTemplates')
       .where('organizationId', isEqualTo: authState.appUser.organizationId)
       .orderBy('createdDate', descending: true)
@@ -560,7 +565,7 @@ class TemplateNotifier extends Notifier<void> {
     if (authState is! ApprovedAdmin) return;
 
     final template = JobTemplate(
-      id: _firestore.collection('jobTemplates').doc().id,
+      id: ref.read(firestoreProvider).collection('jobTemplates').doc().id,
       organizationId: authState.appUser.organizationId,
       name: name,
       createdDate: DateTime.now(),
@@ -583,11 +588,11 @@ class TemplateNotifier extends Notifier<void> {
       defaultDurationHours: defaultDurationHours,
     );
 
-    await _firestore.collection('jobTemplates').doc(template.id).set(template.toFirestore());
+    await ref.read(firestoreProvider).collection('jobTemplates').doc(template.id).set(template.toFirestore());
   }
 
   Future<void> deleteTemplate(String templateId) async {
-    await _firestore.collection('jobTemplates').doc(templateId).delete();
+    await ref.read(firestoreProvider).collection('jobTemplates').doc(templateId).delete();
   }
 }
 

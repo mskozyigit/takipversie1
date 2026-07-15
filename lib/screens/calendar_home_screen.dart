@@ -56,8 +56,27 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
     // --- Bildirim yönlendirme: pendingJobId değişince JobDetailScreen'e git ---
     ref.listen<String?>(pendingJobIdProvider, (prev, next) {
       if (next == null || next.isEmpty) return;
+      final jobId = next;
+      // Mark all unread Firestore notifications for this user+job as read
+      final uid = ref.read(authProvider).value?.appUser?.id;
+      if (uid != null) {
+        FirebaseFirestore.instance
+            .collection('notifications')
+            .where('userId', isEqualTo: uid)
+            .where('jobId', isEqualTo: jobId)
+            .where('read', isEqualTo: false)
+            .get()
+            .then((snap) {
+              final batch = FirebaseFirestore.instance.batch();
+              for (final doc in snap.docs) {
+                batch.update(doc.reference, {'read': true});
+              }
+              return batch.commit();
+            })
+            .catchError((_) {}); // Fire-and-forget — non-critical
+      }
       // Job'ı Firestore'dan çek ve yönlendir
-      FirebaseFirestore.instance.collection('jobs').doc(next).get().then((doc) {
+      FirebaseFirestore.instance.collection('jobs').doc(jobId).get().then((doc) {
         if (doc.exists && mounted) {
           final job = Job.fromFirestore(doc);
           Navigator.push(
@@ -138,7 +157,10 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
             IconButton(
               icon: Icon(viewAsWorker ? Icons.visibility_off : Icons.visibility),
               tooltip: viewAsWorker ? 'Admin görünümüne dön' : 'İşçi görünümünü dene',
-              onPressed: () => ref.read(viewAsWorkerProvider.notifier).toggle(),
+              onPressed: () {
+                ref.read(viewAsWorkerProvider.notifier).toggle();
+                setState(() => _selectedWorkerId = null);
+              },
             ),
           // --- Worker menü butonu (profil + ayarlar) ---
           if (!isAdmin)
@@ -252,12 +274,12 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                     children: [
                       const Icon(Icons.preview, size: 18, color: Colors.white),
                       const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text('👷 İşçi görünümündesiniz', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      Expanded(
+                        child: Text(l10n.translate('worker_view_mode_banner'), style: const TextStyle(color: Colors.white, fontSize: 13)),
                       ),
                       TextButton(
                         onPressed: () => ref.read(viewAsWorkerProvider.notifier).toggle(),
-                        child: const Text('Çık', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text(l10n.translate('worker_view_mode_exit'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -311,11 +333,11 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _ViewChip(label: l10n.translate('calendar_today'), selected: false, onTap: () => setState(() { _focusedDay = DateTime.now(); _selectedDay = _focusedDay; _viewMode = 0; })),
+                    _ViewChip(label: l10n.translate('calendar_today'), selected: false, onTap: () => setState(() { _focusedDay = DateTime.now(); _selectedDay = _focusedDay; _viewMode = 0; _selectedWorkerId = null; })),
                     const SizedBox(width: 8),
-                    _ViewChip(label: l10n.translate('view_3day'), selected: _viewMode == 3, onTap: () => setState(() => _viewMode = 3)),
+                    _ViewChip(label: l10n.translate('view_3day'), selected: _viewMode == 3, onTap: () => setState(() { _viewMode = 3; _selectedWorkerId = null; })),
                     const SizedBox(width: 8),
-                    _ViewChip(label: l10n.translate('view_week'), selected: _viewMode == 1, onTap: () => setState(() => _viewMode = 1)),
+                    _ViewChip(label: l10n.translate('view_week'), selected: _viewMode == 1, onTap: () => setState(() { _viewMode = 1; _selectedWorkerId = null; })),
                   ],
                 ),
               ),
@@ -420,6 +442,12 @@ class _CalendarHomeScreenState extends ConsumerState<CalendarHomeScreen> {
               ),
               onTap: () {
                 Navigator.pop(ctx);
+                // Mark this notification as read in Firestore
+                FirebaseFirestore.instance
+                    .collection('notifications')
+                    .doc(notif.id)
+                    .update({'read': true})
+                    .catchError((_) {}); // Fire-and-forget
                 if (notif.jobId != null) {
                   ref.read(pendingJobIdProvider.notifier).set(notif.jobId);
                 }

@@ -8,7 +8,7 @@ import '../widgets/web_safe_image.dart';
 import '../widgets/full_screen_image_viewer.dart';
 import '../theme/app_theme.dart';
 import 'job_checklist_screen.dart';
-import 'admin_dashboard.dart';
+import 'job_edit_screen.dart';
 import 'audit_log_screen.dart';
 
 class JobDetailScreen extends ConsumerStatefulWidget {
@@ -428,16 +428,9 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                 child: Text(l10n.translate('job_description'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
               const SizedBox(height: 8),
-              ...job.descriptionBlocks.map((block) {
-                if (block.startsWith('[RESIM]')) {
-                  final imageUrl = block.substring(7);
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _DescriptionImagePreview(imageUrl: imageUrl),
-                  );
-                }
-                return _DetailCard(title: l10n.translate('info_label'), value: block, icon: Icons.info_outline);
-              }),
+              ...job.descriptionBlocks.map((block) =>
+                _DetailCard(title: l10n.translate('info_label'), value: block, icon: Icons.info_outline),
+              ),
             ],
 
             // Attached Images (admin tarafından eklenen resimler)

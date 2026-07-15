@@ -158,45 +158,4 @@ class Job {
     );
   }
 
-  Job copyWith({
-    String? title,
-    String? description,
-    String? description2,
-    String? assignedWorkerId,
-    String? assignedWorkerName,
-    String? address,
-    String? customerName,
-    String? customerPhone,
-    DateTime? scheduledDate,
-    JobStatus? status,
-    List<String>? beforePhotoUrls,
-    List<String>? afterPhotoUrls,
-    List<Map<String, dynamic>>? usedParts,
-    String? paymentMethod,
-    bool? isPaid,
-    List<String>? checklistNotes,
-  }) {
-    return Job(
-      id: id,
-      organizationId: organizationId,
-      title: title ?? this.title,
-      description: description ?? this.description,
-      description2: description2 ?? this.description2,
-      assignedWorkerId: assignedWorkerId ?? this.assignedWorkerId,
-      assignedWorkerName: assignedWorkerName ?? this.assignedWorkerName,
-      address: address ?? this.address,
-      customerName: customerName ?? this.customerName,
-      customerPhone: customerPhone ?? this.customerPhone,
-      scheduledDate: scheduledDate ?? this.scheduledDate,
-      status: status ?? this.status,
-      createdDate: createdDate,
-      checklistNotes: checklistNotes ?? this.checklistNotes,
-      missionNumber: missionNumber,
-      beforePhotoUrls: beforePhotoUrls ?? this.beforePhotoUrls,
-      afterPhotoUrls: afterPhotoUrls ?? this.afterPhotoUrls,
-      usedParts: usedParts ?? this.usedParts,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
-      isPaid: isPaid ?? this.isPaid,
-    );
-  }
 }

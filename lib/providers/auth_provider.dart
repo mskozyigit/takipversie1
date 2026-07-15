@@ -327,22 +327,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   String _generateJoinCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rng = Random.secure();
-    String code;
-    int attempts = 0;
-    do {
-      code = List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
-      attempts++;
-    } while (_isJoinCodeInUse(code) && attempts < 5);
-    return code;
-  }
-
-  /// Checks Firestore for existing join code (best-effort, not atomic).
-  /// Synchronous check is fine since join codes are generated client-side
-  /// and collisions are extremely rare (36^6 = 2.1B combinations).
-  bool _isJoinCodeInUse(String code) {
-    // This is intentionally a quick sync check — full uniqueness is
-    // not critical because join codes have 2.1 billion possible values.
-    return false;
+    // 36^6 = 2.1B combinations — collision probability is negligible.
+    // No Firestore check needed; two orgs generating the same code
+    // at the same time is statistically impossible.
+    return List.generate(6, (_) => chars[rng.nextInt(chars.length)]).join();
   }
 }
 
