@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/takipversie1/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Ratel Solutions FSM - Field Service Management">
+
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://www.gstatic.com https://accounts.google.com https://apis.google.com 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: https: blob:;
+    connect-src 'self' blob: https://*.firebaseapp.com https://*.googleapis.com https://*.gstatic.com wss://*.firebaseio.com https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com;
+    frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;
+  ">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="takipversie1">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Android/Chrome PWA meta tags -->
+  <meta name="theme-color" content="#0D1B2A">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+  <!-- Safe-area CSS: çentikli ekranlarda (iPhone X+, Samsung Galaxy) içerik kesilmesini önler -->
+  <style>
+    body {
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
+    }
+  </style>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>takipversie1</title>
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Fallback for browsers without JavaScript (rare but possible) -->
+  <noscript>
+    <div style="text-align:center;padding:40px;font-family:sans-serif;background:#0D1B2A;color:#fff;height:100vh;">
+      <h2>JavaScript Required</h2>
+      <p>This application requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+    </div>
+  </noscript>
+
+  <!-- Preload critical assets for faster first paint on mobile -->
+  <link rel="preload" href="main.dart.js" as="script">
+  <link rel="preload" href="flutter_bootstrap.js" as="script">
+
+  <!-- Firebase SDKs for FCM (TEAM-02) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
+          crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"
+          crossorigin="anonymous"></script>
+
+  <!-- ================================================================= -->
+  <!-- Permission Pre-check Helpers                                      -->
+  <!-- Bildirim ve kamera izin durumunu Flutter yüklenmeden önce kontrol   -->
+  <!-- eder. Sonuçlar window nesnesinde saklanır.                         -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      // Notification permission state
+      if ('Notification' in window) {
+        window._notificationPermission = Notification.permission;
+        // İzin değişikliklerini izle (Chrome'da permissions API varsa)
+        if (navigator.permissions && navigator.permissions.query) {
+          navigator.permissions.query({name: 'notifications'}).then(function(status) {
+            window._notificationPermission = status.state;
+            status.addEventListener('change', function() {
+              window._notificationPermission = this.state;
+            });
+          }).catch(function() { /* permissions API desteklenmiyor */ });
+        }
+      } else {
+        window._notificationPermission = 'denied';
+      }
+
+      // Camera permission state (if Permissions API available)
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name: 'camera'}).then(function(status) {
+          window._cameraPermission = status.state;
+          status.addEventListener('change', function() {
+            window._cameraPermission = this.state;
+          });
+        }).catch(function() {
+          window._cameraPermission = 'prompt';
+        });
+      } else {
+        window._cameraPermission = 'prompt';
+      }
+
+      // Helper: Flutter'dan erişilebilir permission kontrol fonksiyonu
+      window.checkPermission = function(name) {
+        if (name === 'notification' || name === 'notifications') {
+          return window._notificationPermission || 'prompt';
+        }
+        if (name === 'camera') {
+          return window._cameraPermission || 'prompt';
+        }
+        return 'prompt';
+      };
+    })();
+  </script>
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+
+  <!-- ================================================================= -->
+  <!-- Custom Service Worker Registration                                -->
+  <!-- Önce tüm eski SW'leri sil, sonra kendi SW'mizi kaydettir.         -->
+  <!-- firebase-messaging-sw.js: cache + FCM + heads-up notifications.    -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      if (!('serviceWorker' in navigator)) return;
+
+      var swUrl = '/takipversie1/firebase-messaging-sw.js';
+      var swScope = '/takipversie1/';
+
+      // Önce TÜM eski service worker'ları temizle, sonra bizimkini kaydet
+      function cleanAndRegister() {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          var unregisterPromises = registrations.map(function(reg) {
+            var scriptUrl = (reg.active && reg.active.scriptURL) || '';
+            // Flutter'in deprecated SW'sini ve scope'u bizimkinden farklı olanları sil
+            if (scriptUrl.includes('flutter_service_worker') || reg.scope !== swScope) {
+              return reg.unregister().then(function(success) {
+                console.log('[SW] Unregistered:', reg.scope, scriptUrl, success);
+              }).catch(function(err) {
+                console.warn('[SW] Unregister failed:', reg.scope, err);
+              });
+            }
+            return Promise.resolve();
+          });
+
+          // Tüm eski SW'ler silindikten sonra bizimkini kaydet
+          Promise.all(unregisterPromises).then(function() {
+            // Kısa bir gecikme — tarayıcının unregister'ı işlemesi için
+            setTimeout(function() {
+              navigator.serviceWorker.register(swUrl, {scope: swScope})
+                .then(function(reg) {
+                  console.log('[SW] Custom SW registered:', reg.scope);
+                })
+                .catch(function(err) {
+                  console.warn('[SW] Registration failed:', err);
+                });
+            }, 200);
+          });
+        });
+      }
+
+      // Sayfa yüklenir yüklenmez çalıştır (load event'ini bekleme)
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', cleanAndRegister);
+      } else {
+        cleanAndRegister();
+      }
+    })();
+  </script>
+
+  <!-- ================================================================= -->
+  <!-- A2HS Install Banner (PWA Kurulum İstemi)                         -->
+  <!-- beforeinstallprompt event'ini yakalar, kullanıcıya kurulum teklif  -->
+  <!-- eder. Sadece PWA kurulabilir olduğunda görünür.                    -->
+  <!-- ================================================================= -->
+  <div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#1A2A3A;color:#fff;padding:14px 16px;font-family:Roboto,sans-serif;font-size:14px;box-shadow:0 -2px 8px rgba(0,0,0,0.4);">
+    <div style="display:flex;align-items:center;justify-content:space-between;max-width:600px;margin:0 auto;">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;">📲</span>
+        <span>Uygulamayı ana ekrana ekle</span>
+      </span>
+      <div style="display:flex;gap:8px;">
+        <button id="install-dismiss-btn" style="background:transparent;color:#90A4AE;border:1px solid #546E7A;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;">Sonra</button>
+        <button id="install-accept-btn" style="background:#1565C0;color:#fff;border:none;border-radius:6px;padding:6px 16px;font-weight:600;cursor:pointer;font-size:13px;">Kur</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var installBanner = document.getElementById('install-banner');
+      var acceptBtn = document.getElementById('install-accept-btn');
+      var dismissBtn = document.getElementById('install-dismiss-btn');
+      var deferredPrompt = null;
+
+      // beforeinstallprompt event'ini yakala
+      window.addEventListener('beforeinstallprompt', function(e) {
+        // Tarayıcının varsayılan mini info-bar'ını engelle
+        e.preventDefault();
+        // Event'i sakla, sonra kullan
+        deferredPrompt = e;
+        // Özel kurulum banner'ını göster
+        installBanner.style.display = 'block';
+      });
+
+      // Kurulum başarılı olduğunda banner'ı gizle
+      window.addEventListener('appinstalled', function() {
+        installBanner.style.display = 'none';
+        deferredPrompt = null;
+        console.log('PWA başarıyla kuruldu.');
+      });
+
+      // Kur butonu
+      acceptBtn.addEventListener('click', function() {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(result) {
+          console.log('Kullanıcı seçimi:', result.outcome);
+          deferredPrompt = null;
+          installBanner.style.display = 'none';
+        });
+      });
+
+      // Sonra butonu
+      dismissBtn.addEventListener('click', function() {
+        installBanner.style.display = 'none';
+      });
+    })();
+  </script>
+
+  <!-- ================================================================= -->
+  <!-- Performance Metrics Observer (FCP / LCP / TTI)                    -->
+  <!-- Düşük donanımlı cihazlarda performans regresyonunu izlemek için.   -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      if (!('PerformanceObserver' in window)) return;
+
+      try {
+        // First Contentful Paint
+        var fcpObserver = new PerformanceObserver(function(list) {
+          var entries = list.getEntries();
+          if (entries.length > 0) {
+            var fcp = entries[entries.length - 1];
+            console.log('[Perf] FCP:', (fcp.startTime / 1000).toFixed(2) + 's');
+          }
+        });
+        fcpObserver.observe({type: 'paint', buffered: true});
+
+        // Largest Contentful Paint
+        var lcpObserver = new PerformanceObserver(function(list) {
+          var entries = list.getEntries();
+          if (entries.length > 0) {
+            var lcp = entries[entries.length - 1];
+            console.log('[Perf] LCP:', (lcp.startTime / 1000).toFixed(2) + 's');
+          }
+        });
+        lcpObserver.observe({type: 'largest-contentful-paint', buffered: true});
+
+        // Time to Interactive (yaklaşık: 5 saniyelik sessiz pencereden sonra)
+        var ttiTimeout;
+        var lastLongTask = performance.now();
+        var longTaskObserver = new PerformanceObserver(function(list) {
+          var entries = list.getEntries();
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].duration > 50) {
+              lastLongTask = Math.max(lastLongTask, entries[i].startTime + entries[i].duration);
+            }
+          }
+          clearTimeout(ttiTimeout);
+          ttiTimeout = setTimeout(function() {
+            var tti = lastLongTask;
+            if (tti > 0) {
+              console.log('[Perf] TTI:', (tti / 1000).toFixed(2) + 's');
+            }
+          }, 5000);
+        });
+        longTaskObserver.observe({type: 'longtask', buffered: true});
+
+        // Toplam yükleme süresi
+        window.addEventListener('load', function() {
+          var timing = performance.getEntriesByType('navigation')[0];
+          if (timing) {
+            console.log('[Perf] Page Load:', (timing.loadEventEnd / 1000).toFixed(2) + 's');
+            console.log('[Perf] DOM Ready:', (timing.domContentLoadedEventEnd / 1000).toFixed(2) + 's');
+          }
+        });
+
+        // Bellek kullanımı (Chrome only)
+        if (performance.memory) {
+          setInterval(function() {
+            var mem = performance.memory;
+            console.log('[Perf] JS Heap:', (mem.usedJSHeapSize / 1048576).toFixed(1) + 'MB /',
+                        (mem.totalJSHeapSize / 1048576).toFixed(1) + 'MB');
+          }, 30000); // Her 30 saniyede bir log
+        }
+      } catch (e) {
+        console.warn('[Perf] Metrics observer failed:', e);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+    "name": "Ratel Solutions FSM",
+    "short_name": "Ratel FSM",
+    "lang": "tr",
+    "dir": "ltr",
+    "start_url": "/takipversie1/",
+    "scope": "/takipversie1/",
+    "id": "/takipversie1/",
+    "display": "standalone",
+    "display_override": ["standalone", "minimal-ui"],
+    "background_color": "#0D1B2A",
+    "theme_color": "#0D1B2A",
+    "description": "Ratel Solutions Field Service Management",
+    "orientation": "any",
+    "prefer_related_applications": false,
+    "categories": ["business", "productivity"],
+    "screenshots": [
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "Dashboard"
+        }
+    ],
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
