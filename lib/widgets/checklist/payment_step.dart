@@ -155,39 +155,40 @@ class _PaymentStepState extends ConsumerState<PaymentStep> {
               final isHighlighted = _selectedAmount == amount || isMatchingJobFee;
 
               return GestureDetector(
-              onTap: hasAmountQr || hasQr ? () => _showQrDialog(amount) : null,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isHighlighted
-                      ? Colors.green.withOpacity(0.2)
-                      : Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isHighlighted ? Colors.green : const Color(0xFF37474F),
-                    width: isHighlighted ? 2 : 1,
+                onTap: hasAmountQr || hasQr ? () => _showQrDialog(amount) : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isHighlighted
+                        ? Colors.green.withOpacity(0.2)
+                        : Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isHighlighted ? Colors.green : const Color(0xFF37474F),
+                      width: isHighlighted ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isMatchingJobFee && jobFee != null)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 6),
+                          child: Icon(Icons.assignment, size: 16, color: Colors.green),
+                        ),
+                      Text(
+                        '${amount.toStringAsFixed(0)} €',
+                        style: TextStyle(
+                          color: isHighlighted ? Colors.green : Theme.of(context).colorScheme.onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isMatchingJobFee && jobFee != null)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 6),
-                        child: Icon(Icons.assignment, size: 16, color: Colors.green),
-                      ),
-                    Text(
-                      '${amount.toStringAsFixed(0)} €',
-                      style: TextStyle(
-                        color: isHighlighted ? Colors.green : Theme.of(context).colorScheme.onSurface,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
+              );
+            }).toList(),
           ),
           const SizedBox(height: 16),
         ],

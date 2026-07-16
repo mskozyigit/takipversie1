@@ -283,6 +283,7 @@
   "qr_not_loaded": "QR-code nog niet geladen",
   "template_select_title": "Selecteer Sjabloon",
   "template_select_subtitle": "Het geselecteerde sjabloon vult de formuliervelden in.",
+  "template_select_hint": "Selecteer een sjabloon...",
   "template_desc_extras": "Extra Blok",
   "image_added": "Afbeelding toegevoegd",
   "qr_code_add_tooltip": "QR-code Toevoegen",

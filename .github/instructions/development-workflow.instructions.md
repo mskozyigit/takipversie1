@@ -54,6 +54,45 @@ Küçük düzeltmeler, refactor, tek dosya değişikliklerinde:
 ### Tam QA (Modül/Özellik tamamlandığında)
 Yeni bir modül, ekran veya feature tamamlandığında 10 kategorinin tamamı uygulanır.
 
+# PRE-COMMIT CHECKLIST (ZORUNLU)
+
+Her commit öncesinde aşağıdakileri ÇALIŞTIR ve HEPSİNİN BAŞARILI olduğunu DOĞRULA:
+
+```bash
+# 1. Statik analiz — errors OLMAMALI (info/warning tolere edilebilir)
+flutter analyze --no-fatal-infos --no-fatal-warnings
+# Exit code 0 olmalı!
+
+# 2. Testler — hepsi geçmeli
+flutter test --no-pub
+# All tests passed!
+```
+
+**KURAL**: `flutter analyze` exit code != 0 ise KESİNLİKLE commit atma. CI zaten aynı kontrolü yapacak ve FAIL edecek.
+
+## Sık Yapılan Hatalar (Anti-Patterns)
+
+Bu hatalar `flutter analyze` tarafından yakalanır. Commit öncesi analyze yaparak yakalanmaları gerekir:
+
+1. **`const` widget içinde metod çağrısı**: `l10n.translate()` gibi runtime metodlar `const` context'te çalışmaz.
+   - ❌ `child: const Center(child: Text(l10n.translate('key')))`
+   - ✅ `child: Center(child: Text(l10n.translate('key')))`
+
+2. **`l10n` değişkeni scope dışında**: `build()` içinde tanımlanan `l10n` metodlarda görünmez.
+   - ❌ `build()` içinde `final l10n = ...;` yapıp `_uploadQr()` içinde kullanmak
+   - ✅ Her metodda `final l10n = ref.read(translationProvider.notifier);` tekrar oku
+
+3. **`.map()` → `Iterable` değil `List`**: `.map()` `Iterable` döner, `List` bekleyen yerlere `.toList()` ekle.
+   - ❌ `children: items.map((e) => Widget)`
+   - ✅ `children: items.map((e) => Widget).toList()`
+
+4. **Widget constructor'ı kapatmayı unutma**: Her `Widget(` için karşılık gelen `)` olduğundan emin ol.
+   - Çok katmanlı widget ağaçlarında bracket eşleşmesini kontrol et
+
+5. **`Map<String, bool>` null atama**: Map value type'ı non-nullable ise null atayamazsın.
+   - ❌ `Map<String, bool> map; map[key] = null;`
+   - ✅ `Map<String, bool?> map; map[key] = null;`
+
 # TEST EXECUTION & REPORTING
 
 ## 1. Otomasyon

@@ -290,6 +290,7 @@
   "qr_not_loaded": "Henüz QR kod yüklenmedi",
   "template_select_title": "Şablon Seç",
   "template_select_subtitle": "Seçilen şablon form alanlarını dolduracaktır.",
+  "template_select_hint": "Bir şablon seçin...",
   "template_desc_extras": "Ek Blok",
   "image_added": "Resim eklendi",
   "qr_code_add_tooltip": "QR Kod Ekle",

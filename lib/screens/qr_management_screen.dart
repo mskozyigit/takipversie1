@@ -16,7 +16,7 @@ class QrManagementScreen extends ConsumerStatefulWidget {
 
 class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
   static const _amounts = [150.0, 200.0, 250.0, 300.0];
-  final Map<String, bool> _uploading = {};
+  final Map<String, bool?> _uploading = {};
 
   @override
   Widget build(BuildContext context) {
@@ -123,12 +123,12 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: const Color(0xFF37474F)),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.qr_code, size: 32, color: Color(0xFF546E7A)),
-                              SizedBox(height: 4),
+                              const Icon(Icons.qr_code, size: 32, color: Color(0xFF546E7A)),
+                              const SizedBox(height: 4),
                               Text(l10n.translate('qr_not_uploaded'), style: const TextStyle(color: Color(0xFF546E7A), fontSize: 12)),
                             ],
                           ),
@@ -162,6 +162,7 @@ class _QrManagementScreenState extends ConsumerState<QrManagementScreen> {
   Future<void> _uploadQr(double amount, String key) async {
     final org = ref.read(currentOrganizationProvider).value;
     if (org == null) return;
+    final l10n = ref.read(translationProvider.notifier);
 
     setState(() => _uploading[key] = true);
     try {

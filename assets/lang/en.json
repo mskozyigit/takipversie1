@@ -290,6 +290,7 @@
   "qr_not_loaded": "QR code not loaded yet",
   "template_select_title": "Select Template",
   "template_select_subtitle": "The selected template will fill the form fields.",
+  "template_select_hint": "Select a template...",
   "template_desc_extras": "Extra Block",
   "image_added": "Image added",
   "qr_code_add_tooltip": "Add QR Code",
